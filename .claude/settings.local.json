@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "WebFetch(domain:raw.githubusercontent.com)"
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(xxd \"C:/Users/tomas/dev/personal/utn/desarrollo/README.md\")"
     ]
   }
 }
