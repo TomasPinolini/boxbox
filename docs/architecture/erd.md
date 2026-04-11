@@ -1,0 +1,244 @@
+# BoxBox — Entity Relationship Diagram
+
+Source of truth: [`docs/data-model.mmd`](../data-model.mmd)
+
+```mermaid
+erDiagram
+    User {
+        int id PK
+        string email UK
+        string password
+        string name
+        string avatarUrl
+        enum role "ADMIN | USER"
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    Driver {
+        int id PK
+        string firstName
+        string lastName
+        int number
+        string code "VER, NOR..."
+        string headshotUrl
+        string externalId UK
+        datetime createdAt
+        datetime updatedAt
+        datetime deletedAt
+    }
+
+    Constructor {
+        int id PK
+        string name
+        string color
+        string logoUrl
+        string externalId UK
+        datetime createdAt
+        datetime updatedAt
+        datetime deletedAt
+    }
+
+    Circuit {
+        int id PK
+        string name
+        string country
+        string city
+        float circuitLength
+        string externalId UK
+        datetime createdAt
+        datetime updatedAt
+        datetime deletedAt
+    }
+
+    Season {
+        int id PK
+        int year UK
+        boolean isActive
+        int driverCount
+        datetime createdAt
+    }
+
+    DriverSeason {
+        int id PK
+        int driverId FK
+        int constructorId FK
+        int seasonId FK
+    }
+
+    Race {
+        int id PK
+        string name
+        int round
+        datetime date
+        datetime qualifyingDate
+        datetime sprintDate
+        datetime lockDate
+        int seasonId FK
+        int circuitId FK
+        enum status "UPCOMING | QUALIFYING_LOCKED | COMPLETED | CANCELLED | POSTPONED"
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    League {
+        int id PK
+        string name
+        string inviteCode UK
+        int maxMembers "default 11"
+        int seasonId FK
+        int createdById FK
+        enum draftStatus "PENDING | LIVE | COMPLETED"
+        enum status "ACTIVE | ARCHIVED | CANCELLED"
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    LeagueMember {
+        int id PK
+        int leagueId FK
+        int userId FK
+        boolean isOwner
+        enum status "ACTIVE | LEFT | KICKED"
+        datetime joinedAt
+    }
+
+    FantasyTeam {
+        int id PK
+        int leagueMemberId FK "UK - 1:1"
+        int driver1Id FK
+        int driver2Id FK
+        int reserveDriverId FK
+        int constructorId FK
+        datetime createdAt
+    }
+
+    DraftPick {
+        int id PK
+        int leagueId FK
+        int leagueMemberId FK
+        int pickNumber
+        int round "1-4"
+        int driverId FK "nullable"
+        int constructorId FK "nullable"
+        datetime pickedAt
+    }
+
+    DriverSwap {
+        int id PK
+        int fantasyTeamId FK
+        int raceId FK
+        enum slot "DRIVER_1 | DRIVER_2"
+        int droppedDriverId FK
+        int activatedDriverId FK
+        enum type "MANUAL | AUTO_DNF"
+        datetime createdAt
+    }
+
+    RaceResult {
+        int id PK
+        int raceId FK
+        int driverId FK
+        int position
+        int points
+        int gridPosition
+        boolean fastestLap
+        enum status "CLASSIFIED | DNF | DSQ | DNS"
+        string externalId
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    ConstructorResult {
+        int id PK
+        int raceId FK
+        int constructorId FK
+        int driver1Points
+        int driver2Points
+        int totalPoints
+    }
+
+    Prediction {
+        int id PK
+        int leagueMemberId FK
+        int raceId FK
+        int predictedWinnerId FK
+        int predictedPoleId FK
+        int predictedTopConstructorId FK
+        boolean winnerCorrect "nullable"
+        boolean poleCorrect "nullable"
+        boolean topConstructorCorrect "nullable"
+        int bonusPoints "nullable"
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    LeagueStanding {
+        int id PK
+        int leagueMemberId FK
+        int raceId FK
+        int driverPoints
+        int constructorPoints
+        int predictionPoints
+        int totalPoints
+        int position
+        int positionChange
+        datetime createdAt
+    }
+
+    SyncLog {
+        int id PK
+        enum type "DRIVERS | CONSTRUCTORS | CIRCUITS | RACES | RESULTS"
+        enum status "SUCCESS | PARTIAL | FAILED"
+        int recordsCreated
+        int recordsUpdated
+        int recordsSkipped
+        string error "nullable"
+        int triggeredById FK
+        datetime createdAt
+    }
+
+    %% Relationships
+
+    User ||--o{ LeagueMember : "joins leagues"
+    User ||--o{ League : "creates"
+    User ||--o{ SyncLog : "triggers"
+
+    Driver ||--o{ DriverSeason : "plays in"
+    Constructor ||--o{ DriverSeason : "has"
+    Season ||--o{ DriverSeason : "contains"
+
+    Season ||--o{ Race : "has"
+    Circuit ||--o{ Race : "hosts"
+    Season ||--o{ League : "belongs to"
+
+    League ||--o{ LeagueMember : "has"
+    League ||--o{ DraftPick : "has"
+
+    LeagueMember ||--|| FantasyTeam : "owns"
+    LeagueMember ||--o{ DraftPick : "makes"
+    LeagueMember ||--o{ Prediction : "makes"
+    LeagueMember ||--o{ LeagueStanding : "has"
+
+    FantasyTeam ||--o{ DriverSwap : "has"
+    FantasyTeam }o--|| Driver : "driver1"
+    FantasyTeam }o--|| Driver : "driver2"
+    FantasyTeam }o--|| Driver : "reserve"
+    FantasyTeam }o--|| Constructor : "picks"
+
+    DraftPick }o--o| Driver : "picks driver"
+    DraftPick }o--o| Constructor : "picks constructor"
+
+    Race ||--o{ RaceResult : "has"
+    Race ||--o{ ConstructorResult : "has"
+    Race ||--o{ DriverSwap : "for"
+    Race ||--o{ Prediction : "for"
+    Race ||--o{ LeagueStanding : "snapshot at"
+
+    Driver ||--o{ RaceResult : "has"
+    Constructor ||--o{ ConstructorResult : "has"
+
+    Prediction }o--|| Driver : "predicted winner"
+    Prediction }o--|| Driver : "predicted pole"
+    Prediction }o--|| Constructor : "predicted top team"
+```

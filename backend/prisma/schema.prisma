@@ -1,0 +1,394 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Enums ───────────────────────────────────────────────
+
+enum Role {
+  ADMIN
+  USER
+}
+
+enum RaceStatus {
+  UPCOMING
+  QUALIFYING_LOCKED
+  COMPLETED
+  CANCELLED
+  POSTPONED
+}
+
+enum DraftStatus {
+  PENDING
+  LIVE
+  COMPLETED
+}
+
+enum LeagueStatus {
+  ACTIVE
+  ARCHIVED
+  CANCELLED
+}
+
+enum MemberStatus {
+  ACTIVE
+  LEFT
+  KICKED
+}
+
+enum SwapSlot {
+  DRIVER_1
+  DRIVER_2
+}
+
+enum SwapType {
+  MANUAL
+  AUTO_DNF
+}
+
+enum RaceResultStatus {
+  CLASSIFIED
+  DNF
+  DSQ
+  DNS
+}
+
+enum SyncType {
+  DRIVERS
+  CONSTRUCTORS
+  CIRCUITS
+  RACES
+  RESULTS
+}
+
+enum SyncStatus {
+  SUCCESS
+  PARTIAL
+  FAILED
+}
+
+// ─── Models ──────────────────────────────────────────────
+
+model User {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  password  String
+  name      String
+  avatarUrl String?
+  role      Role     @default(USER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  leagues  League[]
+  members  LeagueMember[]
+  syncLogs SyncLog[]
+
+  @@map("users")
+}
+
+model Driver {
+  id          Int       @id @default(autoincrement())
+  firstName   String
+  lastName    String
+  number      Int
+  code        String // VER, NOR, etc.
+  headshotUrl String?
+  externalId  String    @unique
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  seasons     DriverSeason[]
+  raceResults RaceResult[]
+  teamsAsD1   FantasyTeam[]  @relation("Driver1")
+  teamsAsD2   FantasyTeam[]  @relation("Driver2")
+  teamsAsRes  FantasyTeam[]  @relation("ReserveDriver")
+  draftsAsPick DraftPick[]
+  predictedWinner Prediction[] @relation("PredictedWinner")
+  predictedPole   Prediction[] @relation("PredictedPole")
+  swapsDropped    DriverSwap[] @relation("DroppedDriver")
+  swapsActivated  DriverSwap[] @relation("ActivatedDriver")
+
+  @@map("drivers")
+}
+
+model Constructor {
+  id         Int       @id @default(autoincrement())
+  name       String
+  color      String
+  logoUrl    String?
+  externalId String    @unique
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  deletedAt  DateTime?
+
+  seasons            DriverSeason[]
+  constructorResults ConstructorResult[]
+  teams              FantasyTeam[]
+  draftsAsPick       DraftPick[]
+  predictedTop       Prediction[] @relation("PredictedTopConstructor")
+
+  @@map("constructors")
+}
+
+model Circuit {
+  id            Int       @id @default(autoincrement())
+  name          String
+  country       String
+  city          String
+  circuitLength Float?
+  externalId    String    @unique
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+
+  races Race[]
+
+  @@map("circuits")
+}
+
+model Season {
+  id          Int      @id @default(autoincrement())
+  year        Int      @unique
+  isActive    Boolean  @default(false)
+  driverCount Int      @default(20)
+  createdAt   DateTime @default(now())
+
+  races          Race[]
+  leagues        League[]
+  driverSeasons  DriverSeason[]
+
+  @@map("seasons")
+}
+
+model DriverSeason {
+  id            Int @id @default(autoincrement())
+  driverId      Int
+  constructorId Int
+  seasonId      Int
+
+  driver      Driver      @relation(fields: [driverId], references: [id])
+  constructor Constructor @relation(fields: [constructorId], references: [id])
+  season      Season      @relation(fields: [seasonId], references: [id])
+
+  @@unique([driverId, seasonId])
+  @@map("driver_seasons")
+}
+
+model Race {
+  id              Int        @id @default(autoincrement())
+  name            String
+  round           Int
+  date            DateTime
+  qualifyingDate  DateTime?
+  sprintDate      DateTime?
+  lockDate        DateTime
+  seasonId        Int
+  circuitId       Int
+  status          RaceStatus @default(UPCOMING)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  season             Season              @relation(fields: [seasonId], references: [id])
+  circuit            Circuit             @relation(fields: [circuitId], references: [id])
+  raceResults        RaceResult[]
+  constructorResults ConstructorResult[]
+  driverSwaps        DriverSwap[]
+  predictions        Prediction[]
+  standings          LeagueStanding[]
+
+  @@unique([seasonId, round])
+  @@map("races")
+}
+
+model League {
+  id          Int          @id @default(autoincrement())
+  name        String
+  inviteCode  String       @unique
+  maxMembers  Int          @default(11)
+  seasonId    Int
+  createdById Int
+  draftStatus DraftStatus  @default(PENDING)
+  status      LeagueStatus @default(ACTIVE)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  season    Season         @relation(fields: [seasonId], references: [id])
+  createdBy User           @relation(fields: [createdById], references: [id])
+  members   LeagueMember[]
+  draftPicks DraftPick[]
+
+  @@map("leagues")
+}
+
+model LeagueMember {
+  id       Int          @id @default(autoincrement())
+  leagueId Int
+  userId   Int
+  isOwner  Boolean      @default(false)
+  status   MemberStatus @default(ACTIVE)
+  joinedAt DateTime     @default(now())
+
+  league      League           @relation(fields: [leagueId], references: [id])
+  user        User             @relation(fields: [userId], references: [id])
+  fantasyTeam FantasyTeam?
+  draftPicks  DraftPick[]
+  predictions Prediction[]
+  standings   LeagueStanding[]
+
+  @@unique([leagueId, userId])
+  @@map("league_members")
+}
+
+model FantasyTeam {
+  id              Int  @id @default(autoincrement())
+  leagueMemberId  Int  @unique
+  driver1Id       Int?
+  driver2Id       Int?
+  reserveDriverId Int?
+  constructorId   Int?
+  createdAt       DateTime @default(now())
+
+  leagueMember LeagueMember @relation(fields: [leagueMemberId], references: [id])
+  driver1      Driver?      @relation("Driver1", fields: [driver1Id], references: [id])
+  driver2      Driver?      @relation("Driver2", fields: [driver2Id], references: [id])
+  reserveDriver Driver?     @relation("ReserveDriver", fields: [reserveDriverId], references: [id])
+  constructor  Constructor? @relation(fields: [constructorId], references: [id])
+  driverSwaps  DriverSwap[]
+
+  @@map("fantasy_teams")
+}
+
+model DraftPick {
+  id             Int       @id @default(autoincrement())
+  leagueId       Int
+  leagueMemberId Int
+  pickNumber     Int
+  round          Int
+  driverId       Int?
+  constructorId  Int?
+  pickedAt       DateTime  @default(now())
+
+  league       League       @relation(fields: [leagueId], references: [id])
+  leagueMember LeagueMember @relation(fields: [leagueMemberId], references: [id])
+  driver       Driver?      @relation(fields: [driverId], references: [id])
+  constructor  Constructor? @relation(fields: [constructorId], references: [id])
+
+  @@map("draft_picks")
+}
+
+model DriverSwap {
+  id               Int      @id @default(autoincrement())
+  fantasyTeamId    Int
+  raceId           Int
+  slot             SwapSlot
+  droppedDriverId  Int
+  activatedDriverId Int
+  type             SwapType
+  createdAt        DateTime @default(now())
+
+  fantasyTeam    FantasyTeam @relation(fields: [fantasyTeamId], references: [id])
+  race           Race        @relation(fields: [raceId], references: [id])
+  droppedDriver  Driver      @relation("DroppedDriver", fields: [droppedDriverId], references: [id])
+  activatedDriver Driver     @relation("ActivatedDriver", fields: [activatedDriverId], references: [id])
+
+  @@map("driver_swaps")
+}
+
+model RaceResult {
+  id           Int              @id @default(autoincrement())
+  raceId       Int
+  driverId     Int
+  position     Int?
+  points       Int              @default(0)
+  gridPosition Int?
+  fastestLap   Boolean          @default(false)
+  status       RaceResultStatus @default(CLASSIFIED)
+  externalId   String?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  race   Race   @relation(fields: [raceId], references: [id])
+  driver Driver @relation(fields: [driverId], references: [id])
+
+  @@unique([raceId, driverId])
+  @@map("race_results")
+}
+
+model ConstructorResult {
+  id            Int @id @default(autoincrement())
+  raceId        Int
+  constructorId Int
+  driver1Points Int @default(0)
+  driver2Points Int @default(0)
+  totalPoints   Int @default(0)
+
+  race        Race        @relation(fields: [raceId], references: [id])
+  constructor Constructor @relation(fields: [constructorId], references: [id])
+
+  @@unique([raceId, constructorId])
+  @@map("constructor_results")
+}
+
+model Prediction {
+  id                       Int      @id @default(autoincrement())
+  leagueMemberId           Int
+  raceId                   Int
+  predictedWinnerId        Int?
+  predictedPoleId          Int?
+  predictedTopConstructorId Int?
+  winnerCorrect            Boolean?
+  poleCorrect              Boolean?
+  topConstructorCorrect    Boolean?
+  bonusPoints              Int?
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+
+  leagueMember          LeagueMember @relation(fields: [leagueMemberId], references: [id])
+  race                  Race         @relation(fields: [raceId], references: [id])
+  predictedWinner       Driver?      @relation("PredictedWinner", fields: [predictedWinnerId], references: [id])
+  predictedPole         Driver?      @relation("PredictedPole", fields: [predictedPoleId], references: [id])
+  predictedTopConstructor Constructor? @relation("PredictedTopConstructor", fields: [predictedTopConstructorId], references: [id])
+
+  @@unique([leagueMemberId, raceId])
+  @@map("predictions")
+}
+
+model LeagueStanding {
+  id                Int @id @default(autoincrement())
+  leagueMemberId    Int
+  raceId            Int
+  driverPoints      Int @default(0)
+  constructorPoints Int @default(0)
+  predictionPoints  Int @default(0)
+  totalPoints       Int @default(0)
+  position          Int
+  positionChange    Int @default(0)
+  createdAt         DateTime @default(now())
+
+  leagueMember LeagueMember @relation(fields: [leagueMemberId], references: [id])
+  race         Race         @relation(fields: [raceId], references: [id])
+
+  @@unique([leagueMemberId, raceId])
+  @@map("league_standings")
+}
+
+model SyncLog {
+  id             Int        @id @default(autoincrement())
+  type           SyncType
+  status         SyncStatus
+  recordsCreated Int        @default(0)
+  recordsUpdated Int        @default(0)
+  recordsSkipped Int        @default(0)
+  error          String?
+  triggeredById  Int?
+  createdAt      DateTime   @default(now())
+
+  triggeredBy User? @relation(fields: [triggeredById], references: [id])
+
+  @@map("sync_logs")
+}
