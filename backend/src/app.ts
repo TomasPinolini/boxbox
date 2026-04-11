@@ -2,6 +2,8 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import { env } from './config/env';
+import { errorHandler } from './middleware/error-handler';
+import driversRoutes from './modules/drivers/drivers.routes';
 
 const app = express();
 
@@ -18,5 +20,11 @@ app.use(express.json());
 app.get('/api/v1/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
+
+// Routes
+app.use('/api/v1/drivers', driversRoutes);
+
+// Error handler — must be registered AFTER all routes
+app.use(errorHandler);
 
 export default app;
