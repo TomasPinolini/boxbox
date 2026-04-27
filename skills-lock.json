@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "skills": {
+    "coding-tutor": {
+      "source": "everyinc/compound-engineering-plugin",
+      "sourceType": "github",
+      "computedHash": "2094e4cb7f1d9d7306f72ba6f4c90d42d030b3fd1cac0a8b385bf8e39c0f5b5c"
+    }
+  }
+}
