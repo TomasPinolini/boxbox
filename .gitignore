@@ -34,3 +34,5 @@ npm-debug.log*
 
 # Prisma
 /backend/src/generated/prisma
+
+.claude/settings.local.json
