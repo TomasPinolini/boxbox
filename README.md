@@ -17,15 +17,15 @@ BoxBox es una aplicación web de Fantasy League de Fórmula 1. Los usuarios crea
 
 ## Stack Técnico
 
-| Capa | Tecnología |
-|------|-----------|
-| Frontend | React + TypeScript + Tailwind CSS |
-| Backend | Express + TypeScript |
-| Base de datos | PostgreSQL + Prisma ORM |
-| WebSocket | Socket.io (draft en vivo) |
-| Testing | Vitest + Playwright |
-| Deploy | Vercel (frontend) + Railway (backend + DB) |
-| APIs externas | Jolpica-F1 + OpenF1 |
+| Capa          | Tecnología                                 |
+| ------------- | ------------------------------------------ |
+| Frontend      | React + TypeScript + Tailwind CSS          |
+| Backend       | Express + TypeScript                       |
+| Base de datos | PostgreSQL + Prisma ORM                    |
+| WebSocket     | Socket.io (draft en vivo)                  |
+| Testing       | Vitest + Playwright                        |
+| Deploy        | Vercel (frontend) + Railway (backend + DB) |
+| APIs externas | Jolpica-F1 + OpenF1                        |
 
 ## Instalación
 
@@ -75,10 +75,10 @@ La documentación del proyecto se encuentra en el directorio [`/docs`](./docs/):
 
 ## Integrantes
 
-| Legajo | Nombre |
-|--------|--------|
-| XXXXX | Apellido(s), Nombre(s) |
-| XXXXX | Apellido(s), Nombre(s) |
+| Legajo | Nombre                 |
+| ------ | ---------------------- |
+| XXXXX  | Apellido(s), Nombre(s) |
+| XXXXX  | Apellido(s), Nombre(s) |
 
 ## Gestión del Proyecto
 

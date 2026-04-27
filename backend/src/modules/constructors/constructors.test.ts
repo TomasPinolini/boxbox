@@ -18,12 +18,14 @@ describe('GET /api/v1/constructors', () => {
 
   it('returns all non-deleted constructors', async () => {
     await request(app).post('/api/v1/constructors').send(validConstructor);
-    await request(app).post('/api/v1/constructors').send({
-      ...validConstructor,
-      name: 'Ferrari',
-      color: '#DC0000',
-      externalId: 'ferrari',
-    });
+    await request(app)
+      .post('/api/v1/constructors')
+      .send({
+        ...validConstructor,
+        name: 'Ferrari',
+        color: '#DC0000',
+        externalId: 'ferrari',
+      });
 
     const res = await request(app).get('/api/v1/constructors');
 
@@ -64,9 +66,7 @@ describe('POST /api/v1/constructors', () => {
   });
 
   it('rejects request with missing required fields', async () => {
-    const res = await request(app)
-      .post('/api/v1/constructors')
-      .send({ name: 'McLaren' });
+    const res = await request(app).post('/api/v1/constructors').send({ name: 'McLaren' });
 
     expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('VALIDATION_ERROR');
@@ -88,9 +88,7 @@ describe('PATCH /api/v1/constructors/:id', () => {
     const created = await request(app).post('/api/v1/constructors').send(validConstructor);
     const id = created.body.data.id;
 
-    const res = await request(app)
-      .patch(`/api/v1/constructors/${id}`)
-      .send({ color: '#FF9900' });
+    const res = await request(app).patch(`/api/v1/constructors/${id}`).send({ color: '#FF9900' });
 
     expect(res.status).toBe(200);
     expect(res.body.data.color).toBe('#FF9900');
@@ -98,9 +96,7 @@ describe('PATCH /api/v1/constructors/:id', () => {
   });
 
   it('returns 404 when updating non-existent constructor', async () => {
-    const res = await request(app)
-      .patch('/api/v1/constructors/999')
-      .send({ color: '#FF9900' });
+    const res = await request(app).patch('/api/v1/constructors/999').send({ color: '#FF9900' });
 
     expect(res.status).toBe(404);
   });

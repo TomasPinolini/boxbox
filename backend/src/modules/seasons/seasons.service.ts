@@ -47,10 +47,7 @@ export async function remove(id: number) {
 
   const activeLeagues = await prisma.league.count({ where: { seasonId: id } });
   if (activeLeagues > 0) {
-    throw new ConflictError(
-      'Cannot delete season with active leagues',
-      'SEASON_HAS_DEPENDENCIES',
-    );
+    throw new ConflictError('Cannot delete season with active leagues', 'SEASON_HAS_DEPENDENCIES');
   }
 
   return prisma.season.delete({ where: { id } });

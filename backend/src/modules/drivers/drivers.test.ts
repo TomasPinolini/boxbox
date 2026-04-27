@@ -21,14 +21,16 @@ describe('GET /api/v1/drivers', () => {
   it('returns all non-deleted drivers', async () => {
     // Create two drivers
     await request(app).post('/api/v1/drivers').send(validDriver);
-    await request(app).post('/api/v1/drivers').send({
-      ...validDriver,
-      firstName: 'Lando',
-      lastName: 'Norris',
-      number: 4,
-      code: 'NOR',
-      externalId: 'norris',
-    });
+    await request(app)
+      .post('/api/v1/drivers')
+      .send({
+        ...validDriver,
+        firstName: 'Lando',
+        lastName: 'Norris',
+        number: 4,
+        code: 'NOR',
+        externalId: 'norris',
+      });
 
     const res = await request(app).get('/api/v1/drivers');
 
@@ -73,9 +75,7 @@ describe('POST /api/v1/drivers', () => {
   });
 
   it('rejects request with missing required fields', async () => {
-    const res = await request(app)
-      .post('/api/v1/drivers')
-      .send({ firstName: 'Max' });
+    const res = await request(app).post('/api/v1/drivers').send({ firstName: 'Max' });
 
     expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('VALIDATION_ERROR');
@@ -98,9 +98,7 @@ describe('PATCH /api/v1/drivers/:id', () => {
     const created = await request(app).post('/api/v1/drivers').send(validDriver);
     const id = created.body.data.id;
 
-    const res = await request(app)
-      .patch(`/api/v1/drivers/${id}`)
-      .send({ number: 33 });
+    const res = await request(app).patch(`/api/v1/drivers/${id}`).send({ number: 33 });
 
     expect(res.status).toBe(200);
     expect(res.body.data.number).toBe(33);
@@ -108,9 +106,7 @@ describe('PATCH /api/v1/drivers/:id', () => {
   });
 
   it('returns 404 when updating non-existent driver', async () => {
-    const res = await request(app)
-      .patch('/api/v1/drivers/999')
-      .send({ number: 33 });
+    const res = await request(app).patch('/api/v1/drivers/999').send({ number: 33 });
 
     expect(res.status).toBe(404);
   });

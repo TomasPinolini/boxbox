@@ -77,28 +77,34 @@ describe('POST /api/v1/races', () => {
   });
 
   it('rejects when season does not exist', async () => {
-    const res = await request(app).post('/api/v1/races').send({
-      ...validRace(),
-      seasonId: 9999,
-    });
+    const res = await request(app)
+      .post('/api/v1/races')
+      .send({
+        ...validRace(),
+        seasonId: 9999,
+      });
     expect(res.status).toBe(404);
   });
 
   it('rejects when circuit does not exist', async () => {
-    const res = await request(app).post('/api/v1/races').send({
-      ...validRace(),
-      circuitId: 9999,
-    });
+    const res = await request(app)
+      .post('/api/v1/races')
+      .send({
+        ...validRace(),
+        circuitId: 9999,
+      });
     expect(res.status).toBe(404);
   });
 
   it('rejects duplicate round in same season', async () => {
     await request(app).post('/api/v1/races').send(validRace());
 
-    const res = await request(app).post('/api/v1/races').send({
-      ...validRace(),
-      name: 'Another GP',
-    });
+    const res = await request(app)
+      .post('/api/v1/races')
+      .send({
+        ...validRace(),
+        name: 'Another GP',
+      });
     expect(res.status).toBe(409);
     expect(res.body.error.code).toBe('RACE_ROUND_DUPLICATE');
   });

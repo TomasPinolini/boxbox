@@ -19,13 +19,15 @@ describe('GET /api/v1/circuits', () => {
 
   it('returns all non-deleted circuits', async () => {
     await request(app).post('/api/v1/circuits').send(validCircuit);
-    await request(app).post('/api/v1/circuits').send({
-      ...validCircuit,
-      name: 'Monza',
-      country: 'Italy',
-      city: 'Monza',
-      externalId: 'monza',
-    });
+    await request(app)
+      .post('/api/v1/circuits')
+      .send({
+        ...validCircuit,
+        name: 'Monza',
+        country: 'Italy',
+        city: 'Monza',
+        externalId: 'monza',
+      });
 
     const res = await request(app).get('/api/v1/circuits');
     expect(res.status).toBe(200);

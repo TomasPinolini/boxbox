@@ -48,10 +48,7 @@ export async function softDelete(id: number) {
   });
 
   if (activeRaces > 0) {
-    throw new ConflictError(
-      'Cannot delete circuit with active races',
-      'CIRCUIT_HAS_DEPENDENCIES',
-    );
+    throw new ConflictError('Cannot delete circuit with active races', 'CIRCUIT_HAS_DEPENDENCIES');
   }
 
   return prisma.circuit.update({
