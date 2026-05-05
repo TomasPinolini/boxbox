@@ -8,6 +8,7 @@ import constructorsRoutes from './modules/constructors/constructors.routes';
 import circuitsRoutes from './modules/circuits/circuits.routes';
 import seasonsRoutes from './modules/seasons/seasons.routes';
 import racesRoutes from './modules/races/races.routes';
+import leaguesRoutes from './modules/leagues/leagues.routes';
 
 const app = express();
 
@@ -31,6 +32,7 @@ app.use('/api/v1/constructors', constructorsRoutes);
 app.use('/api/v1/circuits', circuitsRoutes);
 app.use('/api/v1/seasons', seasonsRoutes);
 app.use('/api/v1/races', racesRoutes);
+app.use('/api/v1/leagues', leaguesRoutes);
 
 // Error handler — must be registered AFTER all routes
 app.use(errorHandler);

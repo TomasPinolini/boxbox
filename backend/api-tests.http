@@ -1,0 +1,135 @@
+### Variables
+@host = http://localhost:3000/api/v1
+
+### Health check — sanity
+GET {{host}}/health
+
+
+### 1. Crear driver — Franco Colapinto
+# Esperado: 201 Created, body con el driver creado (incluye id auto-generado)
+# Anotá el id que devuelve para usarlo en el request 3 y 4.
+POST {{host}}/drivers
+Content-Type: application/json
+
+{
+  "firstName": "Franco",
+  "lastName": "Colapinto",
+  "number": 43,
+  "code": "COL",
+  "externalId": "colapinto"
+}
+
+
+### 2. Listar drivers — debería incluir a Colapinto
+# Esperado: 200 OK, { "data": [ ... ] } con al menos 1 driver
+GET {{host}}/drivers
+
+
+### 3. Borrar driver — soft delete
+# Reemplazá <ID> por el id que devolvió el request 1
+# Esperado: 204 No Content (sin body)
+DELETE {{host}}/drivers/58
+
+
+### 4. Confirmar borrado — debería devolver 404
+# Reemplazá <ID> por el mismo id del paso anterior
+# Esperado: 404 Not Found, { "error": { "code": "DRIVER_NOT_FOUND", ... } }
+GET {{host}}/drivers/58
+
+
+### Bonus: probar validación — body inválido (sin firstName)
+# Esperado: 400 Bad Request con error code "VALIDATION_ERROR" y details
+POST {{host}}/drivers
+Content-Type: application/json
+
+{
+  "lastName": "Sin nombre",
+  "number": 99,
+  "code": "FAIL",
+  "externalId": "test-validation"
+}
+
+
+### ─── LEAGUES (in-memory) ─────────────────────────────────────
+
+### L1. Listar leagues — debería estar vacío
+# Esperado: 200 OK, { "data": [] }
+GET {{host}}/leagues
+
+
+### L2. Crear liga — BoxBox 2026
+# Esperado: 201 Created, body con la league creada (id: 1)
+POST {{host}}/leagues
+Content-Type: application/json
+
+{
+  "name": "BoxBox 2026",
+  "inviteCode": "BB26",
+  "maxMembers": 11,
+  "status": "ACTIVE"
+}
+
+
+### L3. Crear segunda liga
+# Esperado: 201 Created, id: 2
+POST {{host}}/leagues
+Content-Type: application/json
+
+{
+  "name": "Liga UTN",
+  "inviteCode": "UTN01",
+  "maxMembers": 5,
+  "status": "ACTIVE"
+}
+
+
+### L4. Listar leagues — debería tener 2
+# Esperado: 200 OK, { "data": [ ...2 ligas... ] }
+GET {{host}}/leagues
+
+
+### L5. Traer liga por id
+# Esperado: 200 OK, la liga con id 1
+GET {{host}}/leagues/1
+
+
+### L6. Traer liga inexistente
+# Esperado: 404 Not Found, { "error": "League not found" }
+GET {{host}}/leagues/999
+
+
+### L7. Actualizar liga — cambiar nombre
+# Esperado: 200 OK, la liga con el nombre actualizado
+PATCH {{host}}/leagues/1
+Content-Type: application/json
+
+{
+  "name": "BoxBox 2026 — Temporada oficial"
+}
+
+
+### L8. Borrar liga
+# Esperado: 204 No Content (sin body)
+DELETE {{host}}/leagues/2
+
+
+### L9. Confirmar borrado — debería devolver 404
+# Esperado: 404 Not Found
+GET {{host}}/leagues/2
+
+
+### ─── LEAGUES fin ─────────────────────────────────────────────
+
+### Bonus: probar duplicado — mismo externalId que Colapinto
+# Si lo corrés DESPUÉS del request 1 y SIN haber borrado, debería ser conflict
+# Esperado: 409 Conflict con error code "DRIVER_ALREADY_EXISTS"
+POST {{host}}/drivers
+Content-Type: application/json
+
+{
+  "firstName": "Franco",
+  "lastName": "Colapinto",
+  "number": 44,
+  "code": "COL2",
+  "externalId": "colapinto"
+}
