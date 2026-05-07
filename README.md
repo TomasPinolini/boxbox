@@ -77,8 +77,8 @@ La documentación del proyecto se encuentra en el directorio [`/docs`](./docs/):
 
 | Legajo | Nombre                 |
 | ------ | ---------------------- |
-| XXXXX  | Apellido(s), Nombre(s) |
-| XXXXX  | Apellido(s), Nombre(s) |
+| 52265  | Pinolini, Tomás |
+| 51070  | Rivero, Tomás |
 
 ## Gestión del Proyecto
 
