@@ -1,5 +1,8 @@
 # Propuesta TP DSW
 
+> **Documento académico — versión congelada para entrega.**
+> El modelo y la API que aparecen acá pueden estar desactualizados respecto al estado actual del código y los docs vivos. Para referencia viva del dominio ver [`data-model.mmd`](./data-model.mmd) + [`domain-entities.md`](./domain-entities.md); para la API ver [`api-endpoints.md`](./api-endpoints.md); para qué está construido y qué falta ver [`roadmap.md`](./roadmap.md).
+
 ## Grupo
 
 ### Integrantes

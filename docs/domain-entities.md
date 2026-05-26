@@ -8,7 +8,7 @@ Descripción narrativa de las entidades del dominio de BoxBox. Complementa `data
 
 Un **Driver** representa a un piloto profesional de F1 — una persona real que compite en el campeonato. Cada piloto tiene un **número de carrera** único en el campeonato, un **código de 3 letras** que aparece en marcadores y transmisiones (ej: "VER" para Verstappen, "NOR" para Norris), y un **externalId** que lo identifica en las APIs externas (Jolpica-F1, OpenF1) para sincronizar resultados automáticamente.
 
-A lo largo de su carrera, un piloto puede correr para distintos **Constructors** en distintas **Seasons** — esa información se modela vía `DriverContract`. Por ejemplo: Hamilton corrió para McLaren (2008), Mercedes (2013-2024) y Ferrari (2025+); cada combinación es una fila distinta en `DriverContract`.
+A lo largo de su carrera, un piloto puede correr para distintos **Constructors** en distintas **Seasons** — esa información se modela vía `DriverSeason`. Por ejemplo: Hamilton corrió para McLaren (2008), Mercedes (2013-2024) y Ferrari (2025+); cada combinación es una fila distinta en `DriverSeason`.
 
 Los Drivers se **soft-deletean** (con `deletedAt`) — nunca se borran físicamente. Tienen historial de `RaceResult` apuntándoles, además de eventuales `Prediction` y `FantasyTeam` que los referencian. Si un piloto se retira, se marca como deleted y se filtra de listados activos. Si vuelve a competir (caso típico: pilotos reserva que reciben un asiento), se restaura limpiando el `deletedAt`.
 
@@ -52,7 +52,7 @@ Un **Constructor** es un equipo de F1 que compite en el campeonato — Mercedes,
 
 Los atributos relevantes son el **name** (el identificador humano del equipo), el **color** principal (usado en la UI para distinguir visualmente los equipos en tablas y gráficos) y el **externalId** que lo conecta con Jolpica-F1 para sincronizar resultados automáticamente. El `logoUrl` es display data.
 
-Un Constructor agrupa múltiples Drivers a lo largo del tiempo vía `DriverContract` — Ferrari 2024 tenía Leclerc + Sainz, Ferrari 2025 tiene Leclerc + Hamilton, pero es el mismo Constructor en el modelo. Cada carrera genera un `ConstructorResult` para ese equipo. Los usuarios lo pueden elegir en el draft (round 3) a través de `DraftPick`, y queda registrado en `FantasyTeam.constructorId`. También es el objeto de predicciones en `Prediction.predictedTopConstructorId`.
+Un Constructor agrupa múltiples Drivers a lo largo del tiempo vía `DriverSeason` — Ferrari 2024 tenía Leclerc + Sainz, Ferrari 2025 tiene Leclerc + Hamilton, pero es el mismo Constructor en el modelo. Cada carrera genera un `ConstructorResult` para ese equipo. Los usuarios lo pueden elegir en el draft (round 3) a través de `DraftPick`, y queda registrado en `FantasyTeam.constructorId`. También es el objeto de predicciones en `Prediction.predictedTopConstructorId`.
 
 Los Constructors se **soft-deletean** con `deletedAt` — si un equipo sale de la F1 o se rebrandea (Force India → Racing Point → Aston Martin), el registro histórico de resultados y contratos debe preservarse. El equipo viejo se marca como deleted; el nuevo entra como Constructor fresco.
 
@@ -76,19 +76,21 @@ Una **Season** representa un año del campeonato mundial de F1 — 2025, 2026, e
 
 El atributo más importante es **year** (único en el sistema — no puede haber dos temporadas del mismo año). El flag **isActive** indica cuál es la temporada en curso; solo puede haber una activa a la vez. El **driverCount** registra cuántos pilotos compiten en esa temporada (útil para validaciones del draft y para mostrar datos de la liga).
 
-Una Season contiene muchas `Race`s y muchas `League`s — todas las ligas se crean para una temporada específica. También agrupa los `DriverContract`s que describen qué pilotos corren para qué equipos ese año.
+Una Season contiene muchas `Race`s y muchas `League`s — todas las ligas se crean para una temporada específica. También agrupa los `DriverSeason`s que describen qué pilotos corren para qué equipos ese año.
 
 Las Seasons **no se soft-deletean** — una temporada pasada tiene datos históricos permanentes que no se invalidan. Una vez que termina, simplemente `isActive` pasa a `false` y se crea la nueva.
 
 ---
 
-## DriverContract
+## DriverSeason
 
-Un **DriverContract** representa la relación concreta entre un piloto, un equipo y una temporada — es el "contrato" de ese año. Hamilton en Mercedes 2023, Hamilton en Ferrari 2025: mismo piloto, mismo modelo de entidad, dos DriverContracts distintos.
+Un **DriverSeason** representa la combinación concreta de un piloto, un equipo y una temporada — la fila que dice "en 2025, este piloto corrió para este equipo". Hamilton en Mercedes 2023, Hamilton en Ferrari 2025: mismo piloto, mismo modelo de entidad, dos `DriverSeason`s distintos.
 
-No tiene atributos propios más allá de las tres foreign keys (`driverId`, `constructorId`, `seasonId`) — su valor está en la combinación. Esa combinación tiene un `@@unique` implícito: un piloto no puede tener dos contratos con dos equipos distintos en la misma temporada.
+No tiene atributos propios más allá de las tres foreign keys (`driverId`, `constructorId`, `seasonId`) — su valor está en la combinación. Esa combinación tiene un `@@unique([driverId, seasonId])`: un piloto no puede correr para dos equipos distintos en la misma temporada. (Mid-season replacements como Colapinto en Alpine 2024 se modelan a nivel de `RaceResult.constructorId`, no acá.)
 
-Existe porque la relación Driver ↔ Constructor **cambia con el tiempo** y ese historial importa. Sin `DriverContract`, no se podría responder "¿para qué equipo corría Verstappen en 2022?" ni armar el grid de una temporada pasada. La tabla Driver solo tiene datos fijos del piloto; la tabla Constructor solo tiene datos fijos del equipo; `DriverContract` es el puente temporal entre los dos.
+Existe porque la relación Driver ↔ Constructor **cambia con el tiempo** y ese historial importa. Sin `DriverSeason`, no se podría responder "¿para qué equipo corría Verstappen en 2022?" ni armar el grid de una temporada pasada. La tabla Driver solo tiene datos fijos del piloto; la tabla Constructor solo tiene datos fijos del equipo; `DriverSeason` es el puente temporal entre los dos.
+
+> **Nota de naming:** Esta entidad NO modela un contrato (no tiene fechas, salario, status, cláusulas). Es solo la asignación piloto×equipo para una temporada. El nombre `DriverSeason` refleja eso; evitamos `DriverContract` porque sugería semánticas que el modelo no tiene.
 
 ---
 

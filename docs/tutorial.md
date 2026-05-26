@@ -123,10 +123,15 @@ Una vez conectado, mirá `driver_seasons` — esa tabla une driver ↔ construct
 npm run dev                 # server con hot reload (http://localhost:3000)
 npm run db:migrate          # aplica migraciones nuevas
 npm run db:studio           # GUI de Prisma para inspeccionar la DB
+npm run db:generate         # regenera solo el cliente Prisma (sin tocar la DB)
 npx prisma db seed          # carga data de F1 2026 (idempotente)
-npm test                    # tests con vitest (cuidado: trunca la DB)
+npx prisma migrate reset    # ⚠️ WIPEA la DB + reaplica migrations (NO corre el seed después)
+npm test                    # tests con vitest (cuidado: trunca la DB en cada test)
 npm test -- --run           # tests sin watch mode, un solo run
-npm run lint                # eslint
+npm test -- src/modules/drivers/drivers.test.ts --run   # un archivo solo
+npm run lint                # eslint sobre src/
+npm run format              # prettier --write sobre todo el repo
+npm run format:check        # prettier --check (sin escribir)
 ```
 
 ---
@@ -148,14 +153,36 @@ Si tenés un container con Postgres en `54322:5432` (típico de Supabase local),
 **5. Caracteres especiales en el password.**
 Si tu password tiene `@`, `#`, `:`, etc., en la `DATABASE_URL` van URL-encodeados (`%40`, `%23`, `%3A`). En TablePlus poné el password decodificado, no el de la URL.
 
+**6. Agregaste una tabla y los tests filtran data entre archivos.**
+Si tu PR agrega una tabla nueva al schema, agregala también al `TRUNCATE ... CASCADE` en [`backend/src/tests/setup.ts`](../backend/src/tests/setup.ts), respetando el orden FK-safe (hijos primero, padres después). Sin esto, los tests filtran state y vas a ver fallos intermitentes random. Documentado en [`recipes/add-a-module.md`](./recipes/add-a-module.md).
+
 ---
 
 ## Próximos pasos
 
-Una vez que veas la data en TablePlus, leé:
+Una vez que veas la data en TablePlus, entrá por la puerta principal de la documentación:
 
-- `CLAUDE.md` (raíz) — convenciones del proyecto, arquitectura del backend, request lifecycle.
-- `docs/api-endpoints.md` — endpoints planeados.
-- `docs/data-model.mmd` — diagrama ER del dominio.
+**[`docs/README.md`](./README.md)** — el índice que te orienta según qué querés hacer (onboarding / construir feature). Te va a ir mandando a los siguientes archivos:
 
-Después de eso ya podés tomar un ticket.
+- [`docs/glossary.md`](./glossary.md) — términos del dominio (LeagueMember vs User, snake draft, lockDate, etc.). Léelo antes de tocar código.
+- [`docs/data-model.mmd`](./data-model.mmd) — diagrama ER completo. Abrilo con la extensión Mermaid de VS Code o en [mermaid.live](https://mermaid.live).
+- [`docs/domain-entities.md`](./domain-entities.md) — narrativa: qué representa cada entidad, ciclo de vida, por qué existe.
+- [`docs/api-endpoints.md`](./api-endpoints.md) — endpoints (con tags `[✅ shipped]` / `[🚧 planned]` / `[🔒 outlier]`).
+- [`docs/roadmap.md`](./roadmap.md) — slices ordenadas por dependencia; acá encontrás qué falta construir y cuál tomar.
+- [`docs/recipes/add-a-module.md`](./recipes/add-a-module.md) — receta paso a paso para agregar un módulo nuevo (la mayoría de los slices del roadmap son módulos nuevos).
+- [`docs/adr/`](./adr/) — decisiones cerradas (por qué Prisma y no MikroORM, por qué no Repository pattern, etc.). Leelas cuando una decisión te parezca rara.
+- [`CLAUDE.md`](../CLAUDE.md) (raíz) — convenciones de código y request lifecycle. Fuente de verdad de "cómo se programa acá".
+
+## Tu primer PR
+
+1. Tomá un slice del [`roadmap.md`](./roadmap.md) (probablemente el **Slice 1 — Auth**, que bloquea todo lo demás).
+2. Creá una branch con nombre descriptivo: `git checkout -b slice-1-auth-register`.
+3. Trabajá. Cuando termines, abrí PR en GitHub — el template ([`.github/pull_request_template.md`](../.github/pull_request_template.md)) te aparece auto-cargado con un checklist.
+4. **Convenciones**: commits en español, imperativo, sin emojis. Código + identificadores en inglés. Sin atribución de IA en commits ni en PR (preferencia del profe).
+
+## ¿Te trabaste?
+
+- Error de tipos de Prisma → probá `npm run db:generate`, casi siempre es eso.
+- Tests fallan random → casi siempre `setup.ts` que no trunca una tabla nueva.
+- Endpoint devuelve 500 sin mensaje → mirá el log del server (`npm run dev`), el `errorHandler` central loguea la stack pero al cliente solo le manda `INTERNAL_ERROR`.
+- Cualquier otra cosa → preguntame por Discord/WhatsApp antes de pelearte 2 horas solo.

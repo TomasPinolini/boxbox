@@ -54,7 +54,7 @@ erDiagram
         datetime createdAt
     }
 
-    DriverContract {
+    DriverSeason {
         int id PK
         int driverId FK
         int constructorId FK
@@ -204,9 +204,9 @@ erDiagram
     User ||--o{ League : "creates"
     User ||--o{ SyncLog : "triggers"
 
-    Driver ||--o{ DriverContract : "plays in"
-    Constructor ||--o{ DriverContract : "has"
-    Season ||--o{ DriverContract : "contains"
+    Driver ||--o{ DriverSeason : "plays in"
+    Constructor ||--o{ DriverSeason : "has"
+    Season ||--o{ DriverSeason : "contains"
 
     Season ||--o{ Race : "has"
     Circuit ||--o{ Race : "hosts"

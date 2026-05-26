@@ -3,6 +3,14 @@
 > Todos los endpoints tienen el prefijo `/api/v1/`.  
 > Todos los endpoints de listado soportan paginación: `?page=1&limit=20`.
 
+## Estado de implementación
+
+Cada sección está taggeada con su estado actual:
+
+- **[✅ shipped]** — implementado en `main`, con tests verdes
+- **[🚧 planned]** — diseñado acá pero todavía no construido (ver [`roadmap.md`](./roadmap.md) para orden)
+- **[🔒 outlier]** — implementación parcial / divergente del diseño (típicamente en-memoria sin Prisma); ver el roadmap para el reemplazo
+
 ---
 
 ## Formatos de respuesta
@@ -41,7 +49,7 @@
 
 ---
 
-## Auth
+## Auth [🚧 planned]
 
 | Método | Endpoint         | Acceso | Notas                                 |
 | ------ | ---------------- | ------ | ------------------------------------- |
@@ -54,7 +62,7 @@
 
 ---
 
-## Drivers (CRUD Simple 1)
+## Drivers (CRUD Simple 1) [✅ shipped]
 
 | Método | Endpoint       | Acceso | Notas                                          |
 | ------ | -------------- | ------ | ---------------------------------------------- |
@@ -66,7 +74,7 @@
 
 ---
 
-## Constructors (CRUD Simple 2)
+## Constructors (CRUD Simple 2) [✅ shipped]
 
 | Método | Endpoint            | Acceso | Notas                                          |
 | ------ | ------------------- | ------ | ---------------------------------------------- |
@@ -78,7 +86,7 @@
 
 ---
 
-## Circuits
+## Circuits [✅ shipped]
 
 | Método | Endpoint        | Acceso | Notas       |
 | ------ | --------------- | ------ | ----------- |
@@ -90,7 +98,7 @@
 
 ---
 
-## Seasons
+## Seasons [✅ shipped]
 
 | Método | Endpoint                | Acceso | Notas                               |
 | ------ | ----------------------- | ------ | ----------------------------------- |
@@ -103,7 +111,7 @@
 
 ---
 
-## Races (CRUD Dependiente)
+## Races (CRUD Dependiente) [✅ shipped — CRUD; 🚧 planned — /results, /process, /recalculate sub-endpoints]
 
 | Método | Endpoint                 | Acceso | Notas                                             |
 | ------ | ------------------------ | ------ | ------------------------------------------------- |
@@ -119,7 +127,7 @@
 
 ---
 
-## Leagues
+## Leagues [🔒 outlier — current impl is in-memory, no DB. La sección refleja el diseño planeado; el reemplazo está en `roadmap.md` slice 2]
 
 | Método | Endpoint                       | Acceso        | Notas                            |
 | ------ | ------------------------------ | ------------- | -------------------------------- |
@@ -135,7 +143,7 @@
 
 ---
 
-## Draft
+## Draft [🚧 planned]
 
 ### REST Endpoints
 
@@ -165,7 +173,7 @@ Autenticación via JWT en el handshake. Namespace: `/draft`.
 
 ---
 
-## Fantasy Teams
+## Fantasy Teams [🚧 planned]
 
 | Método | Endpoint                      | Acceso        | Notas                                                             |
 | ------ | ----------------------------- | ------------- | ----------------------------------------------------------------- |
@@ -177,7 +185,7 @@ Autenticación via JWT en el handshake. Namespace: `/draft`.
 
 ---
 
-## Predictions
+## Predictions [🚧 planned]
 
 | Método | Endpoint                               | Acceso        | Notas                                        |
 | ------ | -------------------------------------- | ------------- | -------------------------------------------- |
@@ -187,7 +195,7 @@ Autenticación via JWT en el handshake. Namespace: `/draft`.
 
 ---
 
-## Standings & Recaps
+## Standings & Recaps [🚧 planned]
 
 | Método | Endpoint                          | Acceso        | Notas                                         |
 | ------ | --------------------------------- | ------------- | --------------------------------------------- |
@@ -221,7 +229,7 @@ Autenticación via JWT en el handshake. Namespace: `/draft`.
 
 ---
 
-## Admin — Sync
+## Admin — Sync [🚧 planned]
 
 | Método | Endpoint                   | Acceso | Notas                               |
 | ------ | -------------------------- | ------ | ----------------------------------- |
@@ -234,7 +242,7 @@ Autenticación via JWT en el handshake. Namespace: `/draft`.
 
 ---
 
-## System
+## System [✅ shipped]
 
 | Método | Endpoint  | Acceso | Notas                                  |
 | ------ | --------- | ------ | -------------------------------------- |
