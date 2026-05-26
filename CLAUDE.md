@@ -12,7 +12,7 @@ The project is early-stage: only the backend scaffold with domain CRUDs exists t
 
 ```
 backend/      Express + TypeScript API (the only runnable code right now)
-docs/         Design docs: proposal, ER diagram, API spec, architecture notes
+docs/         Design docs (proposal, ER diagram, API spec, architecture) + local setup tutorial
 frontend/     NOT YET CREATED — planned React + Vite app
 ```
 
@@ -25,13 +25,13 @@ Built:
 - Zod request validation + centralized error handling
 - Vitest integration tests hitting a real Postgres database
 
-Not yet built — and **intentionally deferred** per the weekly study plan in `plan_de_estudio.md` (the project is paced by university TP milestones: 5/6, 12/7, 31/7). Do not suggest implementing these ahead of the plan without asking first:
+Not yet built — **intentionally deferred**. Do not suggest implementing any of these without an explicit ask from the user; project timeline lives outside this repo:
 
 - Auth / JWT, role middleware, rate limiter
 - Leagues, fantasy teams, draft picks, predictions, scoring, standings
 - Socket.io draft namespace
-- Any frontend (planned semana 13+, starts ~13/7)
-- External API sync (Jolpica, OpenF1) — post-31/7 roadmap
+- Frontend (no directory exists yet)
+- External API sync (Jolpica, OpenF1)
 
 ## Development Commands
 
@@ -54,6 +54,7 @@ npm test -- -t "returns 404"                      # match test name
 
 npm run db:generate           # regenerate Prisma client only
 npm run db:studio             # prisma studio GUI
+npx prisma db seed            # populate DB with F1 dev data (idempotent)
 ```
 
 Health check: `GET /api/v1/health`.
@@ -96,6 +97,8 @@ When adding a new domain, mirror an existing module (e.g. `drivers/`) exactly �
 - Soft deletes on `Driver`, `Constructor`, `Circuit` via a `deletedAt` timestamp. Services filter with `deletedAt: null` on every read — always respect this when writing new queries.
 - `externalId` columns are the join key with Jolpica/OpenF1 data. Services reject duplicates with `ConflictError`.
 - Before soft-deleting, services check for active dependencies (e.g. a driver referenced by a `FantasyTeam`) and raise `ConflictError` with a domain-specific code like `DRIVER_HAS_DEPENDENCIES`.
+- Prisma 7 config lives in `backend/prisma.config.ts` (not the legacy `prisma` block in `package.json`). That file points at the schema, the migrations dir, and the seed command.
+- Dev seed: `backend/prisma/seed.ts` populates one Season + grid + a few Circuits/Races. Run `npx prisma db seed` (idempotent — uses `upsert` everywhere). Tests do NOT use the seed; they truncate per-test and build their own fixtures. `prisma migrate reset` in Prisma 7 does NOT auto-run the seed — run `db seed` explicitly after a reset.
 
 ### Config
 
@@ -122,3 +125,4 @@ When adding a new domain, mirror an existing module (e.g. `drivers/`) exactly �
 - `docs/data-model.mmd` — full planned ER diagram (many tables are not yet in `schema.prisma`)
 - `docs/api-endpoints.md` — full planned API surface (most endpoints not yet implemented)
 - `docs/architecture/` — architecture notes
+- `docs/tutorial.md` — local setup walkthrough for new contributors (clone → DB → seed)

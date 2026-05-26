@@ -31,9 +31,9 @@ BoxBox es una aplicación web de Fantasy League de Fórmula 1. Los usuarios crea
 
 ### Prerrequisitos
 
-- Node.js 20+
-- PostgreSQL 15+
-- npm o pnpm
+- Node.js 22+
+- PostgreSQL 17+
+- npm
 
 ### Setup
 
@@ -42,19 +42,16 @@ BoxBox es una aplicación web de Fantasy League de Fórmula 1. Los usuarios crea
 git clone https://github.com/TomasPinolini/boxbox.git
 cd boxbox
 
-# Backend
+# Backend (único stack ejecutable por ahora)
 cd backend
-cp .env.example .env    # Configurar variables de entorno
+cp .env.example .env       # configurar DATABASE_URL, JWT_SECRET, etc.
 npm install
-npx prisma migrate dev  # Crear tablas en la base de datos
-npm run dev              # Iniciar servidor en http://localhost:3000
-
-# Frontend (en otra terminal)
-cd frontend
-cp .env.example .env    # Configurar variables de entorno
-npm install
-npm run dev             # Iniciar app en http://localhost:5173
+npx prisma migrate dev     # crear tablas en la DB
+npx prisma db seed         # poblar con data de F1 2026 (idempotente)
+npm run dev                # iniciar server en http://localhost:3000
 ```
+
+Para una guía paso-a-paso (incluye instalación de Postgres, conexión con TablePlus y gotchas comunes), ver [`docs/tutorial.md`](./docs/tutorial.md).
 
 ### Variables de entorno
 
@@ -71,7 +68,7 @@ La documentación del proyecto se encuentra en el directorio [`/docs`](./docs/):
 - [Propuesta del TP](./docs/proposal.md)
 - [Modelo de datos (Mermaid)](./docs/data-model.mmd)
 - [Endpoints de la API](./docs/api-endpoints.md)
-- [Minutas de reunión](./docs/minutas/)
+- [Setup local + seed](./docs/tutorial.md)
 
 ## Integrantes
 
