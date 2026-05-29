@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import cookieParser from 'cookie-parser';
 import { env } from './config/env';
 import { errorHandler } from './middleware/error-handler';
 import authRoutes from './modules/auth/auth.routes';
@@ -21,6 +22,9 @@ app.use(cors({ origin: env.FRONTEND_URL, credentials: true }));
 
 // Parse JSON bodies
 app.use(express.json());
+
+// Parse cookies — necesario para leer req.cookies.refreshToken en POST /auth/refresh y /auth/logout (Slice 1c).
+app.use(cookieParser());
 
 // Health check
 app.get('/api/v1/health', (_req, res) => {

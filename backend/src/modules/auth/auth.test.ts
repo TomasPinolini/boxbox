@@ -231,3 +231,108 @@ describe('GET /api/v1/auth/me', () => {
     expect(res.body.error.code).toBe('USER_NOT_FOUND');
   });
 });
+
+describe('POST /api/v1/auth/refresh + /logout (httpOnly cookies)', () => {
+  // Helper: extrae el value del refresh cookie del Set-Cookie header de un response.
+  function getRefreshCookie(setCookieHeader: string[] | undefined): string | undefined {
+    if (!setCookieHeader) return undefined;
+    const cookie = setCookieHeader.find((c) => c.startsWith('refreshToken='));
+    if (!cookie) return undefined;
+    return cookie.split(';')[0]; // "refreshToken=eyJ..." sin attributes
+  }
+
+  it('register setea la cookie refreshToken con flags de seguridad', async () => {
+    const res = await request(app).post('/api/v1/auth/register').send(validRegister);
+
+    const setCookie = res.headers['set-cookie'] as unknown as string[];
+    expect(setCookie).toBeDefined();
+    const refreshCookieRaw = setCookie.find((c) => c.startsWith('refreshToken='));
+    expect(refreshCookieRaw).toBeDefined();
+    // Flags importantes:
+    expect(refreshCookieRaw).toMatch(/HttpOnly/i);
+    expect(refreshCookieRaw).toMatch(/SameSite=Lax/i);
+    expect(refreshCookieRaw).toMatch(/Path=\/api\/v1\/auth/i);
+    // En NODE_ENV=test no debe estar Secure (solo en production).
+    expect(refreshCookieRaw).not.toMatch(/Secure/i);
+  });
+
+  it('login tambien setea la cookie', async () => {
+    await request(app).post('/api/v1/auth/register').send(validRegister);
+    const res = await request(app)
+      .post('/api/v1/auth/login')
+      .send({ email: validRegister.email, password: validRegister.password });
+
+    const cookie = getRefreshCookie(res.headers['set-cookie'] as unknown as string[]);
+    expect(cookie).toBeDefined();
+  });
+
+  it('POST /refresh con cookie valida devuelve un access token nuevo', async () => {
+    const register = await request(app).post('/api/v1/auth/register').send(validRegister);
+    const cookie = getRefreshCookie(register.headers['set-cookie'] as unknown as string[])!;
+
+    // Pausa minima para que el iat del access nuevo sea distinto (precision de segundo en JWT).
+    await new Promise((r) => setTimeout(r, 1100));
+
+    const res = await request(app).post('/api/v1/auth/refresh').set('Cookie', cookie);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.user.email).toBe(validRegister.email);
+    expect(res.body.data.accessToken).toBeDefined();
+    // El access nuevo debe ser distinto al original (mismo userId+role pero distinto iat).
+    expect(res.body.data.accessToken).not.toBe(register.body.data.accessToken);
+  });
+
+  it('POST /refresh sin cookie devuelve 401 REFRESH_TOKEN_MISSING', async () => {
+    const res = await request(app).post('/api/v1/auth/refresh');
+
+    expect(res.status).toBe(401);
+    expect(res.body.error.code).toBe('REFRESH_TOKEN_MISSING');
+  });
+
+  it('POST /refresh con cookie invalida devuelve 401 REFRESH_TOKEN_INVALID', async () => {
+    const res = await request(app)
+      .post('/api/v1/auth/refresh')
+      .set('Cookie', 'refreshToken=este-no-es-un-jwt-valido');
+
+    expect(res.status).toBe(401);
+    expect(res.body.error.code).toBe('REFRESH_TOKEN_INVALID');
+  });
+
+  it('POST /refresh con refresh firmado con secret distinto devuelve 401 REFRESH_TOKEN_INVALID', async () => {
+    const forged = jwt.sign({ userId: 1 }, 'secret-del-atacante-de-32-caracteres', {
+      expiresIn: '7d',
+    });
+
+    const res = await request(app)
+      .post('/api/v1/auth/refresh')
+      .set('Cookie', `refreshToken=${forged}`);
+
+    expect(res.status).toBe(401);
+    expect(res.body.error.code).toBe('REFRESH_TOKEN_INVALID');
+  });
+
+  it('POST /refresh con refresh valido pero user borrado devuelve 401', async () => {
+    const register = await request(app).post('/api/v1/auth/register').send(validRegister);
+    const cookie = getRefreshCookie(register.headers['set-cookie'] as unknown as string[])!;
+
+    await prisma.user.delete({ where: { id: register.body.data.user.id } });
+
+    const res = await request(app).post('/api/v1/auth/refresh').set('Cookie', cookie);
+
+    expect(res.status).toBe(401);
+    expect(res.body.error.code).toBe('REFRESH_TOKEN_INVALID');
+  });
+
+  it('POST /logout limpia la cookie (Set-Cookie con expiry pasado)', async () => {
+    const res = await request(app).post('/api/v1/auth/logout');
+
+    expect(res.status).toBe(204);
+    const setCookie = res.headers['set-cookie'] as unknown as string[];
+    expect(setCookie).toBeDefined();
+    const cleared = setCookie.find((c) => c.startsWith('refreshToken='));
+    expect(cleared).toBeDefined();
+    // clearCookie setea la cookie con value vacio + Expires en el pasado (1970 / Thu, 01 Jan 1970).
+    expect(cleared).toMatch(/refreshToken=;/);
+    expect(cleared).toMatch(/Expires=Thu, 01 Jan 1970/);
+  });
+});

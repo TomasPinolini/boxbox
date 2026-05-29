@@ -17,4 +17,9 @@ router.post('/login', validate(loginSchema), authController.login);
 // Si pasa → req.user esta seteado y el controller lo usa para fetch.
 router.get('/me', requireAuth, authController.getMe);
 
+// Refresh + logout NO usan requireAuth (eso requiere access token en header).
+// Refresh autentica via la cookie del refresh token; logout siempre limpia la cookie aunque no la traiga.
+router.post('/refresh', authController.refresh);
+router.post('/logout', authController.logout);
+
 export default router;

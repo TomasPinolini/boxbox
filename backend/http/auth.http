@@ -34,8 +34,8 @@ POST {{host}}/auth/login
 Content-Type: application/json
 
 {
-  "email": "rivero@boxbox.com",
-  "password": "rivero123"
+  "email": "pinola@boxbox.com",
+  "password": "pinola123"
 }
 
 
@@ -53,13 +53,43 @@ GET {{host}}/auth/me
 ### A3.2. /me con header malformado (no "Bearer ...")
 # Esperado: 401 TOKEN_MISSING
 GET {{host}}/auth/me
-Authorization: Basic abc123
+Authorization: Basic abcdasadsa123
 
 
 ### A3.3. /me con token random (firma invalida)
 # Esperado: 401 TOKEN_INVALID
 GET {{host}}/auth/me
 Authorization: Bearer este-no-es-un-jwt-real
+
+
+### ─── Refresh + Logout (Slice 1c) ─────────────────────────────
+# IMPORTANTE: REST Client maneja cookies automaticamente entre requests del mismo file.
+# Despues de A1 (register), ya hay una cookie refreshToken seteada.
+# Los requests siguientes la mandan sola — no hace falta header Cookie manual.
+
+
+### A13. Refresh — la cookie viaja sola
+# Esperado: 200, data.user + data.accessToken NUEVO (distinto al de A1/A2).
+# El refresh cookie sigue valido despues — no rotamos.
+POST {{host}}/auth/refresh
+
+
+### A14. Refresh sin cookie (despues de un Logout o desde cero)
+# Para probarlo: ANTES corre A16 (logout), despues este.
+# Esperado: 401 REFRESH_TOKEN_MISSING
+POST {{host}}/auth/refresh
+
+
+### A15. Refresh con cookie invalida manualmente
+# Esperado: 401 REFRESH_TOKEN_INVALID
+POST {{host}}/auth/refresh
+Cookie: refreshToken=este-no-es-un-jwt-real
+
+
+### A16. Logout — limpia la cookie refreshToken
+# Esperado: 204 No Content. Response trae Set-Cookie con Expires en 1970.
+# Despues de esto, A13 (refresh sin Cookie manual) deberia fallar con REFRESH_TOKEN_MISSING.
+POST {{host}}/auth/logout
 
 
 ### ─── Validación (Zod, 400 VALIDATION_ERROR) ──────────────────

@@ -2,22 +2,24 @@
 // No sabe que existe HTTP: nunca toca req/res/next.
 // Comunica errores tirando AppError subclasses → el controller los pasa al errorHandler.
 //
-// DEUDA DE SEGURIDAD CONOCIDA (post Security Engineer review en Slice 1a):
+// DEUDA DE SEGURIDAD CONOCIDA (post Security Engineer reviews en Slices 1a y 1c):
 //   - bcrypt rounds = 10. OWASP 2024-2026 recomienda 12 para servidores web.
-//     Subir a 12 cuando deploy a prod o cuando el suite de tests tolere ~400ms por hash.
-//     → tracking: ADR futura o Slice 1c.
+//     Subir cuando deploy a prod o cuando los tests toleren ~400ms por hash. → post-MVP.
 //   - Timing side-channel en login (rama "email no existe" sale antes que bcrypt.compare).
-//     Fix: comparePassword contra un DUMMY_HASH cuando user no exists. Innecesario sin
-//     exposición pública. → tracking: Slice "production hardening" post-MVP.
-//   - Sin rate limiting en /register y /login. Brute force y CPU-DoS posibles.
-//     → tracking: Slice 1c (cuando entremos a refresh tokens).
-//   - Sin chequeo HIBP (passwords breached). Innecesario para TP. → tracking: post-TP.
+//     Fix: comparePassword contra DUMMY_HASH cuando user no exists. Innecesario sin
+//     exposicion publica. → post-MVP.
+//   - Sin rate limiting en /register, /login, /refresh. Brute force y CPU-DoS posibles. → pre-prod.
+//   - Refresh sin rotacion + sin DB tracking. Implicaciones:
+//       (a) si te roban el refresh, vale 7d hasta que expire — no podemos invalidarlo server-side.
+//       (b) /logout limpia la cookie del browser pero no invalida el token si fue copiado.
+//     Fix: tabla RefreshToken con jti + revocation, rotacion en cada /refresh. → post-MVP.
+//   - Sin chequeo HIBP (passwords breached). Innecesario para TP. → post-TP.
 
 import { prisma } from '../../shared/prisma';
 import { Prisma } from '../../generated/prisma/client';
 import { ConflictError, NotFoundError, UnauthorizedError } from '../../shared/errors';
 import { hashPassword, comparePassword } from '../../shared/password';
-import { signAccessToken } from '../../shared/jwt';
+import { signAccessToken, signRefreshToken, verifyRefreshToken } from '../../shared/jwt';
 import type { RegisterInput, LoginInput } from './auth.schema';
 
 // userSelect — campos que SÍ devolvemos al cliente.
@@ -46,7 +48,8 @@ export async function register(data: RegisterInput) {
     });
 
     const accessToken = signAccessToken({ userId: user.id, role: user.role });
-    return { user, accessToken };
+    const refreshToken = signRefreshToken({ userId: user.id });
+    return { user, accessToken, refreshToken };
   } catch (err) {
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
       throw new ConflictError('A user with this email already exists', 'EMAIL_ALREADY_EXISTS');
@@ -76,7 +79,30 @@ export async function login(data: LoginInput) {
     throw new UnauthorizedError('Invalid email or password', 'INVALID_CREDENTIALS');
   }
 
-  // 5. Firmar token y devolver.
+  // 5. Firmar tokens y devolver.
+  const accessToken = signAccessToken({ userId: user.id, role: user.role });
+  const refreshToken = signRefreshToken({ userId: user.id });
+  return { user, accessToken, refreshToken };
+}
+
+// POST /refresh — verifica el refresh token (que viene en una cookie httpOnly),
+// re-fetcha el user de DB (para tener role actualizado) y emite un access token nuevo.
+// NO emite refresh nuevo (sin rotacion — deuda P3 documentada al top del archivo).
+// El refresh original sigue vigente hasta que expire (7d).
+export async function refreshAccessToken(refreshToken: string) {
+  // 1. Verificar el refresh — tira UnauthorizedError REFRESH_TOKEN_INVALID si falla.
+  const payload = verifyRefreshToken(refreshToken);
+
+  // 2. Fetch user de DB. Si el user fue eliminado, el refresh es invalido aunque la firma matchee.
+  const user = await prisma.user.findUnique({
+    where: { id: payload.userId },
+    select: userSelect,
+  });
+  if (!user) {
+    throw new UnauthorizedError('Invalid or expired refresh token', 'REFRESH_TOKEN_INVALID');
+  }
+
+  // 3. Emitir access nuevo con el role actual (puede ser distinto al que tenia cuando se emitio el refresh).
   const accessToken = signAccessToken({ userId: user.id, role: user.role });
   return { user, accessToken };
 }
