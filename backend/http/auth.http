@@ -1,0 +1,153 @@
+### Smoke tests del módulo Auth (Slice 1a)
+### Cubre: POST /auth/register, POST /auth/login.
+### Sin /me, sin middleware, sin refresh (esos vienen en Slice 1b y 1c).
+
+### Variables
+@host = http://localhost:3000/api/v1
+
+
+### Health check — sanity (no es auth, pero confirma que el server está arriba)
+GET {{host}}/health
+
+
+### ─── Happy path ──────────────────────────────────────────────
+
+
+### A1. Register — happy path
+# Esperado: 201 Created, body con data.user (sin passwordHash) + data.accessToken
+# El token es un JWT — pegalo en https://jwt.io para inspeccionar el payload { userId, role, iat, exp }
+# @name register
+POST {{host}}/auth/register
+Content-Type: application/json
+
+{
+  "email": "pinola@boxbox.com",
+  "password": "pinola123",
+  "name": "Tomás Pinolini"
+}
+
+
+### A2. Login — happy path con las credenciales recién creadas
+# Esperado: 200 OK, mismo shape que register (data.user + data.accessToken)
+# @name login
+POST {{host}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "rivero@boxbox.com",
+  "password": "rivero123"
+}
+
+
+### A3. Reusar el token del request A2 (preparación para Slice 1b)
+# Por ahora /health no requiere auth — esto solo confirma que el header se manda bien.
+# Cuando llegue 1b, este pattern lo usás contra /auth/me y otros endpoints protegidos.
+GET {{host}}/health
+Authorization: Bearer {{login.response.body.data.accessToken}}
+
+
+### ─── Validación (Zod, 400 VALIDATION_ERROR) ──────────────────
+
+
+### A4. Email mal formado
+# Esperado: 400, error.details.email presente
+POST {{host}}/auth/register
+Content-Type: application/json
+
+{
+  "email": "no-es-email",
+  "password": "hunter22",
+  "name": "Test"
+}
+
+
+### A5. Password corta (< 8 chars)
+# Esperado: 400, error.details.password presente
+POST {{host}}/auth/register
+Content-Type: application/json
+
+{
+  "email": "weak@boxbox.com",
+  "password": "abc",
+  "name": "Weak"
+}
+
+
+### A6. Sin name
+# Esperado: 400, error.details.name presente
+POST {{host}}/auth/register
+Content-Type: application/json
+
+{
+  "email": "noname@boxbox.com",
+  "password": "hunter22"
+}
+
+
+### A7. Login con body vacío
+# Esperado: 400, details.email y details.password presentes
+POST {{host}}/auth/login
+Content-Type: application/json
+
+{}
+
+
+### ─── Business logic (4xx tipados) ────────────────────────────
+
+
+### A8. Register con email duplicado
+# Pre-requisito: A1 ya corrió → verstappen@boxbox.com ya existe en DB
+# Esperado: 409 EMAIL_ALREADY_EXISTS
+POST {{host}}/auth/register
+Content-Type: application/json
+
+{
+  "email": "rivero@boxbox.com",
+  "password": "rivero123",
+  "name": "Tomás Rivero"
+}
+
+
+### A9. Login con password incorrecto
+# Esperado: 401 INVALID_CREDENTIALS, message "Invalid email or password"
+POST {{host}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "verstappen@boxbox.com",
+  "password": "wrong-password"
+}
+
+
+### A10. Login con email inexistente
+# Esperado: 401 INVALID_CREDENTIALS — MISMO mensaje y código que A9 (anti-account-enumeration)
+# Compará A9 vs A10 visualmente: el body debe ser byte-a-byte igual excepto el timestamp interno.
+POST {{host}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "nadie@boxbox.com",
+  "password": "whatever123"
+}
+
+
+### A11. Login con mayúsculas en email (lowercaseo automático)
+# Esperado: 200 — Zod normaliza a "verstappen@boxbox.com" antes de buscar en DB
+POST {{host}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "RIVERO@BoxBox.com",
+  "password": "rivero123"
+}
+
+
+### A12. Login con espacios extra en email (trim)
+# Esperado: 200 — Zod trimea + lowercasea antes de buscar
+POST {{host}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "   rivero@boxbox.com   ",
+  "password": "rivero123"
+}

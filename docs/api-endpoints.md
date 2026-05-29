@@ -49,7 +49,7 @@ Cada sección está taggeada con su estado actual:
 
 ---
 
-## Auth [🚧 planned]
+## Auth [✅ shipped — /register, /login; 🚧 planned — /refresh, /logout, /me, PATCH /me]
 
 | Método | Endpoint         | Acceso | Notas                                 |
 | ------ | ---------------- | ------ | ------------------------------------- |

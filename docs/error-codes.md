@@ -68,18 +68,23 @@ Códigos de error tipados que la API puede devolver en el envelope `{ error: { c
 
 > Nota: los endpoints de Races que validan la existencia de `Season` o `Circuit` referenciados pueden lanzar `SEASON_NOT_FOUND` o `CIRCUIT_NOT_FOUND` respectivamente (`races.service.ts:29, 35, 57, 63`).
 
+## Auth
+
+| Código | HTTP | Origen | Cuándo |
+|---|---|---|---|
+| `INVALID_CREDENTIALS` | 401 | `auth.service.ts:39, 45` | Login con email inexistente O password incorrecto. **Mismo código y mensaje en ambos casos** para evitar account enumeration. |
+| `EMAIL_ALREADY_EXISTS` | 409 | `auth.service.ts:20` | Register con un email ya registrado (después de lowercaseo en el schema). |
+
 ---
 
 ## Códigos planeados (todavía no implementados)
 
 Estos van a aparecer cuando se construyan los slices del [`roadmap.md`](./roadmap.md). Documentados acá para que el equipo no invente variantes inconsistentes:
 
-### Slice 1 — Auth
+### Slice 1b — Auth middleware + /me
 
 | Código | HTTP | Cuándo |
 |---|---|---|
-| `INVALID_CREDENTIALS` | 401 | Login con email/password incorrecto. |
-| `EMAIL_ALREADY_EXISTS` | 409 | Register con email ya usado. |
 | `TOKEN_INVALID` | 401 | JWT corrupto, expirado, o firma inválida. |
 | `TOKEN_MISSING` | 401 | Header `Authorization` ausente en endpoint protegido. |
 
