@@ -15,7 +15,7 @@
 
 import { prisma } from '../../shared/prisma';
 import { Prisma } from '../../generated/prisma/client';
-import { ConflictError, UnauthorizedError } from '../../shared/errors';
+import { ConflictError, NotFoundError, UnauthorizedError } from '../../shared/errors';
 import { hashPassword, comparePassword } from '../../shared/password';
 import { signAccessToken } from '../../shared/jwt';
 import type { RegisterInput, LoginInput } from './auth.schema';
@@ -79,4 +79,19 @@ export async function login(data: LoginInput) {
   // 5. Firmar token y devolver.
   const accessToken = signAccessToken({ userId: user.id, role: user.role });
   return { user, accessToken };
+}
+
+// GET /me — devuelve el User fresco de DB segun el userId que vino en el JWT.
+// Vamos a DB en vez de devolver el payload del token directo porque el token guarda solo {userId, role};
+// el resto (name, email, avatarUrl) viene de la fila actual — refleja cambios post-login.
+// Si el user fue eliminado entre login y este request, devolvemos 404 (token valido pero recurso no existe).
+export async function getMe(userId: number) {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: userSelect,
+  });
+  if (!user) {
+    throw new NotFoundError('User');
+  }
+  return user;
 }

@@ -72,21 +72,17 @@ Códigos de error tipados que la API puede devolver en el envelope `{ error: { c
 
 | Código | HTTP | Origen | Cuándo |
 |---|---|---|---|
-| `INVALID_CREDENTIALS` | 401 | `auth.service.ts:39, 45` | Login con email inexistente O password incorrecto. **Mismo código y mensaje en ambos casos** para evitar account enumeration. |
-| `EMAIL_ALREADY_EXISTS` | 409 | `auth.service.ts:20` | Register con un email ya registrado (después de lowercaseo en el schema). |
+| `INVALID_CREDENTIALS` | 401 | `auth.service.ts` (login) | Login con email inexistente O password incorrecto. **Mismo código y mensaje en ambos casos** para evitar account enumeration. |
+| `EMAIL_ALREADY_EXISTS` | 409 | `auth.service.ts` (register) | Register con un email ya registrado (después de trim + lowercase en el schema). El catch del Prisma error `P2002` hace el chequeo race-free. |
+| `TOKEN_MISSING` | 401 | `middleware/auth.ts` (requireAuth) | Header `Authorization` ausente, sin prefijo `Bearer `, o con bearer vacío. |
+| `TOKEN_INVALID` | 401 | `middleware/auth.ts` + `shared/jwt.ts:verifyAccessToken` | JWT corrupto, firma inválida, expirado, o payload con shape inesperado. **Mismo código** para todos los casos (no diferenciamos expirado vs firma mala al cliente). |
+| `USER_NOT_FOUND` | 404 | `auth.service.ts` (getMe) | `GET /me` con token válido pero el `userId` ya no existe en DB (user eliminado entre login y este request). |
 
 ---
 
 ## Códigos planeados (todavía no implementados)
 
 Estos van a aparecer cuando se construyan los slices del [`roadmap.md`](./roadmap.md). Documentados acá para que el equipo no invente variantes inconsistentes:
-
-### Slice 1b — Auth middleware + /me
-
-| Código | HTTP | Cuándo |
-|---|---|---|
-| `TOKEN_INVALID` | 401 | JWT corrupto, expirado, o firma inválida. |
-| `TOKEN_MISSING` | 401 | Header `Authorization` ausente en endpoint protegido. |
 
 ### Slices 2-3 — Leagues + Membership
 

@@ -39,11 +39,27 @@ Content-Type: application/json
 }
 
 
-### A3. Reusar el token del request A2 (preparación para Slice 1b)
-# Por ahora /health no requiere auth — esto solo confirma que el header se manda bien.
-# Cuando llegue 1b, este pattern lo usás contra /auth/me y otros endpoints protegidos.
-GET {{host}}/health
+### A3. /me — endpoint protegido con el token de A2
+# Esperado: 200, data.user con shape completo (sin passwordHash)
+GET {{host}}/auth/me
 Authorization: Bearer {{login.response.body.data.accessToken}}
+
+
+### A3.1. /me sin Authorization header
+# Esperado: 401 TOKEN_MISSING
+GET {{host}}/auth/me
+
+
+### A3.2. /me con header malformado (no "Bearer ...")
+# Esperado: 401 TOKEN_MISSING
+GET {{host}}/auth/me
+Authorization: Basic abc123
+
+
+### A3.3. /me con token random (firma invalida)
+# Esperado: 401 TOKEN_INVALID
+GET {{host}}/auth/me
+Authorization: Bearer este-no-es-un-jwt-real
 
 
 ### ─── Validación (Zod, 400 VALIDATION_ERROR) ──────────────────

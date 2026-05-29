@@ -22,3 +22,14 @@ export async function login(req: Request, res: Response, next: NextFunction) {
     next(err);
   }
 }
+
+export async function getMe(req: Request, res: Response, next: NextFunction) {
+  try {
+    // req.user lo enganchó el middleware requireAuth. El non-null assertion `!` es seguro
+    // porque si requireAuth pasó, req.user está garantizado.
+    const user = await authService.getMe(req.user!.userId);
+    res.json({ data: { user } });
+  } catch (err) {
+    next(err);
+  }
+}

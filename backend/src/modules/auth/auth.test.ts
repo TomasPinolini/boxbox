@@ -3,7 +3,10 @@
 
 import { describe, it, expect } from 'vitest';
 import request from 'supertest';
+import jwt from 'jsonwebtoken';
 import app from '../../app';
+import { env } from '../../config/env';
+import { prisma } from '../../shared/prisma';
 
 const validRegister = {
   email: 'verstappen@boxbox.com',
@@ -148,5 +151,83 @@ describe('POST /api/v1/auth/login', () => {
 
     expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+});
+
+describe('GET /api/v1/auth/me', () => {
+  it('devuelve el user actual con token valido (sin passwordHash)', async () => {
+    const register = await request(app).post('/api/v1/auth/register').send(validRegister);
+    const token = register.body.data.accessToken;
+
+    const res = await request(app).get('/api/v1/auth/me').set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.user.email).toBe(validRegister.email);
+    expect(res.body.data.user.name).toBe(validRegister.name);
+    expect(res.body.data.user.passwordHash).toBeUndefined();
+  });
+
+  it('rechaza request sin header Authorization (401 TOKEN_MISSING)', async () => {
+    const res = await request(app).get('/api/v1/auth/me');
+
+    expect(res.status).toBe(401);
+    expect(res.body.error.code).toBe('TOKEN_MISSING');
+  });
+
+  it('rechaza header sin prefijo Bearer (401 TOKEN_MISSING)', async () => {
+    const res = await request(app).get('/api/v1/auth/me').set('Authorization', 'Basic abc123');
+
+    expect(res.status).toBe(401);
+    expect(res.body.error.code).toBe('TOKEN_MISSING');
+  });
+
+  it('rechaza token con firma invalida (401 TOKEN_INVALID)', async () => {
+    const res = await request(app)
+      .get('/api/v1/auth/me')
+      .set('Authorization', 'Bearer this-is-not-a-real-jwt');
+
+    expect(res.status).toBe(401);
+    expect(res.body.error.code).toBe('TOKEN_INVALID');
+  });
+
+  it('rechaza token expirado (401 TOKEN_INVALID)', async () => {
+    // Forjamos un token con expiracion en el pasado para no esperar 15min.
+    const expiredToken = jwt.sign({ userId: 1, role: 'USER' }, env.JWT_SECRET, {
+      expiresIn: '-1s',
+    });
+
+    const res = await request(app)
+      .get('/api/v1/auth/me')
+      .set('Authorization', `Bearer ${expiredToken}`);
+
+    expect(res.status).toBe(401);
+    expect(res.body.error.code).toBe('TOKEN_INVALID');
+  });
+
+  it('rechaza token firmado con secret distinto (401 TOKEN_INVALID)', async () => {
+    // Anti alg=none defense — un atacante que no tiene nuestro secret no puede forjar tokens validos.
+    const forgedToken = jwt.sign({ userId: 1, role: 'ADMIN' }, 'secret-del-atacante-de-32-caracteres', {
+      expiresIn: '15m',
+    });
+
+    const res = await request(app)
+      .get('/api/v1/auth/me')
+      .set('Authorization', `Bearer ${forgedToken}`);
+
+    expect(res.status).toBe(401);
+    expect(res.body.error.code).toBe('TOKEN_INVALID');
+  });
+
+  it('devuelve 404 USER_NOT_FOUND si el user fue borrado despues del login', async () => {
+    const register = await request(app).post('/api/v1/auth/register').send(validRegister);
+    const token = register.body.data.accessToken;
+
+    // Borramos el user directamente en DB simulando un caso edge.
+    await prisma.user.delete({ where: { id: register.body.data.user.id } });
+
+    const res = await request(app).get('/api/v1/auth/me').set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(404);
+    expect(res.body.error.code).toBe('USER_NOT_FOUND');
   });
 });
