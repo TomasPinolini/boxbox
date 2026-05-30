@@ -1,0 +1,65 @@
+### Smoke tests del módulo Drivers
+### CRUD completo + validación + dependencias.
+
+### Variables
+@host = http://localhost:3000/api/v1
+
+
+### 1. Crear driver — Franco Colapinto
+# Esperado: 201 Created, body con el driver creado (incluye id auto-generado)
+# Anotá el id que devuelve para usarlo en los requests siguientes.
+# @name createDriver
+POST {{host}}/drivers
+Content-Type: application/json
+
+{
+  "firstName": "Franco",
+  "lastName": "Colapinto",
+  "number": 43,
+  "code": "COL",
+  "externalId": "colapinto"
+}
+
+
+### 2. Listar drivers — debería incluir a Colapinto
+# Esperado: 200 OK, { "data": [ ... ] } con al menos 1 driver
+GET {{host}}/drivers
+
+
+### 3. Borrar driver — soft delete
+# Reemplazá <ID> por el id que devolvió el request 1
+# Esperado: 204 No Content (sin body)
+DELETE {{host}}/drivers/{{createDriver.response.body.data.id}}
+
+
+### 4. Confirmar borrado — debería devolver 404
+# Esperado: 404 Not Found, { "error": { "code": "DRIVER_NOT_FOUND", ... } }
+GET {{host}}/drivers/{{createDriver.response.body.data.id}}
+
+
+### Bonus: probar validación — body inválido (sin firstName)
+# Esperado: 400 Bad Request con error code "VALIDATION_ERROR" y details
+POST {{host}}/drivers
+Content-Type: application/json
+
+{
+  "lastName": "Sin nombre",
+  "number": 99,
+  "code": "FAIL",
+  "externalId": "test-validation"
+}
+
+
+### Bonus: probar duplicado — mismo externalId que Colapinto
+# Si lo corrés DESPUÉS del request 1 y SIN haber borrado, debería ser conflict
+# Esperado: 409 Conflict con error code "DRIVER_ALREADY_EXISTS"
+POST {{host}}/drivers
+Content-Type: application/json
+
+{
+  "firstName": "Franco",
+  "lastName": "Colapinto",
+  "number": 44,
+  "code": "COL2",
+  "externalId": "colapinto"
+}
