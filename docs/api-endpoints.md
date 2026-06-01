@@ -127,19 +127,20 @@ Cada sección está taggeada con su estado actual:
 
 ---
 
-## Leagues [🔒 outlier — current impl is in-memory, no DB. La sección refleja el diseño planeado; el reemplazo está en `roadmap.md` slice 2]
+## Leagues [✅ shipped — POST/GET/GET:id/PATCH (Slice 2); 🚧 planned — /join, /leave, /members (Slice 3)]
 
-| Método | Endpoint                       | Acceso        | Notas                            |
-| ------ | ------------------------------ | ------------- | -------------------------------- |
-| POST   | `/leagues`                     | User          | El creador se convierte en owner |
-| GET    | `/leagues/mine`                | User          | Todas las ligas del usuario      |
-| GET    | `/leagues/:id`                 | League member |                                  |
-| PATCH  | `/leagues/:id`                 | League owner  | Actualizar nombre, configuración |
-| DELETE | `/leagues/:id`                 | League owner  |                                  |
-| POST   | `/leagues/join`                | User          | Body: `{ code: "ABC123" }`       |
-| POST   | `/leagues/:id/leave`           | League member | No puede ser el owner            |
-| GET    | `/leagues/:id/members`         | League member | Lista de miembros                |
-| DELETE | `/leagues/:id/members/:userId` | League owner  | Kickear miembro                  |
+| Método | Endpoint                       | Acceso        | Notas                                                                              |
+| ------ | ------------------------------ | ------------- | ---------------------------------------------------------------------------------- |
+| POST   | `/leagues`                     | User          | `createdById` se deriva del JWT; body: `{name, inviteCode, seasonId, maxMembers?}` |
+| GET    | `/leagues`                     | User          | Solo las ligas creadas por el user actual (Slice 3 expande a owner OR member)      |
+| GET    | `/leagues/:id`                 | League owner  | 403 NOT_LEAGUE_OWNER si no soy el creador                                          |
+| PATCH  | `/leagues/:id`                 | League owner  | Partial: `name`/`maxMembers`/`status`/`inviteCode`. Body vacío `{}` → 400          |
+| POST   | `/leagues/join`                | User          | Body: `{ code: "ABC123" }`                                                         |
+| POST   | `/leagues/:id/leave`           | League member | No puede ser el owner                                                              |
+| GET    | `/leagues/:id/members`         | League member | Lista de miembros                                                                  |
+| DELETE | `/leagues/:id/members/:userId` | League owner  | Kickear miembro                                                                    |
+
+> **Archivado**: NO hay `DELETE /leagues/:id`. Para archivar una liga: `PATCH /leagues/:id { "status": "ARCHIVED" }`.
 
 ---
 

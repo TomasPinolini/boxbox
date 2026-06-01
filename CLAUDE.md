@@ -24,11 +24,14 @@ Built:
 - CRUD modules: `drivers`, `constructors`, `circuits`, `seasons`, `races`
 - Zod request validation + centralized error handling
 - Vitest integration tests hitting a real Postgres database
+- **Auth (Slice 1)**: `User` table + `auth/` module + `requireAuth` middleware + JWT access/refresh + httpOnly refresh cookie. Endpoints: `POST /auth/register`, `POST /auth/login`, `GET /auth/me`, `POST /auth/refresh`, `POST /auth/logout`.
+- **Leagues real (Slice 2)**: `leagues/` module reescrito con Prisma. Endpoints: `POST /leagues`, `GET /leagues`, `GET /leagues/:id`, `PATCH /leagues/:id` — todos `requireAuth`. Ownership check vía `createdById`. Archivado via `PATCH status='ARCHIVED'` (no hay endpoint DELETE). `inviteCode` user-supplied (length 4-20, regex, lowercase normalize, reserved blacklist).
 
 Not yet built — **intentionally deferred**. Do not suggest implementing any of these without an explicit ask from the user; project timeline lives outside this repo:
 
-- Auth / JWT, role middleware, rate limiter
-- Leagues, fantasy teams, draft picks, predictions, scoring, standings
+- `LeagueMember` / membership (Slice 3): `/leagues/join`, `/leave`, `/members`, kick. Owner = primer member con `isOwner=true`.
+- Role middleware (`requireAdmin`), rate limiter
+- Fantasy teams, draft picks, predictions, scoring, standings
 - Socket.io draft namespace
 - Frontend (no directory exists yet)
 - External API sync (Jolpica, OpenF1)

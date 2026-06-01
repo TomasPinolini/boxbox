@@ -74,7 +74,7 @@ Definiciones de una línea de todos los términos del dominio. Si necesitás nar
 | Término | Definición | Evitar |
 |---|---|---|
 | **envelope** | Shape consistente de las responses: `{ data: ... }` en éxito, `{ error: { code, message, status } }` en error; el frontend asume este shape. | response wrapper, response body |
-| **AppError** | Clase base de errores de negocio (`NotFoundError`, `ConflictError` subclasses) que el `errorHandler` convierte a respuestas con `code` tipado; nunca usar `throw new Error()` en services. | custom error, business error |
+| **AppError** | Clase base de errores de negocio (`NotFoundError`, `ConflictError`, `UnauthorizedError`, `ForbiddenError` subclasses) que el `errorHandler` convierte a respuestas con `code` tipado; nunca usar `throw new Error()` en services. | custom error, business error |
 
 ---
 

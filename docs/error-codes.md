@@ -80,23 +80,31 @@ Códigos de error tipados que la API puede devolver en el envelope `{ error: { c
 | `REFRESH_TOKEN_INVALID` | 401 | `shared/jwt.ts:verifyRefreshToken` + `auth.service.ts` (refresh) | Cookie `refreshToken` con firma inválida, expirada, payload raro, o user borrado. Mismo código para todos los casos. |
 | `USER_NOT_FOUND` | 404 | `auth.service.ts` (getMe) | `GET /me` con token válido pero el `userId` ya no existe en DB (user eliminado entre login y este request). |
 
+## Leagues
+
+| Código | HTTP | Origen | Cuándo |
+|---|---|---|---|
+| `LEAGUE_NOT_FOUND` | 404 | `leagues.service.ts` (getLeagueById, updateLeague) | GET/PATCH de un League id que no existe en DB. |
+| `SEASON_NOT_FOUND` | 404 | `leagues.service.ts` (createLeague — catch P2003) | POST con `seasonId` que no existe en `seasons`. (Mismo código que el de Seasons module — semánticamente es lo mismo: la Season referenciada no existe.) |
+| `INVITE_CODE_TAKEN` | 409 | `leagues.service.ts` (createLeague, updateLeague — catch P2002) | POST/PATCH con un `inviteCode` ya usado (después de normalizar a lowercase). Catch del Prisma error `P2002` hace el chequeo race-free. |
+| `NOT_LEAGUE_OWNER` | 403 | `leagues.service.ts` (getLeagueById, updateLeague) | User autenticado intenta leer o mutar una League cuyo `createdById !== req.user.userId`. Slice 3 expande a "owner OR member" para lecturas. |
+| `VALIDATION_ERROR` | 400 | `middleware/validate.ts` | inviteCode reservado (`admin`/`test`/`me`/`api`/`health`), length fuera de 4-20, charset inválido, o body vacío en PATCH. `error.details` lleva el detalle por campo. |
+
 ---
 
 ## Códigos planeados (todavía no implementados)
 
 Estos van a aparecer cuando se construyan los slices del [`roadmap.md`](./roadmap.md). Documentados acá para que el equipo no invente variantes inconsistentes:
 
-### Slices 2-3 — Leagues + Membership
+### Slice 3 — LeagueMember (membership)
 
 | Código | HTTP | Cuándo |
 |---|---|---|
-| `LEAGUE_NOT_FOUND` | 404 | League inexistente. |
-| `INVITE_CODE_INVALID` | 404 | Code de invitación no existe. |
+| `INVITE_CODE_INVALID` | 404 | Code de invitación no existe (lookup en `POST /leagues/join`). |
 | `LEAGUE_FULL` | 409 | Intento de joinear una League en el cap `maxMembers`. |
 | `ALREADY_MEMBER` | 409 | User ya es LeagueMember de esa League. |
 | `OWNER_CANNOT_LEAVE` | 409 | Owner intenta hacer leave sin transferir ownership. |
 | `NOT_LEAGUE_MEMBER` | 403 | User no es miembro de la League pero accede a endpoints scoped a la League. |
-| `NOT_LEAGUE_OWNER` | 403 | Acción que requiere ser owner ejecutada por miembro común. |
 
 ### Slice 5 — Draft REST
 

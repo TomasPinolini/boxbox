@@ -21,20 +21,6 @@ Stack overview rápido (ver [`../CLAUDE.md`](../CLAUDE.md) para detalle): Expres
 
 ## Now — bloqueantes para todo lo demás
 
-### Slice 1 — Auth básico (User + register + login + JWT)
-
-- **Goal**: un usuario puede registrarse, loguearse y recibir un access token JWT que prueba su identidad en requests subsiguientes.
-- **Touches**: nueva tabla `User` en `schema.prisma`; módulo nuevo `modules/auth/` (5 archivos); middleware `middleware/auth.ts` que valida el JWT; `shared/jwt.ts` para signing/verify; actualizar `setup.ts` (truncate `users`).
-- **Done when**: `POST /api/v1/auth/register` crea User + devuelve `{ data: { user, accessToken } }`. `POST /api/v1/auth/login` con credenciales válidas devuelve lo mismo. `GET /api/v1/auth/me` con `Authorization: Bearer <token>` devuelve el User actual. Tests verdes cubriendo happy + bad credentials + token expirado + token inválido.
-- **Blocked by**: ninguno.
-
-### Slice 2 — Leagues real (reemplazar la implementación en-memoria)
-
-- **Goal**: las ligas viven en Postgres, no en un array, y tienen `createdBy` (FK a User) + `seasonId`.
-- **Touches**: tabla `League` en `schema.prisma`; rewrite completo de `modules/leagues/` para usar Prisma (mantener URL paths idénticos); aplicar middleware de auth a endpoints que requieran User logueado; `setup.ts` (truncate `leagues`); `seed.ts` opcional (una liga de prueba).
-- **Done when**: `POST /api/v1/leagues` con auth crea liga + asigna `createdById` automáticamente. Resto del CRUD funciona contra DB. Tests verdes incluyendo "no autenticado → 401". El array en-memoria + `let nextId = 1` están borrados.
-- **Blocked by**: Slice 1.
-
 ### Slice 3 — LeagueMember (membership)
 
 - **Goal**: un User puede unirse a una League con un `inviteCode`, dejarla, o ser kickeado por el owner.
@@ -146,4 +132,20 @@ Si alguno de estos se vuelve demasiado grande, partir así:
 
 ## Completados
 
-_(empty — mover slices acá cuando estén done)_
+### Slice 1 — Auth básico (User + register + login + /me + refresh + logout + middleware)
+
+- **Status**: done (PR #3 mergeado en `main`, 2026-05-30).
+- **Goal**: un usuario puede registrarse, loguearse y recibir un access token JWT que prueba su identidad en requests subsiguientes.
+- **Shipped**: 3 sub-slices — `1a` register + login, `1b` /me + middleware `requireAuth`, `1c` refresh tokens via httpOnly cookie + /logout.
+- **Touches reales**: tabla `User` en schema (renombre `password` → `passwordHash`); módulo `modules/auth/` (4 archivos canónicos + test); middleware `middleware/auth.ts`; `shared/jwt.ts` (sign + verify access + refresh) y `shared/password.ts`; `types/express.d.ts` para augment `req.user`; `cookieParser` en app.ts.
+- **Tests**: 82 verdes incluyendo happy + bad credentials + token expirado + token inválido + refresh + logout.
+- **Deuda aceptada**: ver `known-debt.md` local — bcrypt rounds=10, sin rate limit, sin refresh rotation, etc. (P3).
+
+### Slice 2 — Leagues real (reemplazo del módulo in-memory)
+
+- **Status**: done (branch `slice-2-leagues`, mergeado en `main`).
+- **Goal**: las ligas viven en Postgres con `createdById` (FK a User) + `seasonId`.
+- **Shipped**: rewrite completo de `modules/leagues/` (schema Zod + service Prisma + controller thin + routes con auth). `inviteCode` user-supplied con validación (length 4-20, regex, lowercase normalize, reserved blacklist). Ownership check explícito en getById/update. Archivado vía `PATCH status='ARCHIVED'` — NO hay endpoint DELETE. Filtrado de GET list a `createdById = req.user.userId` (Slice 3 expande a "owner OR member").
+- **Touches reales**: 4 archivos del módulo `modules/leagues/` reescritos + test nuevo; `shared/errors.ts` agregó `ForbiddenError` (403); `docs/api-endpoints.md` + `docs/error-codes.md` sincronizados. Schema `League` no requirió migration (ya existía desde pre-Slice 1). Side-quest pre-Slice 2: calendario 2026 completo en `seed.ts` (commit `e84355d`).
+- **Tests**: 18 nuevos en `leagues.test.ts` (happy + validaciones + ownership + FK errors + auth). Suite total: 100/100.
+- **Security review**: 0 P1, 2 P2 (ID enumeration 404 vs 403, TOCTOU cosmético en update), 3 P3 (rate limit, NaN IDs, blacklist defense-in-depth) — todo documentado en `known-debt.md` local con mapping a Slice 3 / Slice 7 según corresponda.

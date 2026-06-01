@@ -1,6 +1,6 @@
 # Receta — Agregar un módulo nuevo al backend
 
-Receta paso a paso para crear un módulo de dominio nuevo (ej: `predictions`, `auth`, `leagues` real). Pensada para que un dev pueda clonar el patrón sin reinventar nada.
+Receta paso a paso para crear un módulo de dominio nuevo (ej: `predictions`, `league_members`, `draft`). Pensada para que un dev pueda clonar el patrón sin reinventar nada.
 
 **Modelo a clonar**: [`backend/src/modules/drivers/`](../../backend/src/modules/drivers/) — los 5 archivos están comentados línea por línea con la responsabilidad de cada uno. Léelos al menos una vez antes de empezar.
 
