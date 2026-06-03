@@ -52,3 +52,33 @@ export const updateLeagueSchema = z
 // para que el controller pueda pasarles req.body directamente con type safety.
 export type CreateLeagueInput = z.infer<typeof createLeagueSchema>;
 export type UpdateLeagueInput = z.infer<typeof updateLeagueSchema>;
+
+// ─── Slice 3: join + path param schemas ──────────────────────────────
+
+// Path params para rutas /:id (single league). z.coerce.number() convierte "42" → 42 antes
+// de validar. "abc" se transforma a NaN y la validacion .int() lo rechaza con 400.
+export const leagueIdParamSchema = z.object({
+  id: z.coerce.number().int().positive(),
+});
+
+// Path params para DELETE /:id/members/:userId. Mismo coerce sobre dos params.
+export const memberKickParamSchema = z.object({
+  id: z.coerce.number().int().positive(),
+  userId: z.coerce.number().int().positive(),
+});
+
+// Body para POST /leagues/join. inviteCode reusable del create, pero MENOS estricto:
+//   - Sin blacklist de reserved words: el cliente esta consultando un codigo que ya existe
+//     en DB; si por algun bug se cole un reserved al create, igual deberia poder joinear.
+//   - Lowercase normalize si — para matchear contra el inviteCode guardado (que ya esta lowercase).
+//   - Length y charset iguales — defensa contra inputs absurdos antes de la DB.
+export const joinLeagueSchema = z.object({
+  inviteCode: z
+    .string()
+    .min(4, 'inviteCode must be 4-20 chars')
+    .max(20, 'inviteCode must be 4-20 chars')
+    .regex(/^[a-zA-Z0-9_-]+$/, 'inviteCode only allows letters, numbers, dashes, underscores')
+    .transform((s) => s.toLowerCase()),
+});
+
+export type JoinLeagueInput = z.infer<typeof joinLeagueSchema>;

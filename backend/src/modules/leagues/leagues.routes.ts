@@ -1,24 +1,104 @@
-// ROUTES — el wire entre URL paths y handlers.
-// Orden de middlewares por ruta: requireAuth → validate(schema) → controller.
+// ROUTES — wiring entre URL paths y handlers.
 //
-// Por que requireAuth ANTES de validate:
-//   Si validate corriera primero, un atacante sin token podria probar bodies y recibir
-//   400 detallando el shape esperado — info leak. Con requireAuth primero, recibe 401
-//   sin importar el body. Failsafe.
+// Orden de middlewares por ruta (Slice 3):
+//   rateLimit (donde aplica) → requireAuth → validateParams → requireLeagueMember
+//                              → requireLeagueOwner (si aplica) → validate(body) → controller
 //
-// No hay DELETE — archivado se hace via PATCH status='ARCHIVED' (decision Slice 2).
+// Decisiones clave:
+//   - rateLimit antes que requireAuth: corre primero para que un atacante sin token igual
+//     no pueda golpear el endpoint masivamente. La key del limiter usa req.user si existe;
+//     si no, IP. Defense in depth.
+//   - validateParams ANTES de requireLeagueMember: el middleware necesita Number(req.params.id),
+//     y validateParams coerciona + rechaza con 400 si :id no es int positive.
+//   - validate(body) DESPUES de requireLeagueOwner en PATCH: queremos que un no-owner reciba
+//     403 sin necesidad de mandar body valido. Si validate corriera antes, un no-owner con
+//     body malo recibiria 400 (info leak menor).
+//
+// No hay DELETE /leagues/:id (decision Slice 2 — archivar via PATCH status='ARCHIVED').
 
 import { Router } from 'express';
 import * as leaguesController from './leagues.controller';
-import { validate } from '../../middleware/validate';
+import { validate, validateParams } from '../../middleware/validate';
 import { requireAuth } from '../../middleware/auth';
-import { createLeagueSchema, updateLeagueSchema } from './leagues.schema';
+import { requireLeagueMember, requireLeagueOwner } from '../../middleware/leagueMembership';
+import { leagueCreateLimiter, leagueJoinLimiter } from '../../middleware/rateLimit';
+import {
+  createLeagueSchema,
+  updateLeagueSchema,
+  joinLeagueSchema,
+  leagueIdParamSchema,
+  memberKickParamSchema,
+} from './leagues.schema';
 
 const router = Router();
 
-router.post('/', requireAuth, validate(createLeagueSchema), leaguesController.create);
+// ─── Rutas Slice 2 (actualizadas con middleware chain de Slice 3) ────
+
+router.post(
+  '/',
+  leagueCreateLimiter,
+  requireAuth,
+  validate(createLeagueSchema),
+  leaguesController.create,
+);
+
 router.get('/', requireAuth, leaguesController.list);
-router.get('/:id', requireAuth, leaguesController.getById);
-router.patch('/:id', requireAuth, validate(updateLeagueSchema), leaguesController.update);
+
+// ─── Ruta Slice 3 nueva: POST /leagues/join ──────────────────────────
+// Atencion al ORDEN: /join va ANTES de /:id, porque Express matchea por orden.
+// Si /:id fuera antes, "join" seria capturado como id="join" y validateParams lo rechazaria.
+
+router.post(
+  '/join',
+  leagueJoinLimiter,
+  requireAuth,
+  validate(joinLeagueSchema),
+  leaguesController.join,
+);
+
+// ─── Rutas /:id (Slice 2 con membership check + Slice 3 nuevas) ─────
+
+router.get(
+  '/:id',
+  requireAuth,
+  validateParams(leagueIdParamSchema),
+  requireLeagueMember,
+  leaguesController.getById,
+);
+
+router.patch(
+  '/:id',
+  requireAuth,
+  validateParams(leagueIdParamSchema),
+  requireLeagueMember,
+  requireLeagueOwner,
+  validate(updateLeagueSchema),
+  leaguesController.update,
+);
+
+router.post(
+  '/:id/leave',
+  requireAuth,
+  validateParams(leagueIdParamSchema),
+  requireLeagueMember,
+  leaguesController.leave,
+);
+
+router.get(
+  '/:id/members',
+  requireAuth,
+  validateParams(leagueIdParamSchema),
+  requireLeagueMember,
+  leaguesController.listMembers,
+);
+
+router.delete(
+  '/:id/members/:userId',
+  requireAuth,
+  validateParams(memberKickParamSchema),
+  requireLeagueMember,
+  requireLeagueOwner,
+  leaguesController.kickMember,
+);
 
 export default router;
