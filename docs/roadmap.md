@@ -21,12 +21,7 @@ Stack overview rápido (ver [`../CLAUDE.md`](../CLAUDE.md) para detalle): Expres
 
 ## Now — bloqueantes para todo lo demás
 
-### Slice 3 — LeagueMember (membership)
-
-- **Goal**: un User puede unirse a una League con un `inviteCode`, dejarla, o ser kickeado por el owner.
-- **Touches**: tabla `LeagueMember` (FK a User + League, `isOwner`, `status`, `joinedAt`); endpoints `/leagues/join`, `/leagues/:id/leave`, `/leagues/:id/members`, `DELETE /leagues/:id/members/:userId`; middleware `requireLeagueMember`, `requireLeagueOwner`; cuando se crea una League en Slice 2, ahora también se crea un LeagueMember `isOwner: true` para el creador.
-- **Done when**: tests cubren: join con código válido, join con código inválido (404), leave normal, owner intenta leave (409 — debe transferir antes), kick válido (owner), kick por non-owner (403), respeto al `maxMembers`.
-- **Blocked by**: Slice 1, Slice 2.
+_(Slices 1, 2, 3 completos. Próximo: Slice 4.)_
 
 ---
 
@@ -131,6 +126,16 @@ Si alguno de estos se vuelve demasiado grande, partir así:
 ---
 
 ## Completados
+
+### Slice 3 — LeagueMember (membership + join + leave + kick)
+
+- **Status**: done (branch `slice-3-membership`).
+- **Goal**: un User puede unirse a una League con `inviteCode`, dejarla, o ser kickeado por el owner. La tabla `LeagueMember` empieza a poblarse — antes existía en el schema pero no se usaba.
+- **Shipped**: 4 endpoints nuevos (`POST /leagues/join`, `POST /leagues/:id/leave`, `GET /leagues/:id/members`, `DELETE /leagues/:id/members/:userId`). 2 middlewares scoped al recurso (`requireLeagueMember`, `requireLeagueOwner`) + 1 helper (`validateParams`) + rate limiter (`express-rate-limit` con user-based key). `createLeague` ahora crea LeagueMember(isOwner=true) atómicamente vía nested write. `GET /leagues` ahora filtra por ACTIVE membership (incluye las que creé y las que junte).
+- **Decisiones clave**: rejoin permitido tanto desde LEFT como KICKED (status queda como audit). Transfer ownership fuera de scope. ARCHIVED leagues NO aceptan nuevos joins. P2-1 unification aplicada (404 cuando user no es member, no 403).
+- **Touches reales**: `middleware/leagueMembership.ts` (nuevo), `middleware/rateLimit.ts` (nuevo), `middleware/validate.ts` (agregó `validateParams`), `modules/leagues/{schema,service,controller,routes}.ts` (extendidos), `types/express.d.ts` (agregó `req.leagueMember`), `package.json` (express-rate-limit ^8.5.2). Sin migration (tabla `league_members` ya existía en init).
+- **Tests**: 119 total (100 previos + 19 nuevos). Tests Slice 2 actualizados: happy POST agrega assert de LeagueMember creado; tests "403 si no es owner" splittedos en 2 (404 si no member, 403 si member-no-owner).
+- **Deuda cerrada de known-debt**: P2-1 (404/403 unification), P3-1 (rate limit), P3-2 (Zod path-params).
 
 ### Slice 1 — Auth básico (User + register + login + /me + refresh + logout + middleware)
 

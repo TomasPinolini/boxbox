@@ -127,20 +127,21 @@ Cada sección está taggeada con su estado actual:
 
 ---
 
-## Leagues [✅ shipped — POST/GET/GET:id/PATCH (Slice 2); 🚧 planned — /join, /leave, /members (Slice 3)]
+## Leagues [✅ shipped — todos los endpoints (Slice 2 + Slice 3)]
 
 | Método | Endpoint                       | Acceso        | Notas                                                                              |
 | ------ | ------------------------------ | ------------- | ---------------------------------------------------------------------------------- |
-| POST   | `/leagues`                     | User          | `createdById` se deriva del JWT; body: `{name, inviteCode, seasonId, maxMembers?}` |
-| GET    | `/leagues`                     | User          | Solo las ligas creadas por el user actual (Slice 3 expande a owner OR member)      |
-| GET    | `/leagues/:id`                 | League owner  | 403 NOT_LEAGUE_OWNER si no soy el creador                                          |
-| PATCH  | `/leagues/:id`                 | League owner  | Partial: `name`/`maxMembers`/`status`/`inviteCode`. Body vacío `{}` → 400          |
-| POST   | `/leagues/join`                | User          | Body: `{ code: "ABC123" }`                                                         |
-| POST   | `/leagues/:id/leave`           | League member | No puede ser el owner                                                              |
-| GET    | `/leagues/:id/members`         | League member | Lista de miembros                                                                  |
-| DELETE | `/leagues/:id/members/:userId` | League owner  | Kickear miembro                                                                    |
+| POST   | `/leagues`                     | User          | Rate limit 5/min/user. `createdById` del JWT. Crea liga + LeagueMember(owner=true) atómico. Body: `{name, inviteCode, seasonId, maxMembers?}` |
+| GET    | `/leagues`                     | User          | Devuelve leagues donde soy ACTIVE member (incluye las que creé)                    |
+| GET    | `/leagues/:id`                 | League member | 404 LEAGUE_NOT_FOUND si no soy member (P2-1 unification, no 403)                   |
+| PATCH  | `/leagues/:id`                 | League owner  | Partial: `name`/`maxMembers`/`status`/`inviteCode`. 403 NOT_LEAGUE_OWNER si soy member sin ser owner. Body `{}` → 400 |
+| POST   | `/leagues/join`                | User          | Rate limit 10/min/user. Body: `{inviteCode}`. 404 INVITE_CODE_NOT_FOUND si inválido o archived. Soporta rejoin desde LEFT/KICKED |
+| POST   | `/leagues/:id/leave`           | League member | 409 OWNER_CANNOT_LEAVE si soy owner (debe transferir primero — fuera de scope hoy) |
+| GET    | `/leagues/:id/members`         | League member | Devuelve solo ACTIVE members (LEFT/KICKED no aparecen)                             |
+| DELETE | `/leagues/:id/members/:userId` | League owner  | Kick (soft → KICKED). 409 OWNER_CANNOT_LEAVE si owner intenta kickearse a sí mismo  |
 
 > **Archivado**: NO hay `DELETE /leagues/:id`. Para archivar una liga: `PATCH /leagues/:id { "status": "ARCHIVED" }`.
+> **Rejoin**: tanto LEFT como KICKED pueden rejoinear vía `POST /leagues/join`. Status queda como audit trail.
 
 ---
 

@@ -26,11 +26,12 @@ Built:
 - Vitest integration tests hitting a real Postgres database
 - **Auth (Slice 1)**: `User` table + `auth/` module + `requireAuth` middleware + JWT access/refresh + httpOnly refresh cookie. Endpoints: `POST /auth/register`, `POST /auth/login`, `GET /auth/me`, `POST /auth/refresh`, `POST /auth/logout`.
 - **Leagues real (Slice 2)**: `leagues/` module reescrito con Prisma. Endpoints: `POST /leagues`, `GET /leagues`, `GET /leagues/:id`, `PATCH /leagues/:id` — todos `requireAuth`. Ownership check vía `createdById`. Archivado via `PATCH status='ARCHIVED'` (no hay endpoint DELETE). `inviteCode` user-supplied (length 4-20, regex, lowercase normalize, reserved blacklist).
+- **LeagueMember / membership (Slice 3)**: `LeagueMember` table en uso (antes existía pero idle). Endpoints nuevos: `POST /leagues/join`, `POST /leagues/:id/leave`, `GET /leagues/:id/members`, `DELETE /leagues/:id/members/:userId`. Middleware scoped al recurso: `requireLeagueMember` (404 si no member — P2-1 unification) + `requireLeagueOwner` (403 si member pero no owner). `createLeague` ahora crea LeagueMember(owner=true) atómicamente via nested write. `GET /leagues` ahora filtra por ACTIVE membership (incluye juntas). Rate limit user-based en POST `/leagues` (5/min) y `/leagues/join` (10/min) via `express-rate-limit`. Skip en env `NODE_ENV=test` / `VITEST=true` / `SMOKE=1`. Path params validados con `validateParams(schema)` (Zod `.coerce.number()`).
 
 Not yet built — **intentionally deferred**. Do not suggest implementing any of these without an explicit ask from the user; project timeline lives outside this repo:
 
-- `LeagueMember` / membership (Slice 3): `/leagues/join`, `/leave`, `/members`, kick. Owner = primer member con `isOwner=true`.
-- Role middleware (`requireAdmin`), rate limiter
+- Role middleware (`requireAdmin`)
+- Transfer ownership de leagues — owner que quiere irse hoy recibe 409 `OWNER_CANNOT_LEAVE`.
 - Fantasy teams, draft picks, predictions, scoring, standings
 - Socket.io draft namespace
 - Frontend (no directory exists yet)

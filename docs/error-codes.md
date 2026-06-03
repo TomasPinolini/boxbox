@@ -84,27 +84,23 @@ Códigos de error tipados que la API puede devolver en el envelope `{ error: { c
 
 | Código | HTTP | Origen | Cuándo |
 |---|---|---|---|
-| `LEAGUE_NOT_FOUND` | 404 | `leagues.service.ts` (getLeagueById, updateLeague) | GET/PATCH de un League id que no existe en DB. |
-| `SEASON_NOT_FOUND` | 404 | `leagues.service.ts` (createLeague — catch P2003) | POST con `seasonId` que no existe en `seasons`. (Mismo código que el de Seasons module — semánticamente es lo mismo: la Season referenciada no existe.) |
+| `LEAGUE_NOT_FOUND` | 404 | `middleware/leagueMembership.ts` (requireLeagueMember) + `leagues.service.ts` | Slice 3: cuando user autenticado no es ACTIVE member de la League referenced en `:id`. **Unificación P2-1**: distingue de 403 — solo devuelve 403 cuando es member pero no owner (no leakea info sobre IDs existentes). |
+| `INVITE_CODE_NOT_FOUND` | 404 | `leagues.service.ts` (joinLeague) | `POST /leagues/join` con un inviteCode que no existe O la liga está ARCHIVED. Mismo code para ambos casos (no leakea estado de la liga). |
+| `SEASON_NOT_FOUND` | 404 | `leagues.service.ts` (createLeague — catch P2003) | POST con `seasonId` que no existe en `seasons`. |
+| `MEMBER_NOT_FOUND` | 404 | `leagues.service.ts` (kickMember) | DELETE `/leagues/:id/members/:userId` con un userId que no es ACTIVE member. |
 | `INVITE_CODE_TAKEN` | 409 | `leagues.service.ts` (createLeague, updateLeague — catch P2002) | POST/PATCH con un `inviteCode` ya usado (después de normalizar a lowercase). Catch del Prisma error `P2002` hace el chequeo race-free. |
-| `NOT_LEAGUE_OWNER` | 403 | `leagues.service.ts` (getLeagueById, updateLeague) | User autenticado intenta leer o mutar una League cuyo `createdById !== req.user.userId`. Slice 3 expande a "owner OR member" para lecturas. |
-| `VALIDATION_ERROR` | 400 | `middleware/validate.ts` | inviteCode reservado (`admin`/`test`/`me`/`api`/`health`), length fuera de 4-20, charset inválido, o body vacío en PATCH. `error.details` lleva el detalle por campo. |
+| `ALREADY_MEMBER` | 409 | `leagues.service.ts` (joinLeague) | `POST /leagues/join` cuando ya soy ACTIVE member de esa liga. Rejoin de LEFT/KICKED NO tira esto — solo si estoy actualmente ACTIVE. |
+| `LEAGUE_FULL` | 409 | `leagues.service.ts` (joinLeague) | Intento de joinear cuando `count(ACTIVE members) === maxMembers`. |
+| `OWNER_CANNOT_LEAVE` | 409 | `leagues.service.ts` (leaveLeague, kickMember) | Owner intenta `POST /leagues/:id/leave` O `DELETE /:id/members/:ownerId`. Debe transferir ownership antes (fuera de scope hoy). |
+| `NOT_LEAGUE_OWNER` | 403 | `middleware/leagueMembership.ts` (requireLeagueOwner) | User ES ACTIVE member pero la ruta requiere owner (PATCH, DELETE kick). Único caso donde 403 NO leakea info (user ya sabe que la liga existe porque es member). |
+| `RATE_LIMIT_EXCEEDED` | 429 | `middleware/rateLimit.ts` | POST `/leagues` (5/min/user) o POST `/leagues/join` (10/min/user) excedido. Skip en `NODE_ENV=test` o `VITEST=true`. |
+| `VALIDATION_ERROR` | 400 | `middleware/validate.ts` + `validateParams` | inviteCode reservado/length/charset inválido, body vacío en PATCH, o path param no-int (`:id` o `:userId`). `error.details` lleva el detalle por campo. |
 
 ---
 
 ## Códigos planeados (todavía no implementados)
 
 Estos van a aparecer cuando se construyan los slices del [`roadmap.md`](./roadmap.md). Documentados acá para que el equipo no invente variantes inconsistentes:
-
-### Slice 3 — LeagueMember (membership)
-
-| Código | HTTP | Cuándo |
-|---|---|---|
-| `INVITE_CODE_INVALID` | 404 | Code de invitación no existe (lookup en `POST /leagues/join`). |
-| `LEAGUE_FULL` | 409 | Intento de joinear una League en el cap `maxMembers`. |
-| `ALREADY_MEMBER` | 409 | User ya es LeagueMember de esa League. |
-| `OWNER_CANNOT_LEAVE` | 409 | Owner intenta hacer leave sin transferir ownership. |
-| `NOT_LEAGUE_MEMBER` | 403 | User no es miembro de la League pero accede a endpoints scoped a la League. |
 
 ### Slice 5 — Draft REST
 
