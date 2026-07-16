@@ -48,7 +48,7 @@ Antes de tocar TypeScript, modelá la entidad en [`backend/prisma/schema.prisma`
 
 Decisiones a tomar:
 
-- **¿Soft-delete?** Solo entidades de catálogo (Driver, Constructor, Circuit) llevan `deletedAt`. Las transaccionales (RaceResult, FantasyTeam) no. Ver ADR-0004 cuando exista.
+- **¿Soft-delete?** Solo entidades de catálogo (Driver, Constructor, Circuit) llevan `deletedAt`. Las transaccionales (RaceResult, FantasyTeam) no. Ver [ADR-0004](../adr/ADR-0004-soft-delete-only-catalog.md).
 - **¿`externalId`?** Si la entidad se sincroniza con Jolpica/OpenF1, sí. Marcalo `@unique`.
 - **Constraints únicos:** ¿`@@unique([campoA, campoB])`? Pensalo ahora, no después de la migración.
 - **`createdAt` / `updatedAt`:** casi siempre sí. Usá `@default(now())` y `@updatedAt`.
@@ -151,7 +151,7 @@ export default router;
 
 #### 4e. `<nuevo>.test.ts`
 
-Tests de integración contra la DB real (no mocks — decisión cerrada, ver ADR-0003 cuando exista). Cubrí los 5 endpoints + casos de error:
+Tests de integración contra la DB real (no mocks — decisión cerrada, ver [ADR-0003](../adr/ADR-0003-real-db-integration-tests.md)). Cubrí los 5 endpoints + casos de error:
 
 - `GET /` lista vacía y con datos
 - `GET /:id` happy + 404

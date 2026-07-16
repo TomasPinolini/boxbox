@@ -4,7 +4,7 @@ Slices ordenados por dependencia para llegar de los 5 CRUDs actuales al MVP func
 
 **Cómo se usa este archivo:**
 
-- Cuando arrancás un slice, abrí un GitHub Issue con `/to-prd` para que genere el PRD detallado (problem / solution / user stories / acceptance / out of scope).
+- Cuando arrancás un slice, el plan vive inline (en chat o en `.claude/plans/`); los PRs llevan el detalle. No se abren GitHub Issues por slice.
 - Cuando completás un slice, marcá `**Status:** done` y movelo a la sección "Completados" al final del archivo.
 - Si un slice se vuelve demasiado grande durante la implementación, partilo en sub-slices (`5a`, `5b`). No expandas el alcance original.
 
