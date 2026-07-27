@@ -175,13 +175,13 @@ Autenticación via JWT en el handshake. Namespace: `/draft`.
 
 ---
 
-## Fantasy Teams [🚧 planned]
+## Fantasy Teams [✅ shipped — GET /teams/me (Slice 4); 🚧 planned — resto]
 
 | Método | Endpoint                      | Acceso        | Notas                                                             |
 | ------ | ----------------------------- | ------------- | ----------------------------------------------------------------- |
 | GET    | `/leagues/:id/teams`          | League member | Todos los equipos de la liga                                      |
 | GET    | `/leagues/:id/teams/:userId`  | League member | Equipo de un usuario específico                                   |
-| GET    | `/leagues/:id/teams/me`       | League member | Mi equipo                                                         |
+| GET    | `/leagues/:id/teams/me`       | League member | Slice 4. Mi FantasyTeam en esta liga; se crea vacío (slots `null`) al crear/joinear la liga |
 | POST   | `/leagues/:id/teams/me/swap`  | League member | Solo antes de `lockDate`. Body: `{ slot, reserveIn: true/false }` |
 | GET    | `/leagues/:id/teams/me/swaps` | League member | Historial de swaps                                                |
 

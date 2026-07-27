@@ -11,6 +11,13 @@
 //   - getLeagueById/updateLeague YA NO hacen ownership check inline. Eso vive en
 //     middleware requireLeagueMember/requireLeagueOwner (P2-1 unification 404 vs 403).
 //   - Nuevas funciones: joinLeague, leaveLeague, listMembers, kickMember.
+//
+// Slice 4 cambios:
+//   - createLeague y joinLeague ahora crean el FantasyTeam del member atomicamente (nested
+//     write dentro del create del LeagueMember). Todos los slots arrancan null.
+//   - Rejoin (branch `update` del upsert en joinLeague) NO recrea el FantasyTeam — el que
+//     ya existe de la membership original se mantiene (preserva picks si el draft ya corrio).
+//   - Nueva funcion: getMyFantasyTeam.
 
 import { prisma } from '../../shared/prisma';
 import { Prisma } from '../../generated/prisma/client';
@@ -40,6 +47,17 @@ const memberSelect = {
   joinedAt: true,
 } as const;
 
+// fantasyTeamSelect — shape de FantasyTeam en responses publicas (GET /:id/teams/me).
+const fantasyTeamSelect = {
+  id: true,
+  leagueMemberId: true,
+  driver1Id: true,
+  driver2Id: true,
+  reserveDriverId: true,
+  constructorId: true,
+  createdAt: true,
+} as const;
+
 export async function createLeague(data: CreateLeagueInput, userId: number) {
   // Nested write atomico: Prisma crea League + LeagueMember en una sola transaccion.
   // Si la insert del member falla (raro — userId viene del JWT validado), la liga tampoco
@@ -53,7 +71,15 @@ export async function createLeague(data: CreateLeagueInput, userId: number) {
         maxMembers: data.maxMembers ?? 11,
         createdById: userId,
         members: {
-          create: { userId, isOwner: true, status: 'ACTIVE' },
+          // Slice 4: nested create de dos niveles — League → LeagueMember → FantasyTeam,
+          // todo en la misma transaccion implicita de Prisma. Si algo falla en el medio,
+          // nada se crea.
+          create: {
+            userId,
+            isOwner: true,
+            status: 'ACTIVE',
+            fantasyTeam: { create: {} },
+          },
         },
       },
       select: leagueSelect,
@@ -153,10 +179,21 @@ throw new NotFoundError('Invite_code');
   // El @@unique(leagueId, userId) hace este upsert atomico — si una race condition mete
   // un insert al mismo tiempo, uno de los dos pierde con P2002 (que Prisma maneja
   // internamente en upsert haciendo update).
+  //
+  // Slice 4: el branch `create` arma el FantasyTeam nested (mismo shape que createLeague).
+  // El branch `update` (rejoin) deliberadamente NO toca fantasyTeam — ya existe desde el
+  // join original y @@unique([leagueMemberId]) no permite un segundo. Si el draft ya corrio
+  // antes de que este member se fuera, el rejoin conserva sus picks.
   const member = await prisma.leagueMember.upsert({
     where: { leagueId_userId: { leagueId: league.id, userId } },
     update: { status: 'ACTIVE', joinedAt: new Date() },
-    create: { leagueId: league.id, userId, isOwner: false, status: 'ACTIVE' },
+    create: {
+      leagueId: league.id,
+      userId,
+      isOwner: false,
+      status: 'ACTIVE',
+      fantasyTeam: { create: {} },
+    },
     select: memberSelect,
   });
   return member;
@@ -213,4 +250,22 @@ export async function kickMember(leagueId: number, kickedUserId: number, ownerUs
     data: { status: 'KICKED' },
     select: memberSelect,
   });
+}
+
+// ─── Slice 4: FantasyTeam ─────────────────────────────────────────────
+
+// getMyFantasyTeam: requireLeagueMember ya corrio y dejo el LeagueMember en req.leagueMember,
+// asi que el controller nos pasa directo su id — sin query extra a LeagueMember aca.
+// El FantasyTeam se crea atomicamente junto al LeagueMember (createLeague / joinLeague), asi
+// que en la practica este lookup siempre resuelve. El NotFoundError es defense in depth,
+// mismo criterio que getLeagueById.
+export async function getMyFantasyTeam(leagueMemberId: number) {
+  const team = await prisma.fantasyTeam.findUnique({
+    where: { leagueMemberId },
+    select: fantasyTeamSelect,
+  });
+  if (!team) {
+    throw new NotFoundError('Fantasy_team');
+  }
+  return team;
 }

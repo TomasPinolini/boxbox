@@ -21,18 +21,11 @@ Stack overview rápido (ver [`../CLAUDE.md`](../CLAUDE.md) para detalle): Expres
 
 ## Now — bloqueantes para todo lo demás
 
-_(Slices 1, 2, 3 completos. Próximo: Slice 4.)_
+_(Slices 1, 2, 3, 4, 7 completos. Próximo: Slice 5.)_
 
 ---
 
 ## Next — completar el camino al draft funcional
-
-### Slice 4 — FantasyTeam shell
-
-- **Goal**: cuando un LeagueMember se une, se crea automáticamente su FantasyTeam vacío (todos los slots `null`). Es la entidad que después llenará el draft.
-- **Touches**: tabla `FantasyTeam` (1:1 con `LeagueMember`, slots nullable); el service de Slice 3 ahora crea un FantasyTeam al crear el LeagueMember; endpoint `GET /leagues/:id/teams/me` devuelve el equipo del usuario en esa liga.
-- **Done when**: al joinear una liga, `prisma.fantasyTeam.count()` para ese member es 1. Endpoint de lectura funciona. Tests cubren creación implícita + lectura.
-- **Blocked by**: Slice 3.
 
 ### Slice 5 — Draft state machine (REST-only, sin Socket)
 
@@ -47,13 +40,6 @@ _(Slices 1, 2, 3 completos. Próximo: Slice 4.)_
 - **Touches**: instalar `socket.io`; `server.ts` integra el HTTP server con io; nuevo archivo `modules/draft/draft.gateway.ts` con los handlers de eventos; auth del socket via JWT en handshake; los handlers internamente reusan el service de Slice 5; setTimeout-based timer por turno.
 - **Done when**: un cliente Socket.io de prueba puede conectarse, recibir `draft:state` al join, mandar `draft:pick` y ver `draft:update` broadcasteado al resto. Test manual con `wscat` o cliente mínimo en Node. Auto-pick funciona al expirar el timer.
 - **Blocked by**: Slice 5.
-
-### Slice 7 — RaceResult ingestion (manual primero)
-
-- **Goal**: poder cargar resultados de carrera por API (admin-only). Sin sync externa aún.
-- **Touches**: tabla `RaceResult` (FK a Race + Driver + Constructor, status `CLASSIFIED|DNF|DSQ|DNS`); endpoint `POST /api/v1/races/:id/results` (admin) que recibe un array de resultados; cuando se cargan, `Race.status` transiciona a `COMPLETED`.
-- **Done when**: cargar 20 resultados para una Race y verificar `prisma.raceResult.count() = 20`. Tests cubren happy + duplicate prevention (no cargar dos veces la misma carrera) + race ya completed (409).
-- **Blocked by**: ninguno técnico (Race ya existe) — pero útil **después** de Slice 6 para empezar a probar scoring.
 
 ---
 
@@ -126,6 +112,23 @@ Si alguno de estos se vuelve demasiado grande, partir así:
 ---
 
 ## Completados
+
+### Slice 4 — FantasyTeam shell
+
+- **Status**: done (branch `slice-4-fantasy-team`).
+- **Goal**: cuando un LeagueMember se une (creando la liga u joineando por inviteCode), se crea automáticamente su FantasyTeam vacío (todos los slots `null`). Es la entidad que después llenará el draft.
+- **Shipped**: `createLeague` y `joinLeague` (branch `create` del upsert) ahora hacen nested write de dos niveles — League/LeagueMember(update) → FantasyTeam — en la misma transacción implícita de Prisma. Rejoin (branch `update` del upsert) NO recrea el FantasyTeam: el que ya existe se conserva. Endpoint nuevo `GET /leagues/:id/teams/me` (mismo middleware chain que `GET /:id/members`).
+- **Decisiones clave**: FantasyTeam vive dentro del módulo `leagues` (no un módulo nuevo) — mismo criterio que Slice 3 (LeagueMember) y Slice 7 (RaceResult dentro de `races`): recursos fuertemente acoplados a un módulo padre se extienden ahí en vez de fragmentar en módulos nuevos por tabla. Tabla `fantasy_teams` ya existía desde la migration `init` (idle) — sin migration nueva.
+- **Touches reales**: `modules/leagues/{service,controller,routes}.ts` extendidos, `modules/leagues/leagues.test.ts` (+4 tests nuevos + 2 asserts agregados a tests de POST /leagues y POST /leagues/join existentes).
+- **Tests**: 139 total (135 previos + 4 nuevos).
+
+### Slice 7 — RaceResult ingestion (manual, admin-only)
+
+- **Status**: done (PR #4 mergeado en `dev`).
+- **Goal**: poder cargar resultados de carrera por API (admin-only). Sin sync externa aún.
+- **Shipped**: `POST /races/:id/results` — carga atómica vía `prisma.$transaction`, transiciona `Race.status` a `COMPLETED` en la misma tx. Guards: 404 race inexistente, 409 `RACE_ALREADY_COMPLETED`, 409 `RACE_NOT_LOADABLE` (CANCELLED/POSTPONED), 404 `DRIVER_NOT_FOUND` (con rollback), 409 `RACE_RESULT_DUPLICATE_DRIVER`. `GET /races/:id/results` — lectura pública ordenada por `position` asc (nulls last). `middleware/admin.ts` nuevo: `requireAdmin` lee `role` del JWT payload (sin DB roundtrip).
+- **Touches reales**: `modules/races/{service,controller,routes,schema}.ts` extendidos; `middleware/admin.ts` (nuevo); `schema.prisma` agregó columna `laps Int?` a `RaceResult` (migration `20260716192550_add_race_result_laps`); `tests/setup.ts` agregó helpers `createTestUser` + `createTestAdmin`.
+- **Tests**: incluidos en la suite total de 139.
 
 ### Slice 3 — LeagueMember (membership + join + leave + kick)
 
