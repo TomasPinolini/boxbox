@@ -97,3 +97,16 @@ export async function kickMember(req: Request, res: Response, next: NextFunction
     next(err);
   }
 }
+
+// ─── Endpoint Slice 4 nuevo ───────────────────────────────────────────
+
+// GET /leagues/:id/teams/me — mi FantasyTeam en esta liga. req.leagueMember.id viene de
+// requireLeagueMember (ya corrio antes en la chain), evita un segundo lookup a LeagueMember.
+export async function getMyFantasyTeam(req: Request, res: Response, next: NextFunction) {
+  try {
+    const team = await leaguesService.getMyFantasyTeam(req.leagueMember!.id);
+    res.json({ data: team });
+  } catch (err) {
+    next(err);
+  }
+}

@@ -14,7 +14,8 @@
     "db:migrate": "prisma migrate dev",
     "db:generate": "prisma generate",
     "db:studio": "prisma studio",
-    "smoke:slice-7": "ts-node --transpile-only src/scripts/smoke-slice-7.ts"
+    "smoke:slice-7": "ts-node --transpile-only src/scripts/smoke-slice-7.ts",
+    "smoke:slice-4": "ts-node --transpile-only src/scripts/smoke-slice-4.ts"
   },
   "keywords": [],
   "author": "",

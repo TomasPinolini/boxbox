@@ -15,6 +15,10 @@
 //     body malo recibiria 400 (info leak menor).
 //
 // No hay DELETE /leagues/:id (decision Slice 2 — archivar via PATCH status='ARCHIVED').
+//
+// Slice 4: GET /:id/teams/me reusa exactamente la misma chain que GET /:id/members
+// (requireAuth → validateParams → requireLeagueMember) — cualquier ACTIVE member puede leer
+// su propio FantasyTeam.
 
 import { Router } from 'express';
 import * as leaguesController from './leagues.controller';
@@ -90,6 +94,16 @@ router.get(
   validateParams(leagueIdParamSchema),
   requireLeagueMember,
   leaguesController.listMembers,
+);
+
+// ─── Ruta Slice 4 nueva: GET /leagues/:id/teams/me ───────────────────
+
+router.get(
+  '/:id/teams/me',
+  requireAuth,
+  validateParams(leagueIdParamSchema),
+  requireLeagueMember,
+  leaguesController.getMyFantasyTeam,
 );
 
 router.delete(
