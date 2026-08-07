@@ -2,7 +2,7 @@
   "name": "backend",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "dist/server.js",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
     "build": "tsc",
@@ -14,7 +14,7 @@
     "db:migrate": "prisma migrate dev",
     "db:generate": "prisma generate",
     "db:studio": "prisma studio",
-    "smoke:slice-7": "ts-node --transpile-only src/scripts/smoke-slice-7.ts"
+    "knip": "knip"
   },
   "keywords": [],
   "author": "",
@@ -36,7 +36,6 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@types/bcryptjs": "^2.4.6",
     "@types/cookie-parser": "^1.4.10",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
@@ -44,6 +43,7 @@
     "@types/node": "^25.6.0",
     "@types/supertest": "^7.2.0",
     "eslint": "^10.2.0",
+    "knip": "^6.32.0",
     "prettier": "^3.8.3",
     "prisma": "^7.7.0",
     "supertest": "^7.2.2",
@@ -52,5 +52,14 @@
     "typescript": "^6.0.2",
     "typescript-eslint": "^8.58.1",
     "vitest": "^4.1.4"
+  },
+  "knip": {
+    "project": [
+      "src/**/*.ts"
+    ],
+    "ignoreDependencies": [
+      "@prisma/client",
+      "pg"
+    ]
   }
 }

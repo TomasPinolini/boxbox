@@ -14,15 +14,10 @@
 import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import type { Request, Response } from 'express';
 
-// Bypass del rate limit en 3 escenarios:
-//   1. Vitest (NODE_ENV='test' o VITEST='true' — setean automaticos).
-//   2. Smoke testing manual (SMOKE='1' — setear al arrancar dev server explicitamente).
-//      Use: SMOKE=1 npm run dev. Permite correr smoke/ sin pegar contra el cap de 5/min.
+// Bypass del rate limit solo bajo Vitest (NODE_ENV='test' o VITEST='true' — setean automaticos).
 // El cap se aplica en prod normal (sin envs especiales).
 const isTestEnv = () =>
-  process.env.NODE_ENV === 'test' ||
-  process.env.VITEST === 'true' ||
-  process.env.SMOKE === '1';
+  process.env.NODE_ENV === 'test' || process.env.VITEST === 'true';
 
 // userKey: prefiere userId (autenticado) sobre IP. requireAuth ya corrio antes en la cadena.
 // IP fallback usa ipKeyGenerator (helper de express-rate-limit v8+) que normaliza IPv6 a
