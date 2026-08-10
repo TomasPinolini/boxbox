@@ -81,4 +81,3 @@ export const joinLeagueSchema = z.object({
     .transform((s) => s.toLowerCase()),
 });
 
-export type JoinLeagueInput = z.infer<typeof joinLeagueSchema>;
