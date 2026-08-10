@@ -156,5 +156,4 @@ agent-browser snapshot -i           # 4. RE-SNAPSHOT tras cualquier navegación 
 - `docs/proposal.md` — TP scope
 - `docs/data-model.mmd` — full planned ER diagram (many tables are not yet in `schema.prisma`)
 - `docs/api-endpoints.md` — full planned API surface (most endpoints not yet implemented)
-- `docs/architecture/` — architecture notes
 - `docs/tutorial.md` — local setup walkthrough for new contributors (clone → DB → seed)
