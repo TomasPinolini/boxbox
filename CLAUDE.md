@@ -116,6 +116,34 @@ When adding a new domain, mirror an existing module (e.g. `drivers/`) exactly �
 - Integration style: spin up the Express `app`, hit it with `request(app).post(...)`, assert on status + `body.data` / `body.error.code`.
 - Run a single test file while iterating: `npm test -- src/modules/<name>/<name>.test.ts --run`.
 
+## Browser automation (agent-browser)
+
+The `agent-browser` CLI is installed (see `~/.claude/skills/agent-browser/`). Only applies once **Slice 13 (Frontend bootstrap)** ships — hoy no hay UI que inspeccionar, sólo API JSON.
+
+**Core loop** — repetir en este orden:
+
+```bash
+agent-browser open <url>            # 1. Navegar
+agent-browser snapshot -i           # 2. Ver refs @eN de elementos interactivos
+agent-browser click @e5             # 3. Interactuar usando refs
+agent-browser snapshot -i           # 4. RE-SNAPSHOT tras cualquier navegación / cambio de estado
+```
+
+**Regla clave — refs se invalidan cuando la página cambia.** Después de click que navega, submit de form, apertura de modal, o render dinámico: los `@e1`, `@e2`... del snapshot anterior ya no apuntan a lo mismo. Re-snapshotear antes de la próxima interacción, sin excepción.
+
+**Cuándo SÍ usar en BoxBox (post Slice 13):**
+
+- Reproducir bugs que reporta el usuario en la UI.
+- Verificar flujos manualmente (login, crear liga, join, draft).
+- Diffs visuales (`agent-browser diff url <a> <b>`, `agent-browser diff screenshot --baseline old.png`).
+- Profiling de React renders y web vitals.
+
+**Cuándo NO usar:**
+
+- No reemplaza los tests Vitest+Supertest — ésos son la fuente de verdad para asserts.
+- No es sustituto de un suite E2E determinístico en CI. Es para exploración, no para gating de merges.
+- No inventar tests contra endpoints JSON puros — el loop asume DOM interactivo, no respuestas de API.
+
 ## Conventions
 
 - **Language**: docs and UI are Spanish; code, identifiers, comments, commit messages are English.
@@ -128,5 +156,4 @@ When adding a new domain, mirror an existing module (e.g. `drivers/`) exactly �
 - `docs/proposal.md` — TP scope
 - `docs/data-model.mmd` — full planned ER diagram (many tables are not yet in `schema.prisma`)
 - `docs/api-endpoints.md` — full planned API surface (most endpoints not yet implemented)
-- `docs/architecture/` — architecture notes
 - `docs/tutorial.md` — local setup walkthrough for new contributors (clone → DB → seed)

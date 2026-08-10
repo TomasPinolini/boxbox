@@ -63,6 +63,19 @@ describe('POST /api/v1/leagues', () => {
     expect(member).not.toBeNull();
     expect(member!.isOwner).toBe(true);
     expect(member!.status).toBe('ACTIVE');
+
+    // Slice 4: el FantasyTeam del creator debe crearse atomicamente junto al LeagueMember,
+    // con todos los slots null (draft todavia no corrio).
+    const team = await prisma.fantasyTeam.findUnique({
+      where: { leagueMemberId: member!.id },
+    });
+    expect(team).not.toBeNull();
+    expect(team).toMatchObject({
+      driver1Id: null,
+      driver2Id: null,
+      reserveDriverId: null,
+      constructorId: null,
+    });
   });
 
   it('rechaza sin name (400 VALIDATION_ERROR)', async () => {
@@ -434,6 +447,12 @@ describe('POST /api/v1/leagues/join', () => {
       isOwner: false,
       status: 'ACTIVE',
     });
+
+    // Slice 4: joinLeague tambien crea el FantasyTeam, no solo createLeague.
+    const team = await prisma.fantasyTeam.findUnique({
+      where: { leagueMemberId: res.body.data.id },
+    });
+    expect(team).not.toBeNull();
   });
 
   it('rechaza inviteCode inexistente con 404', async () => {
@@ -795,5 +814,102 @@ describe('DELETE /api/v1/leagues/:id/members/:userId', () => {
 
     expect(res.status).toBe(404);
     expect(res.body.error.code).toBe('MEMBER_NOT_FOUND');
+  });
+});
+
+// ─── GET /leagues/:id/teams/me (Slice 4) ──────────────────────────────
+
+describe('GET /api/v1/leagues/:id/teams/me', () => {
+  it('devuelve mi FantasyTeam vacio (200), creado atomicamente al joinear', async () => {
+    const alice = await authedUser('a');
+    const bob = await authedUser('b');
+    const season = await seedSeason();
+
+    const created = await request(app)
+      .post('/api/v1/leagues')
+      .set('Authorization', `Bearer ${alice.token}`)
+      .send({ name: 'L', inviteCode: 'a-liga', seasonId: season.id });
+    await request(app)
+      .post('/api/v1/leagues/join')
+      .set('Authorization', `Bearer ${bob.token}`)
+      .send({ inviteCode: 'a-liga' });
+
+    const res = await request(app)
+      .get(`/api/v1/leagues/${created.body.data.id}/teams/me`)
+      .set('Authorization', `Bearer ${bob.token}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toMatchObject({
+      driver1Id: null,
+      driver2Id: null,
+      reserveDriverId: null,
+      constructorId: null,
+    });
+  });
+
+  it('devuelve 404 LEAGUE_NOT_FOUND si no soy member (requireLeagueMember)', async () => {
+    const alice = await authedUser('a');
+    const bob = await authedUser('b'); // Bob nunca joineo
+    const season = await seedSeason();
+
+    const created = await request(app)
+      .post('/api/v1/leagues')
+      .set('Authorization', `Bearer ${alice.token}`)
+      .send({ name: 'L', inviteCode: 'a-liga', seasonId: season.id });
+
+    const res = await request(app)
+      .get(`/api/v1/leagues/${created.body.data.id}/teams/me`)
+      .set('Authorization', `Bearer ${bob.token}`);
+
+    expect(res.status).toBe(404);
+    expect(res.body.error.code).toBe('LEAGUE_NOT_FOUND');
+  });
+
+  it('persiste el mismo team tras leave + rejoin (no duplica, respeta @@unique)', async () => {
+    const alice = await authedUser('a');
+    const bob = await authedUser('b');
+    const season = await seedSeason();
+
+    const created = await request(app)
+      .post('/api/v1/leagues')
+      .set('Authorization', `Bearer ${alice.token}`)
+      .send({ name: 'L', inviteCode: 'a-liga', seasonId: season.id });
+    await request(app)
+      .post('/api/v1/leagues/join')
+      .set('Authorization', `Bearer ${bob.token}`)
+      .send({ inviteCode: 'a-liga' });
+    await request(app)
+      .post(`/api/v1/leagues/${created.body.data.id}/leave`)
+      .set('Authorization', `Bearer ${bob.token}`);
+
+    // Rejoin: si el service intentara recrear el FantasyTeam aca, esto rompería con
+    // P2002 (@@unique en leagueMemberId). El happy path prueba que no lo hace.
+    const rejoin = await request(app)
+      .post('/api/v1/leagues/join')
+      .set('Authorization', `Bearer ${bob.token}`)
+      .send({ inviteCode: 'a-liga' });
+    expect(rejoin.status).toBe(201);
+
+    const res = await request(app)
+      .get(`/api/v1/leagues/${created.body.data.id}/teams/me`)
+      .set('Authorization', `Bearer ${bob.token}`);
+    expect(res.status).toBe(200);
+
+    const teams = await prisma.fantasyTeam.findMany({
+      where: { leagueMember: { leagueId: created.body.data.id, userId: bob.userId } },
+    });
+    expect(teams).toHaveLength(1);
+  });
+
+  it('rechaza sin auth (401)', async () => {
+    const alice = await authedUser('a');
+    const season = await seedSeason();
+    const created = await request(app)
+      .post('/api/v1/leagues')
+      .set('Authorization', `Bearer ${alice.token}`)
+      .send({ name: 'L', inviteCode: 'a-liga', seasonId: season.id });
+
+    const res = await request(app).get(`/api/v1/leagues/${created.body.data.id}/teams/me`);
+    expect(res.status).toBe(401);
   });
 });

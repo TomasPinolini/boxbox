@@ -1,5 +1,7 @@
 import { beforeEach, afterAll } from 'vitest';
 import { prisma } from '../shared/prisma';
+import { hashPassword } from '../shared/password';
+import { signAccessToken } from '../shared/jwt';
 
 // Clean all tables before each test so tests don't affect each other
 beforeEach(async () => {
@@ -27,3 +29,39 @@ beforeEach(async () => {
 afterAll(async () => {
   await prisma.$disconnect();
 });
+
+// ─── TEST HELPERS ────────────────────────────────────────────────
+// Crean users via Prisma directo + firman el JWT sin pasar por HTTP.
+// Motivo: los tests que necesitan un usuario autenticado no deberian re-testear
+// register/login (eso ya lo hace auth.test.ts). Bypass = tests mas rapidos y
+// menos frágiles a cambios en el flujo de auth.
+
+let testUserCounter = 0;
+
+type CreateTestUserOverrides = Partial<{
+  email: string;
+  password: string;
+  name: string;
+  role: 'USER' | 'ADMIN';
+}>;
+
+export async function createTestUser(overrides: CreateTestUserOverrides = {}) {
+  const counter = ++testUserCounter;
+  const email = overrides.email ?? `test-user-${counter}@boxbox.test`;
+  const password = overrides.password ?? 'hunter22test';
+  const name = overrides.name ?? `Test User ${counter}`;
+  const role = overrides.role ?? 'USER';
+
+  const passwordHash = await hashPassword(password);
+  const user = await prisma.user.create({
+    data: { email, passwordHash, name, role },
+  });
+
+  const accessToken = signAccessToken({ userId: user.id, role: user.role });
+  return { user, accessToken };
+}
+
+// Sugar sobre createTestUser para el caso mas comun en tests admin-only.
+export function createTestAdmin(overrides: Omit<CreateTestUserOverrides, 'role'> = {}) {
+  return createTestUser({ ...overrides, role: 'ADMIN' });
+}

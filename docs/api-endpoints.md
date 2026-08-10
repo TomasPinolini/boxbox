@@ -111,34 +111,34 @@ Cada sección está taggeada con su estado actual:
 
 ---
 
-## Races (CRUD Dependiente) [✅ shipped — CRUD; 🚧 planned — /results, /process, /recalculate sub-endpoints]
+## Races (CRUD Dependiente) [✅ shipped — CRUD + /results (Slice 7); 🚧 planned — /process, /recalculate sub-endpoints]
 
-| Método | Endpoint                 | Acceso | Notas                                             |
-| ------ | ------------------------ | ------ | ------------------------------------------------- |
-| GET    | `/races`                 | User   | Soporta `?seasonId=X&status=Y`                    |
-| GET    | `/races/:id`             | User   | Incluye estado de lock                            |
-| POST   | `/races`                 | Admin  |                                                   |
-| PATCH  | `/races/:id`             | Admin  |                                                   |
-| DELETE | `/races/:id`             | Admin  |                                                   |
-| GET    | `/races/:id/results`     | User   | Resultados crudos de la carrera                   |
-| POST   | `/races/:id/results`     | Admin  | Entrada manual (fallback si la API externa falla) |
-| POST   | `/races/:id/process`     | Admin  | Fetch desde API externa + calcular puntajes       |
-| POST   | `/races/:id/recalculate` | Admin  | Recalcular puntajes sin re-fetch                  |
+| Método | Endpoint                 | Acceso | Notas                                                                                                                                                                                                                                             |
+| ------ | ------------------------ | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET    | `/races`                 | User   | Soporta `?seasonId=X&status=Y`                                                                                                                                                                                                                    |
+| GET    | `/races/:id`             | User   | Incluye estado de lock                                                                                                                                                                                                                            |
+| POST   | `/races`                 | Admin  |                                                                                                                                                                                                                                                   |
+| PATCH  | `/races/:id`             | Admin  |                                                                                                                                                                                                                                                   |
+| DELETE | `/races/:id`             | Admin  |                                                                                                                                                                                                                                                   |
+| GET    | `/races/:id/results`     | User   | Resultados crudos ordenados por `position` asc (nulls last). 404 si la Race no existe.                                                                                                                                                            |
+| POST   | `/races/:id/results`     | Admin  | Slice 7. Body `{ results: [{driverId, position?, points, gridPosition?, laps?, fastestLap?, status}] }`. Atomico: crea todos los RaceResults + Race pasa a `COMPLETED` en la misma transacción. 409 si Race ya COMPLETED / CANCELLED / POSTPONED. |
+| POST   | `/races/:id/process`     | Admin  | Fetch desde API externa + calcular puntajes                                                                                                                                                                                                       |
+| POST   | `/races/:id/recalculate` | Admin  | Recalcular puntajes sin re-fetch                                                                                                                                                                                                                  |
 
 ---
 
 ## Leagues [✅ shipped — todos los endpoints (Slice 2 + Slice 3)]
 
-| Método | Endpoint                       | Acceso        | Notas                                                                              |
-| ------ | ------------------------------ | ------------- | ---------------------------------------------------------------------------------- |
+| Método | Endpoint                       | Acceso        | Notas                                                                                                                                         |
+| ------ | ------------------------------ | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
 | POST   | `/leagues`                     | User          | Rate limit 5/min/user. `createdById` del JWT. Crea liga + LeagueMember(owner=true) atómico. Body: `{name, inviteCode, seasonId, maxMembers?}` |
-| GET    | `/leagues`                     | User          | Devuelve leagues donde soy ACTIVE member (incluye las que creé)                    |
-| GET    | `/leagues/:id`                 | League member | 404 LEAGUE_NOT_FOUND si no soy member (P2-1 unification, no 403)                   |
-| PATCH  | `/leagues/:id`                 | League owner  | Partial: `name`/`maxMembers`/`status`/`inviteCode`. 403 NOT_LEAGUE_OWNER si soy member sin ser owner. Body `{}` → 400 |
-| POST   | `/leagues/join`                | User          | Rate limit 10/min/user. Body: `{inviteCode}`. 404 INVITE_CODE_NOT_FOUND si inválido o archived. Soporta rejoin desde LEFT/KICKED |
-| POST   | `/leagues/:id/leave`           | League member | 409 OWNER_CANNOT_LEAVE si soy owner (debe transferir primero — fuera de scope hoy) |
-| GET    | `/leagues/:id/members`         | League member | Devuelve solo ACTIVE members (LEFT/KICKED no aparecen)                             |
-| DELETE | `/leagues/:id/members/:userId` | League owner  | Kick (soft → KICKED). 409 OWNER_CANNOT_LEAVE si owner intenta kickearse a sí mismo  |
+| GET    | `/leagues`                     | User          | Devuelve leagues donde soy ACTIVE member (incluye las que creé)                                                                               |
+| GET    | `/leagues/:id`                 | League member | 404 LEAGUE_NOT_FOUND si no soy member (P2-1 unification, no 403)                                                                              |
+| PATCH  | `/leagues/:id`                 | League owner  | Partial: `name`/`maxMembers`/`status`/`inviteCode`. 403 NOT_LEAGUE_OWNER si soy member sin ser owner. Body `{}` → 400                         |
+| POST   | `/leagues/join`                | User          | Rate limit 10/min/user. Body: `{inviteCode}`. 404 INVITE_CODE_NOT_FOUND si inválido o archived. Soporta rejoin desde LEFT/KICKED              |
+| POST   | `/leagues/:id/leave`           | League member | 409 OWNER_CANNOT_LEAVE si soy owner (debe transferir primero — fuera de scope hoy)                                                            |
+| GET    | `/leagues/:id/members`         | League member | Devuelve solo ACTIVE members (LEFT/KICKED no aparecen)                                                                                        |
+| DELETE | `/leagues/:id/members/:userId` | League owner  | Kick (soft → KICKED). 409 OWNER_CANNOT_LEAVE si owner intenta kickearse a sí mismo                                                            |
 
 > **Archivado**: NO hay `DELETE /leagues/:id`. Para archivar una liga: `PATCH /leagues/:id { "status": "ARCHIVED" }`.
 > **Rejoin**: tanto LEFT como KICKED pueden rejoinear vía `POST /leagues/join`. Status queda como audit trail.
@@ -175,13 +175,13 @@ Autenticación via JWT en el handshake. Namespace: `/draft`.
 
 ---
 
-## Fantasy Teams [🚧 planned]
+## Fantasy Teams [✅ shipped — GET /teams/me (Slice 4); 🚧 planned — resto]
 
 | Método | Endpoint                      | Acceso        | Notas                                                             |
 | ------ | ----------------------------- | ------------- | ----------------------------------------------------------------- |
 | GET    | `/leagues/:id/teams`          | League member | Todos los equipos de la liga                                      |
 | GET    | `/leagues/:id/teams/:userId`  | League member | Equipo de un usuario específico                                   |
-| GET    | `/leagues/:id/teams/me`       | League member | Mi equipo                                                         |
+| GET    | `/leagues/:id/teams/me`       | League member | Slice 4. Mi FantasyTeam en esta liga; se crea vacío (slots `null`) al crear/joinear la liga |
 | POST   | `/leagues/:id/teams/me/swap`  | League member | Solo antes de `lockDate`. Body: `{ slot, reserveIn: true/false }` |
 | GET    | `/leagues/:id/teams/me/swaps` | League member | Historial de swaps                                                |
 

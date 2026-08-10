@@ -23,7 +23,7 @@ BoxBox es una aplicación web de Fantasy League de Fórmula 1. Los usuarios crea
 | Backend       | Express + TypeScript                       |
 | Base de datos | PostgreSQL + Prisma ORM                    |
 | WebSocket     | Socket.io (draft en vivo)                  |
-| Testing       | Vitest + Playwright                        |
+| Testing       | Vitest                                     |
 | Deploy        | Vercel (frontend) + Railway (backend + DB) |
 | APIs externas | Jolpica-F1 + OpenF1                        |
 

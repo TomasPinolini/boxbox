@@ -306,6 +306,7 @@ model RaceResult {
   position     Int?
   points       Int              @default(0)
   gridPosition Int?
+  laps         Int?
   fastestLap   Boolean          @default(false)
   status       RaceResultStatus @default(CLASSIFIED)
   externalId   String?
