@@ -21,18 +21,11 @@ Stack overview rápido (ver [`../CLAUDE.md`](../CLAUDE.md) para detalle): Expres
 
 ## Now — bloqueantes para todo lo demás
 
-_(Slices 1, 2, 3, 4, 7 completos. Próximo: Slice 5.)_
+_(Slices 1, 2, 3, 4, 5, 7 completos. Próximo: Slice 6.)_
 
 ---
 
 ## Next — completar el camino al draft funcional
-
-### Slice 5 — Draft state machine (REST-only, sin Socket)
-
-- **Goal**: la lógica del snake draft funciona contra REST (no realtime todavía). El owner arranca el draft, los miembros piden el estado y mandan picks vía POST.
-- **Touches**: tabla `DraftPick` con `@@unique([leagueId, pickNumber])` y `@@unique([leagueId, leagueMemberId, round])`; nuevo módulo `modules/draft/`; endpoints `POST /leagues/:id/draft/start`, `GET /leagues/:id/draft/state`, `GET /leagues/:id/draft/available`, `POST /leagues/:id/draft/pick`, `POST /leagues/:id/draft/reset`; lógica de orden snake (1→N, N→1, 1→N) y validación de turno; la `League.draftStatus` transiciona PENDING → LIVE → COMPLETED; cuando termina, los slots del FantasyTeam se llenan con los picks de cada miembro.
-- **Done when**: en una liga con 3 miembros mockeados, después de 9 picks (3 rondas × 3 miembros), `League.draftStatus = COMPLETED` y los 3 FantasyTeams tienen sus slots llenos. Tests cubren: pick fuera de turno (409), pick de un Driver ya elegido en esta liga (409), pick de la categoría equivocada para la ronda (409).
-- **Blocked by**: Slice 4.
 
 ### Slice 6 — Draft realtime (Socket.io overlay)
 
@@ -112,6 +105,17 @@ Si alguno de estos se vuelve demasiado grande, partir así:
 ---
 
 ## Completados
+
+### Slice 5 — Draft state machine (REST-only, sin Socket)
+
+- **Status**: done (branch `slice-5-draft-rest`).
+- **Goal**: la lógica del snake draft funciona contra REST (no realtime todavía). El owner arranca el draft, los miembros piden el estado y mandan picks vía POST.
+- **Decision de diseño (confirmada con el equipo antes de codear)**: FantasyTeam tiene 4 slots (`driver1`, `driver2`, `reserveDriver`, `constructor`), así que el draft son **4 rondas fijas** — una por slot: rondas 1-3 categoría DRIVER (llenan `driver1Id`/`driver2Id`/`reserveDriverId` en ese orden), ronda 4 categoría CONSTRUCTOR (llena `constructorId`). Actualiza el "Done when" original del roadmap (que hablaba de 3 rondas genéricas) — con N miembros el draft completo son `N × 4` picks, no `N × 3`.
+- **Shipped**: nuevo módulo `modules/draft/` (schema/service/controller/routes/test) montado como sub-router de `leagues.routes.ts` bajo `/:id/draft` (no se registra en `app.ts` — es un sub-recurso de League, no un módulo top-level). Endpoints: `POST /leagues/:id/draft/start` (owner, genera las `N×4` filas `DraftPick` placeholder con snake order vía Fisher-Yates + transiciona a LIVE), `GET /leagues/:id/draft/state`, `GET /leagues/:id/draft/available`, `POST /leagues/:id/draft/pick` (valida turno + categoría + disponibilidad, llena el slot del FantasyTeam, transiciona a COMPLETED en el último pick — todo en una transacción interactiva), `POST /leagues/:id/draft/reset` (owner). Sin migration: `DraftPick` y `League.draftStatus` ya existían en el schema desde el `init` (idle).
+- **Decisiones clave**: el "pick actual" nunca se guarda como estado aparte — es siempre la fila `DraftPick` de menor `pickNumber` con `driverId` Y `constructorId` null. El orden del draft se materializa completo en `start` (no hay columna `draftOrder` en `LeagueMember`). `leagueId` en los controllers de draft sale de `req.leagueMember.leagueId` (poblado por `requireLeagueMember` en el mount), no de `req.params.id` — evita depender de `mergeParams` en el sub-router.
+- **Bug de tipos encontrado y arreglado (afecta también Slice 4)**: `fantasyTeamSelect` en `leagues.service.ts` fallaba en `tsc --noEmit` (nunca se había corrido — solo `eslint`/`vitest`, que no lo detectan). Causa: el modelo `Constructor` genera una relación/delegate llamado literalmente `constructor`, que colisiona con la propiedad `constructor` que todo objeto JS hereda de `Object.prototype`. Fix: declarar esos `select` con type assertion (`as Prisma.XSelect`) en vez de `as const` o anotación directa — es el único approach que evita el falso positivo (confirmado empíricamente). Aplicado en `fantasyTeamSelect`, `pickSelect` y `constructorAvailableSelect`.
+- **Touches reales**: `modules/draft/{schema,service,controller,routes,test}.ts` (nuevo); `modules/leagues/leagues.routes.ts` (mount del sub-router); `modules/leagues/leagues.service.ts` (fix del bug de tipos de Slice 4).
+- **Tests**: 159 total (139 previos + 20 nuevos). `npx tsc --noEmit` y `npx knip` limpios (knip solo flaggea `smoke-slice-4.ts`, ya conocido).
 
 ### Slice 4 — FantasyTeam shell
 

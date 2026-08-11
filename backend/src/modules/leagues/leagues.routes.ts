@@ -22,6 +22,7 @@
 
 import { Router } from 'express';
 import * as leaguesController from './leagues.controller';
+import draftRoutes from '../draft/draft.routes';
 import { validate, validateParams } from '../../middleware/validate';
 import { requireAuth } from '../../middleware/auth';
 import { requireLeagueMember, requireLeagueOwner } from '../../middleware/leagueMembership';
@@ -104,6 +105,18 @@ router.get(
   validateParams(leagueIdParamSchema),
   requireLeagueMember,
   leaguesController.getMyFantasyTeam,
+);
+
+// ─── Sub-router Slice 5 nuevo: /leagues/:id/draft/* ──────────────────
+// La chain comun (requireAuth + validateParams + requireLeagueMember) se aplica UNA vez
+// aca; draft.routes.ts asume que ya corrio y solo agrega requireLeagueOwner donde hace falta.
+
+router.use(
+  '/:id/draft',
+  requireAuth,
+  validateParams(leagueIdParamSchema),
+  requireLeagueMember,
+  draftRoutes,
 );
 
 router.delete(
