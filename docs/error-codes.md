@@ -108,16 +108,6 @@ Códigos de error tipados que la API puede devolver en el envelope `{ error: { c
 
 Estos van a aparecer cuando se construyan los slices del [`roadmap.md`](./roadmap.md). Documentados acá para que el equipo no invente variantes inconsistentes:
 
-### Slice 5 — Draft REST
-
-| Código                        | HTTP | Cuándo                                                      |
-| ----------------------------- | ---- | ----------------------------------------------------------- |
-| `DRAFT_NOT_LIVE`              | 409  | Acción sobre el draft cuando `League.draftStatus != LIVE`.  |
-| `NOT_YOUR_TURN`               | 409  | Pick fuera de turno.                                        |
-| `DRIVER_ALREADY_DRAFTED`      | 409  | Pick de un Driver ya tomado en esta League.                 |
-| `CONSTRUCTOR_ALREADY_DRAFTED` | 409  | Pick de un Constructor ya tomado en esta League.            |
-| `WRONG_PICK_CATEGORY`         | 409  | Tomar un Constructor en una ronda de Drivers (o viceversa). |
-
 ### Slice 10 — Predictions
 
 | Código               | HTTP | Cuándo                                                     |
@@ -130,6 +120,23 @@ Estos van a aparecer cuando se construyan los slices del [`roadmap.md`](./roadma
 | ----------------------- | ---- | ----------------------------------------------------- |
 | `SWAPS_LOCKED`          | 409  | Swap manual después del `lockDate` de la Race.        |
 | `RESERVE_NOT_AVAILABLE` | 409  | Intento de swap sin tener un piloto reserva asignado. |
+
+---
+
+## Draft (Slice 5)
+
+| Código                         | HTTP | Origen                          | Cuándo                                                                                                                                            |
+| ------------------------------ | ---- | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DRAFT_ALREADY_STARTED`        | 409  | `draft.service.ts` (startDraft)  | `POST /leagues/:id/draft/start` cuando `League.draftStatus != PENDING` — el draft ya arrancó (o ya terminó).                                        |
+| `DRAFT_NOT_LIVE`                | 409  | `draft.service.ts` (submitPick)  | `POST /leagues/:id/draft/pick` cuando `League.draftStatus != LIVE` (todavía no arrancó, o ya terminó). También defense-in-depth si no hay ningún pick abierto. |
+| `NOT_YOUR_TURN`                 | 409  | `draft.service.ts` (submitPick)  | El pick actual (menor `pickNumber` sin llenar) pertenece a otro `LeagueMember`.                                                                     |
+| `WRONG_PICK_CATEGORY`           | 409  | `draft.service.ts` (submitPick)  | La ronda actual espera `driverId` (rondas 1-3) o `constructorId` (ronda 4) y el body mandó el otro campo.                                           |
+| `DRIVER_ALREADY_DRAFTED`        | 409  | `draft.service.ts` (submitPick)  | Ese `driverId` ya tiene un pick completado en esta liga (en cualquier ronda/miembro).                                                                |
+| `CONSTRUCTOR_ALREADY_DRAFTED`   | 409  | `draft.service.ts` (submitPick)  | Ese `constructorId` ya tiene un pick completado en esta liga.                                                                                       |
+| `DRIVER_NOT_FOUND`              | 404  | `draft.service.ts` (submitPick)  | El `driverId` del pick no existe o está soft-deleted. Reusa el código de Drivers/Races.                                                              |
+| `CONSTRUCTOR_NOT_FOUND`         | 404  | `draft.service.ts` (submitPick)  | El `constructorId` del pick no existe o está soft-deleted. Reusa el código de Constructors.                                                          |
+
+> Nota: `LEAGUE_NOT_FOUND` (si no soy member) y `NOT_LEAGUE_OWNER` (en `/start` y `/reset`, si soy member pero no owner) también aplican acá — vienen de `middleware/leagueMembership.ts`, mismo criterio que el resto de las rutas `/leagues/:id/*`.
 
 ---
 

@@ -145,16 +145,19 @@ Cada sección está taggeada con su estado actual:
 
 ---
 
-## Draft [🚧 planned]
+## Draft [✅ shipped — REST (Slice 5); 🚧 planned — WebSocket (Slice 6)]
 
 ### REST Endpoints
 
-| Método | Endpoint                       | Acceso        | Notas                            |
-| ------ | ------------------------------ | ------------- | -------------------------------- |
-| POST   | `/leagues/:id/draft/start`     | League owner  | Genera draft order aleatorio     |
-| GET    | `/leagues/:id/draft/state`     | League member | Estado actual + picks realizados |
-| GET    | `/leagues/:id/draft/available` | League member | Drivers/constructors disponibles |
-| POST   | `/leagues/:id/draft/reset`     | League owner  | Reinicia el draft completo       |
+4 rondas fijas por draft (una por slot de FantasyTeam): rondas 1-3 categoría DRIVER (llenan `driver1`/`driver2`/`reserveDriver` en ese orden), ronda 4 categoría CONSTRUCTOR (llena `constructor`). Con N miembros ACTIVE, el draft completo son `N × 4` picks.
+
+| Método | Endpoint                       | Acceso        | Notas                             |
+| ------ | ------------------------------ | ------------- | ---------------------------------- |
+| POST   | `/leagues/:id/draft/start`     | League owner  | Genera draft order aleatorio (Fisher-Yates) + snake order entre rondas. 409 `DRAFT_ALREADY_STARTED` si `draftStatus != PENDING`. |
+| GET    | `/leagues/:id/draft/state`     | League member | Estado actual + picks realizados. `round`/`pickNumber`/`currentTurnLeagueMemberId` en `null` si no hay pick abierto (PENDING o COMPLETED). |
+| GET    | `/leagues/:id/draft/available` | League member | Drivers/constructors sin draftear en ESTA liga (otras ligas no cuentan). |
+| POST   | `/leagues/:id/draft/pick`      | League member | Body: `{ driverId }` o `{ constructorId }` (exactamente uno, segun la ronda). 409 `NOT_YOUR_TURN` / `WRONG_PICK_CATEGORY` / `DRIVER_ALREADY_DRAFTED` / `CONSTRUCTOR_ALREADY_DRAFTED` / `DRAFT_NOT_LIVE`. Llena el slot del FantasyTeam correspondiente; transiciona a `COMPLETED` en el ultimo pick. |
+| POST   | `/leagues/:id/draft/reset`     | League owner  | Reinicia el draft completo: borra los `DraftPick`, vacia los `FantasyTeam` de la liga, vuelve a `PENDING`. |
 
 ### WebSocket Events (Socket.io)
 
