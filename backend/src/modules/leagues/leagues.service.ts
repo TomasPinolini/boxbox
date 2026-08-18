@@ -48,6 +48,14 @@ const memberSelect = {
 } as const;
 
 // fantasyTeamSelect — shape de FantasyTeam en responses publicas (GET /:id/teams/me).
+// `as Prisma.FantasyTeamSelect` (type assertion, NO `: Prisma.FantasyTeamSelect` anotacion ni
+// `as const`): FantasyTeam tiene una relacion llamada literalmente `constructor` (FK a
+// Constructor), que colisiona con la propiedad `constructor` que TODO objeto JS hereda de
+// Object.prototype. Tanto `as const` como una anotacion directa (`: Prisma.FantasyTeamSelect`)
+// hacen que TS compare estructuralmente el literal contra el select type y arrastre un
+// `constructor: Function` heredado que no es real (a runtime esto siempre funciono bien) —
+// tira TS2322. Una type ASSERTION (`as`, no `satisfies`) es el unico approach que evita el
+// falso positivo (confirmado empiricamente contra este mismo generated client).
 const fantasyTeamSelect = {
   id: true,
   leagueMemberId: true,
@@ -56,7 +64,7 @@ const fantasyTeamSelect = {
   reserveDriverId: true,
   constructorId: true,
   createdAt: true,
-} as const;
+} as Prisma.FantasyTeamSelect;
 
 export async function createLeague(data: CreateLeagueInput, userId: number) {
   // Nested write atomico: Prisma crea League + LeagueMember en una sola transaccion.
