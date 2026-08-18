@@ -22,9 +22,11 @@ import type { DraftPickInput } from './draft.schema';
 
 const TOTAL_ROUNDS = 4;
 
-type PickCategory = 'DRIVER' | 'CONSTRUCTOR';
+export type PickCategory = 'DRIVER' | 'CONSTRUCTOR';
 
-function categoryForRound(round: number): PickCategory {
+// Exportada — Slice 6 (draft.gateway.ts) la reusa para el auto-pick del timer: necesita saber
+// que categoria le toca a la ronda actual sin duplicar esta regla en dos lugares.
+export function categoryForRound(round: number): PickCategory {
   return round < TOTAL_ROUNDS ? 'DRIVER' : 'CONSTRUCTOR';
 }
 
@@ -247,12 +249,25 @@ export async function submitPick(
   const pickedId = category === 'DRIVER' ? input.driverId! : input.constructorId!;
 
   return prisma.$transaction(async (tx) => {
-    const pick = await tx.draftPick.update({
-      where: { id: currentPick.id },
+    // updateMany + WHERE ...null (no un update simple por id): Slice 6 agrega el timer de
+    // auto-pick, que es la primera fuente de escrituras REALMENTE concurrentes sobre el mismo
+    // pick (un pick manual y el auto-pick del timer pueden dispararse casi al mismo tiempo).
+    // Sin este re-check en la escritura, el que llega segundo pisaria en silencio el pick del
+    // que llego primero — count===0 significa que alguien mas ya lo lleno entre el findFirst
+    // de arriba y este punto.
+    const result = await tx.draftPick.updateMany({
+      where: { id: currentPick.id, driverId: null, constructorId: null },
       data:
         category === 'DRIVER'
           ? { driverId: pickedId, pickedAt: new Date() }
           : { constructorId: pickedId, pickedAt: new Date() },
+    });
+    if (result.count === 0) {
+      throw new ConflictError('It is not your turn to pick', 'NOT_YOUR_TURN');
+    }
+
+    const pick = await tx.draftPick.findUniqueOrThrow({
+      where: { id: currentPick.id },
       select: pickSelect,
     });
 

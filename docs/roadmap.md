@@ -21,22 +21,13 @@ Stack overview rápido (ver [`../CLAUDE.md`](../CLAUDE.md) para detalle): Expres
 
 ## Now — bloqueantes para todo lo demás
 
-_(Slices 1, 2, 3, 4, 5, 7 completos. Próximo: Slice 6.)_
-
----
-
-## Next — completar el camino al draft funcional
-
-### Slice 6 — Draft realtime (Socket.io overlay)
-
-- **Goal**: agregar el namespace `/draft` con eventos `draft:state`, `draft:pick`, `draft:update`, `draft:timer`, `draft:complete`. El timer auto-asigna el mejor disponible si el miembro no responde en 60s.
-- **Touches**: instalar `socket.io`; `server.ts` integra el HTTP server con io; nuevo archivo `modules/draft/draft.gateway.ts` con los handlers de eventos; auth del socket via JWT en handshake; los handlers internamente reusan el service de Slice 5; setTimeout-based timer por turno.
-- **Done when**: un cliente Socket.io de prueba puede conectarse, recibir `draft:state` al join, mandar `draft:pick` y ver `draft:update` broadcasteado al resto. Test manual con `wscat` o cliente mínimo en Node. Auto-pick funciona al expirar el timer.
-- **Blocked by**: Slice 5.
+_(Slices 1, 2, 3, 4, 5, 6, 7 completos. Próximo: Slice 8.)_
 
 ---
 
 ## Later — scoring + sync + frontend
+
+_(El carril Draft — Slices 4, 5, 6 — está completo. Lo que sigue es el carril Scoring, que converge con Draft en Slice 9.)_
 
 ### Slice 8 — ConstructorResult (derivado de RaceResult)
 
@@ -105,6 +96,20 @@ Si alguno de estos se vuelve demasiado grande, partir así:
 ---
 
 ## Completados
+
+### Slice 6 — Draft realtime (Socket.io overlay)
+
+- **Status**: done (branch `slice-6-draft-realtime`).
+- **Goal**: agregar el namespace `/draft` con eventos en vivo sobre el REST de Slice 5. El timer de 60s auto-asigna un pick si el miembro no responde a tiempo.
+- **Decisiones de diseño (confirmadas con el equipo antes de codear)**:
+  - **Auto-pick al expirar el timer**: no existe sistema de ranking de drivers/constructors en el proyecto, así que "el mejor disponible" se resuelve como **random** entre los legales para la categoría de la ronda actual — no alfabético, no ponderado.
+  - **`draft:pause`/`draft:resume`** (documentados en `api-endpoints.md` pero no pedidos por este slice del roadmap) quedan **fuera de scope** — no implementados. Si se necesitan más adelante, van en un slice aparte.
+- **Shipped**: nuevo `modules/draft/draft.gateway.ts` — `registerDraftGateway(httpServer, options?)` arma el namespace completo: middleware de auth en el handshake (`{ token, leagueId }`, mismo criterio P2-1 que HTTP — token inválido o no-member rechazan la conexión por igual), rooms por liga (`league:{id}`), eventos `draft:state` (al conectar), `draft:update` y `draft:complete` (broadcast tras cada pick), `draft:timer` (al arrancar cada turno), `draft:error` (solo al socket que causó el error). `server.ts` pasó de `app.listen` a `http.createServer(app)` + Socket.io.
+  - **Overlay real, no solo un canal aparte**: un pick hecho por REST también dispara los mismos broadcasts que uno hecho por socket (`shared/socket.ts` — singleton `getIo()`/`setIo()` que `draft.controller.ts` consulta tras `start`/`pick`/`reset`). Sin esto, un cliente conectado por WS se quedaría con estado viejo apenas alguien usara el REST.
+  - **El timer es `setTimeout`, no `setInterval`**: el server nunca "tickea" el countdown — avisa una vez cuánto dura (`draft:timer`) y dispara una vez cuando expira. El cliente cuenta localmente.
+- **Bug de concurrencia encontrado y arreglado (endurece Slice 5)**: `submitPick` pasó de `update` por `id` a `updateMany` con `WHERE ... AND driverId IS NULL AND constructorId IS NULL` + chequeo de `count`. Motivo: el timer es la primera fuente de escrituras *realmente* concurrentes sobre el mismo pick (un pick manual y el auto-pick del timer pueden dispararse casi al mismo tiempo) — sin el re-check, el que llega segundo pisaría en silencio el pick del que llego primero.
+- **Touches reales**: `modules/draft/draft.gateway.ts` (nuevo), `modules/draft/draft.service.ts` (exporta `categoryForRound`; hardening de `submitPick`), `modules/draft/draft.controller.ts` (dispara broadcasts post-REST), `shared/socket.ts` (nuevo), `server.ts` (http.createServer + Socket.io), `package.json` (`socket.io` + `socket.io-client` devDep).
+- **Tests**: 168 total (159 previos + 9 nuevos en `draft.gateway.test.ts`, contra un `http.Server` real con `socket.io-client` — no mocks). Cubren: auth en el handshake (sin token, no-member), `draft:state` al conectar, pick por socket broadcasteado a todos los conectados, pick fuera de turno, pick por REST reflejado en los sockets conectados (prueba el overlay), `draft:timer` al arrancar, auto-pick al expirar, `draft:complete` al terminar el draft. `pickTimeoutMs` es override-able (300ms en tests, 60s en producción) — evita esperar 60s reales por test.
 
 ### Slice 5 — Draft state machine (REST-only, sin Socket)
 
