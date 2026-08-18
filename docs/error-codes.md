@@ -123,7 +123,7 @@ Estos van a aparecer cuando se construyan los slices del [`roadmap.md`](./roadma
 
 ---
 
-## Draft (Slice 5)
+## Draft (Slice 5 REST + Slice 6 WebSocket)
 
 | Código                         | HTTP | Origen                          | Cuándo                                                                                                                                            |
 | ------------------------------ | ---- | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -137,6 +137,10 @@ Estos van a aparecer cuando se construyan los slices del [`roadmap.md`](./roadma
 | `CONSTRUCTOR_NOT_FOUND`         | 404  | `draft.service.ts` (submitPick)  | El `constructorId` del pick no existe o está soft-deleted. Reusa el código de Constructors.                                                          |
 
 > Nota: `LEAGUE_NOT_FOUND` (si no soy member) y `NOT_LEAGUE_OWNER` (en `/start` y `/reset`, si soy member pero no owner) también aplican acá — vienen de `middleware/leagueMembership.ts`, mismo criterio que el resto de las rutas `/leagues/:id/*`.
+>
+> **Sobre `draft:pick` por socket**: los mismos códigos de la tabla de arriba llegan como `draft:error { code, message }` al socket que mandó el pick inválido — no hay códigos nuevos, `draft.gateway.ts` reusa las mismas `AppError` que tira `draft.service.ts`.
+>
+> **Rechazo de conexión al namespace `/draft`** (Slice 6): no son códigos del envelope `{ error: {...} }` — Socket.io rechaza la conexión en el handshake (`connect_error` del lado del cliente) con el `message` del `Error` que le pasa el middleware: `TOKEN_MISSING`, `LEAGUE_ID_REQUIRED`, `TOKEN_INVALID`, `LEAGUE_NOT_FOUND` (mismo criterio P2-1 — no distingue "liga inexistente" de "no soy member").
 
 ---
 

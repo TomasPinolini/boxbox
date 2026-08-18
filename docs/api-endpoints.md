@@ -145,7 +145,7 @@ Cada sección está taggeada con su estado actual:
 
 ---
 
-## Draft [✅ shipped — REST (Slice 5); 🚧 planned — WebSocket (Slice 6)]
+## Draft [✅ shipped — REST (Slice 5) + WebSocket (Slice 6); 🚧 planned — draft:pause/draft:resume]
 
 ### REST Endpoints
 
@@ -159,22 +159,24 @@ Cada sección está taggeada con su estado actual:
 | POST   | `/leagues/:id/draft/pick`      | League member | Body: `{ driverId }` o `{ constructorId }` (exactamente uno, segun la ronda). 409 `NOT_YOUR_TURN` / `WRONG_PICK_CATEGORY` / `DRIVER_ALREADY_DRAFTED` / `CONSTRUCTOR_ALREADY_DRAFTED` / `DRAFT_NOT_LIVE`. Llena el slot del FantasyTeam correspondiente; transiciona a `COMPLETED` en el ultimo pick. |
 | POST   | `/leagues/:id/draft/reset`     | League owner  | Reinicia el draft completo: borra los `DraftPick`, vacia los `FantasyTeam` de la liga, vuelve a `PENDING`. |
 
-### WebSocket Events (Socket.io)
+### WebSocket Events (Socket.io) — Slice 6
 
-Autenticación via JWT en el handshake. Namespace: `/draft`.
+Namespace: `/draft`. Auth en el **handshake**, no en un evento separado — el cliente conecta con `auth: { token, leagueId }`. Si el token es inválido o el user no es ACTIVE member de esa liga, la conexión se rechaza (`connect_error` del lado del cliente, nunca llega a `connection`) con uno de estos motivos: `TOKEN_MISSING`, `LEAGUE_ID_REQUIRED`, `TOKEN_INVALID`, `LEAGUE_NOT_FOUND` (mismo criterio P2-1 que HTTP — no distingue "liga inexistente" de "no soy member").
 
-| Dirección | Evento           | Payload                                           | Descripción                           |
-| --------- | ---------------- | ------------------------------------------------- | ------------------------------------- |
-| ← Server  | `draft:state`    | `{ picks, currentTurn, round, timer, available }` | Enviado al conectar (estado completo) |
-| → Client  | `draft:pick`     | `{ driverId?, constructorId? }`                   | Usuario hace un pick                  |
-| ← Server  | `draft:update`   | `{ pick, nextTurn, round, available }`            | Broadcast a todos tras un pick        |
-| ← Server  | `draft:timer`    | `{ secondsRemaining }`                            | Countdown por pick (60s)              |
-| ← Server  | `draft:error`    | `{ code, message }`                               | Pick inválido, no es tu turno, etc.   |
-| ← Server  | `draft:complete` | `{ teams }`                                       | Draft finalizado, equipos armados     |
-| ← Server  | `draft:pause`    | `{ reason }`                                      | Owner pausa el draft                  |
-| ← Server  | `draft:resume`   | `{}`                                              | Owner reanuda el draft                |
+| Dirección | Evento           | Payload                                                                | Descripción                                                      |
+| --------- | ---------------- | ----------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| ← Server  | `draft:state`    | `{ draftStatus, round, pickNumber, currentTurnLeagueMemberId, picks, available, timer }` | Enviado al conectar (estado completo). `timer` es `null` si el draft no está LIVE. |
+| → Client  | `draft:pick`     | `{ driverId? }` o `{ constructorId? }`                                  | Usuario hace un pick. Exactamente uno de los dos campos.          |
+| ← Server  | `draft:update`   | `{ pick, nextTurn, round, available }`                                  | Broadcast a todos en la room tras un pick (manual o auto).        |
+| ← Server  | `draft:timer`    | `{ secondsRemaining }`                                                  | Enviado UNA vez al arrancar cada turno (60s) — no es un tick por segundo, el cliente cuenta localmente. |
+| ← Server  | `draft:error`    | `{ code, message }`                                                     | Solo al socket que causó el error (no broadcast). Mismos códigos que el REST: `NOT_YOUR_TURN`, `WRONG_PICK_CATEGORY`, `DRIVER_ALREADY_DRAFTED`, etc. |
+| ← Server  | `draft:complete` | `{ teams }`                                                              | Draft finalizado — los `FantasyTeam` completos de la liga.        |
 
-> Si el timer llega a 0, el servidor auto-asigna el mejor driver/constructor disponible según ranking.
+**Overlay, no un canal aparte**: un pick/start/reset hecho por REST dispara estos mismos broadcasts a los clientes conectados por socket — no hace falta usar el socket para todo, ambas vías se mantienen sincronizadas.
+
+Si el timer llega a 0 sin que nadie pickee, el servidor auto-asigna **al azar** entre los drivers/constructors disponibles para la categoría de esa ronda — no hay sistema de ranking en el proyecto para elegir "el mejor".
+
+**Planeado, no en Slice 6**: `draft:pause` / `draft:resume` (el owner pausa/reanuda el draft).
 
 ---
 
