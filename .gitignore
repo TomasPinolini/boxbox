@@ -40,3 +40,6 @@ npm-debug.log*
 .agents/
 .kiro/
 .windsurf/
+
+# Scratch personal de deudas tecnicas — local-only, never commit
+docs/known-debt.md
