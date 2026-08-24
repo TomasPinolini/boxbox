@@ -17,6 +17,7 @@
 
 import type { Server as HttpServer } from 'http';
 import { Server as SocketIOServer, Socket } from 'socket.io';
+import { env } from '../../config/env';
 import { prisma } from '../../shared/prisma';
 import { verifyAccessToken } from '../../shared/jwt';
 import { AppError } from '../../shared/errors';
@@ -228,7 +229,13 @@ export function registerDraftGateway(
   options: DraftGatewayOptions = {},
 ): DraftServer {
   configuredPickTimeoutMs = options.pickTimeoutMs ?? DEFAULT_PICK_TIMEOUT_MS;
-  const io: DraftServer = new SocketIOServer(httpServer);
+  // cors: Socket.io atiende /socket.io/* directo sobre el http.Server, ANTES que Express, asi
+  // que el cors() de app.ts NO aplica al handshake. Sin esta opcion el browser del frontend
+  // (FRONTEND_URL) falla el primer request de polling con `xhr poll error`. Misma lista que
+  // app.ts, leida del mismo lugar (config/env.ts) — nunca una segunda copia de la URL.
+  const io: DraftServer = new SocketIOServer(httpServer, {
+    cors: { origin: env.FRONTEND_URL, credentials: true },
+  });
   const draftNamespace = io.of('/draft');
 
   draftNamespace.use(async (socket, next) => {

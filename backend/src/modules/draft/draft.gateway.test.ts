@@ -13,6 +13,7 @@ import type { Server as SocketIOServer } from 'socket.io';
 import { io as ioClient, Socket as ClientSocket } from 'socket.io-client';
 import request from 'supertest';
 import app from '../../app';
+import { env } from '../../config/env';
 import { prisma } from '../../shared/prisma';
 import { registerDraftGateway, clearAllDraftTimers } from './draft.gateway';
 import { setIo } from '../../shared/socket';
@@ -328,5 +329,34 @@ describe('draft namespace — timer y auto-pick', () => {
     expect(complete.teams[0].constructorId).toBe(constructorId);
 
     socket.disconnect();
+  });
+});
+
+// ─── CORS del handshake (A1 / PER-11) ─────────────────────────────────────────────────
+// Socket.io atiende /socket.io/* directo sobre el http.Server, ANTES que Express — el cors()
+// de app.ts nunca corre para el handshake. Por eso estos tests pegan a `httpServer`, no a `app`:
+// contra `app` pasarian siempre (Express si tiene cors) y no probarian nada.
+//
+// Reproducen el PRIMER request que hace un browser real: GET polling con header Origin. Los
+// demas tests de este archivo usan transports: ['websocket'] desde Node, que es justamente la
+// combinacion que esconde el bug (Node no aplica same-origin; el upgrade a WS no pasa por CORS).
+describe('draft namespace — CORS del handshake', () => {
+  const HANDSHAKE_PATH = '/socket.io/?EIO=4&transport=polling';
+
+  it('responde Access-Control-Allow-Origin para FRONTEND_URL en el polling inicial', async () => {
+    const res = await request(httpServer).get(HANDSHAKE_PATH).set('Origin', env.FRONTEND_URL);
+
+    expect(res.headers['access-control-allow-origin']).toBe(env.FRONTEND_URL);
+  });
+
+  // El paquete `cors` (que usa Socket.io por abajo, igual que app.ts) con `origin: string` NO
+  // refleja el Origin del request ni omite el header: siempre responde el origin configurado.
+  // El browser compara ese valor con su propio origin y bloquea si no coincide. Lo que este
+  // test protege es que nadie "arregle" el cors con `origin: '*'` o `origin: true` (reflejar
+  // cualquiera) — ambos harian que evil.test pase.
+  it('para un origin ajeno sigue respondiendo FRONTEND_URL (no refleja, no es *)', async () => {
+    const res = await request(httpServer).get(HANDSHAKE_PATH).set('Origin', 'http://evil.test');
+
+    expect(res.headers['access-control-allow-origin']).toBe(env.FRONTEND_URL);
   });
 });
