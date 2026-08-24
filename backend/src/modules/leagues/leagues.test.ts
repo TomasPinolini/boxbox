@@ -2,7 +2,7 @@
 // Sin mocks (ADR-0003). setup.ts trunca todas las tablas antes de cada test,
 // asi que cada test arranca con DB vacia y necesita crear Season + User inline.
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import request from 'supertest';
 import app from '../../app';
 import { prisma } from '../../shared/prisma';
@@ -911,5 +911,57 @@ describe('GET /api/v1/leagues/:id/teams/me', () => {
 
     const res = await request(app).get(`/api/v1/leagues/${created.body.data.id}/teams/me`);
     expect(res.status).toBe(401);
+  });
+});
+
+// ─── Rate limit user-based (B3 / PER-18) ──────────────────────────────
+// El limiter tiene `skip: isTestEnv` (rateLimit.ts) para que el resto de la suite no tope el
+// cap de 5/min. Este describe lo re-activa apagando las dos envs que isTestEnv mira — se
+// evalua por request, asi que alcanza con setearlas antes y restaurarlas despues.
+//
+// Lo que se prueba es la KEY del limiter, no el cap: dos users distintos desde la misma IP
+// (supertest siempre pega desde 127.0.0.1) no deben compartir contador. Si el limiter corre
+// antes que requireAuth, req.user es undefined en keyGenerator y cae al fallback por IP:
+// el 1er POST de B despues de los 5 de A da 429. Con requireAuth primero, B tiene su
+// propio bucket y da 201.
+
+describe('rate limit de POST /api/v1/leagues es por user, no por IP', () => {
+  const savedEnv = { NODE_ENV: process.env.NODE_ENV, VITEST: process.env.VITEST };
+
+  beforeAll(() => {
+    process.env.NODE_ENV = 'development';
+    process.env.VITEST = 'false';
+  });
+
+  afterAll(() => {
+    process.env.NODE_ENV = savedEnv.NODE_ENV;
+    process.env.VITEST = savedEnv.VITEST;
+  });
+
+  it('user B no hereda el contador agotado de user A en la misma IP', async () => {
+    const alice = await authedUser('rl-a');
+    const bob = await authedUser('rl-b');
+    const season = await seedSeason();
+
+    for (let i = 1; i <= 5; i++) {
+      const res = await request(app)
+        .post('/api/v1/leagues')
+        .set('Authorization', `Bearer ${alice.token}`)
+        .send({ name: `Liga A${i}`, inviteCode: `rl-alice-${i}`, seasonId: season.id });
+      expect(res.status).toBe(201);
+    }
+
+    const sixthFromAlice = await request(app)
+      .post('/api/v1/leagues')
+      .set('Authorization', `Bearer ${alice.token}`)
+      .send({ name: 'Liga A6', inviteCode: 'rl-alice-6', seasonId: season.id });
+    expect(sixthFromAlice.status).toBe(429);
+    expect(sixthFromAlice.body.error.code).toBe('RATE_LIMIT_EXCEEDED');
+
+    const firstFromBob = await request(app)
+      .post('/api/v1/leagues')
+      .set('Authorization', `Bearer ${bob.token}`)
+      .send({ name: 'Liga B1', inviteCode: 'rl-bob-1', seasonId: season.id });
+    expect(firstFromBob.status).toBe(201);
   });
 });

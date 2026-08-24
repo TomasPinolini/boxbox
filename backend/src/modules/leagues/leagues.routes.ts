@@ -39,10 +39,13 @@ const router = Router();
 
 // ─── Rutas Slice 2 (actualizadas con middleware chain de Slice 3) ────
 
+// requireAuth ANTES del limiter: el keyGenerator de rateLimit.ts lee req.user.userId, que
+// solo existe despues de requireAuth. Al reves, la key caia siempre al fallback por IP y dos
+// users en la misma red compartian contador (B3 / PER-18).
 router.post(
   '/',
-  leagueCreateLimiter,
   requireAuth,
+  leagueCreateLimiter,
   validate(createLeagueSchema),
   leaguesController.create,
 );
@@ -55,8 +58,8 @@ router.get('/', requireAuth, leaguesController.list);
 
 router.post(
   '/join',
-  leagueJoinLimiter,
   requireAuth,
+  leagueJoinLimiter,
   validate(joinLeagueSchema),
   leaguesController.join,
 );
