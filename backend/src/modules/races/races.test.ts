@@ -147,6 +147,32 @@ describe('POST /api/v1/races', () => {
       .send({ name: 'GP' });
     expect(res.status).toBe(400);
   });
+
+  // A2 / BOX-12: z.coerce.date() aceptaba null/true/0 y los guardaba como 1970-01-01. Una
+  // carrera con lockDate en 1970 esta "cerrada" desde hace 56 anios para predicciones.
+  it('rejects non-ISO dates instead of coercing them to 1970 (null, true, 0)', async () => {
+    for (const bad of [{ lockDate: null }, { qualifyingDate: true }, { date: 0 }]) {
+      const res = await request(app)
+        .post('/api/v1/races')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ ...validRace(), ...bad });
+      expect(res.status, JSON.stringify(bad)).toBe(400);
+      expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    }
+  });
+
+  it('PATCH rejects a null date too', async () => {
+    const created = await request(app)
+      .post('/api/v1/races')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send(validRace());
+
+    const res = await request(app)
+      .patch(`/api/v1/races/${created.body.data.id}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ lockDate: null });
+    expect(res.status).toBe(400);
+  });
 });
 
 describe('PATCH /api/v1/races/:id', () => {
@@ -579,5 +605,20 @@ describe('races — solo admin puede mutar', () => {
       .set('Authorization', `Bearer ${accessToken}`);
     expect(res.status).toBe(403);
     expect(res.body.error.code).toBe('ADMIN_REQUIRED');
+  });
+});
+
+// A3 / BOX-13: un :id no numerico antes llegaba a Prisma como NaN y explotaba en 500.
+describe('races — :id no numerico', () => {
+  it('GET /races/abc responde 400 VALIDATION_ERROR, no 500', async () => {
+    const res = await request(app).get('/api/v1/races/abc');
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  it('GET /races/abc/results tambien', async () => {
+    const res = await request(app).get('/api/v1/races/abc/results');
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
   });
 });

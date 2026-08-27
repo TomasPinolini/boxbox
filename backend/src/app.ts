@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import { env } from './config/env';
 import { errorHandler } from './middleware/error-handler';
+import { NotFoundError } from './shared/errors';
 import authRoutes from './modules/auth/auth.routes';
 import driversRoutes from './modules/drivers/drivers.routes';
 import constructorsRoutes from './modules/constructors/constructors.routes';
@@ -39,6 +40,13 @@ app.use('/api/v1/circuits', circuitsRoutes);
 app.use('/api/v1/seasons', seasonsRoutes);
 app.use('/api/v1/races', racesRoutes);
 app.use('/api/v1/leagues', leaguesRoutes);
+
+// 404 JSON para cualquier ruta que ningun router atendio. Sin esto Express responde su pagina
+// HTML "Cannot GET /..." — el frontend espera siempre el envelope { error } (A3 / BOX-13).
+// Va DESPUES de todos los routers y ANTES del errorHandler: es el ultimo middleware "normal".
+app.use((_req, _res, next) => {
+  next(new NotFoundError('Route'));
+});
 
 // Error handler — must be registered AFTER all routes
 app.use(errorHandler);

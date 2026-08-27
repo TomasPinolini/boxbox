@@ -178,3 +178,12 @@ describe('circuits — solo admin puede mutar', () => {
     expect(res.body.error.code).toBe('ADMIN_REQUIRED');
   });
 });
+
+// A3 / BOX-13: un :id no numerico antes llegaba a Prisma como NaN y explotaba en 500.
+describe('circuits — :id no numerico', () => {
+  it('GET /circuits/abc responde 400 VALIDATION_ERROR, no 500', async () => {
+    const res = await request(app).get('/api/v1/circuits/abc');
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+});
