@@ -1,12 +1,18 @@
 import { z } from 'zod';
 
+// isoDate: primero exige un string ISO 8601 (con Z u offset), recien despues lo convierte a
+// Date. NO usar z.coerce.date(): "coerce" hace new Date(x) con lo que venga, y new Date(null),
+// new Date(true) y new Date(0) NO fallan — devuelven 1970-01-01. Un lockDate en 1970 deja la
+// carrera "cerrada" para predicciones desde hace 56 anios (A2 / BOX-12).
+const isoDate = z.iso.datetime({ offset: true }).transform((s) => new Date(s));
+
 export const createRaceSchema = z.object({
   name: z.string().min(1),
   round: z.number().int().min(1),
-  date: z.coerce.date(),
-  qualifyingDate: z.coerce.date().optional(),
-  sprintDate: z.coerce.date().optional(),
-  lockDate: z.coerce.date(),
+  date: isoDate,
+  qualifyingDate: isoDate.optional(),
+  sprintDate: isoDate.optional(),
+  lockDate: isoDate,
   seasonId: z.number().int(),
   circuitId: z.number().int(),
 });
