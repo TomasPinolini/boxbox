@@ -73,6 +73,20 @@ export function maxMembersForSeason(driverCount: number): number {
   return Math.floor(driverCount / 2);
 }
 
+// assertRosterOpen: el roster de una liga solo cambia mientras el draft no arranco. startDraft
+// materializa el orden de picks para los miembros de ESE momento; un join posterior deja a
+// alguien sin picks ni turno, un leave/kick deja turnos que nadie puede jugar (B2 / BOX-17).
+// COMPLETED tambien bloquea: un miembro nuevo jugaria la temporada con el equipo vacio.
+// POST /draft/reset vuelve a PENDING y desbloquea.
+function assertRosterOpen(draftStatus: string): void {
+  if (draftStatus !== 'PENDING') {
+    throw new ConflictError(
+      'Members cannot join, leave or be kicked once the draft has started',
+      'ROSTER_LOCKED',
+    );
+  }
+}
+
 export async function createLeague(data: CreateLeagueInput, userId: number) {
   const season = await prisma.season.findUnique({ where: { id: data.seasonId } });
   if (!season) {
@@ -201,6 +215,8 @@ export async function joinLeague(inviteCode: string, userId: number) {
 throw new NotFoundError('Invite_code');
   }
 
+  assertRosterOpen(league.draftStatus);
+
   // Capacity check ANTES de upsert. Si maxMembers=11 y ya hay 11 ACTIVE, rechazar.
   const activeCount = await prisma.leagueMember.count({
     where: { leagueId: league.id, status: 'ACTIVE' },
@@ -250,6 +266,15 @@ export async function leaveLeague(leagueId: number, userId: number, isOwner: boo
       'OWNER_CANNOT_LEAVE',
     );
   }
+  const league = await prisma.league.findUnique({
+    where: { id: leagueId },
+    select: { draftStatus: true },
+  });
+  if (!league) {
+    throw new NotFoundError('League');
+  }
+  assertRosterOpen(league.draftStatus);
+
   // Update directo. requireLeagueMember ya garantizo que el row existe y esta ACTIVE.
   return prisma.leagueMember.update({
     where: { leagueId_userId: { leagueId, userId } },
@@ -279,6 +304,15 @@ export async function kickMember(leagueId: number, kickedUserId: number, ownerUs
       'OWNER_CANNOT_LEAVE',
     );
   }
+
+  const league = await prisma.league.findUnique({
+    where: { id: leagueId },
+    select: { draftStatus: true },
+  });
+  if (!league) {
+    throw new NotFoundError('League');
+  }
+  assertRosterOpen(league.draftStatus);
 
   const target = await prisma.leagueMember.findUnique({
     where: { leagueId_userId: { leagueId, userId: kickedUserId } },

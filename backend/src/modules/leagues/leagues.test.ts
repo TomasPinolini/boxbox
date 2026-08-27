@@ -965,3 +965,134 @@ describe('tope de miembros = pilotos de la temporada / 2', () => {
     expect(res.body.error.code).toBe('MAX_MEMBERS_EXCEEDS_SEASON');
   });
 });
+
+// ─── Roster bloqueado una vez que arranca el draft (B2 / BOX-17) ───────
+// startDraft materializa el orden de picks para los miembros que hay en ESE momento. Si
+// despues alguien entra, sale o es echado, el draft queda inconsistente: el que entra no
+// tiene picks ni turno; el que sale deja turnos que nadie puede jugar. Mientras draftStatus
+// no sea PENDING, join/leave/kick responden 409 ROSTER_LOCKED. Un reset (vuelve a PENDING)
+// desbloquea.
+
+describe('roster bloqueado con draft LIVE o COMPLETED', () => {
+  async function leagueWithLiveDraft() {
+    const alice = await authedUser('rl-owner');
+    const bob = await authedUser('rl-bob');
+    const season = await seedSeason();
+    const created = await request(app)
+      .post('/api/v1/leagues')
+      .set('Authorization', `Bearer ${alice.token}`)
+      .send({ name: 'Locked', inviteCode: 'locked', seasonId: season.id });
+    const leagueId = created.body.data.id as number;
+    await request(app)
+      .post('/api/v1/leagues/join')
+      .set('Authorization', `Bearer ${bob.token}`)
+      .send({ inviteCode: 'locked' });
+    const start = await request(app)
+      .post(`/api/v1/leagues/${leagueId}/draft/start`)
+      .set('Authorization', `Bearer ${alice.token}`);
+    expect(start.status).toBe(201);
+    return { alice, bob, leagueId };
+  }
+
+  it('join durante el draft -> 409 ROSTER_LOCKED', async () => {
+    await leagueWithLiveDraft();
+    const carol = await authedUser('rl-carol');
+
+    const res = await request(app)
+      .post('/api/v1/leagues/join')
+      .set('Authorization', `Bearer ${carol.token}`)
+      .send({ inviteCode: 'locked' });
+
+    expect(res.status).toBe(409);
+    expect(res.body.error.code).toBe('ROSTER_LOCKED');
+  });
+
+  it('leave durante el draft -> 409 ROSTER_LOCKED', async () => {
+    const { bob, leagueId } = await leagueWithLiveDraft();
+
+    const res = await request(app)
+      .post(`/api/v1/leagues/${leagueId}/leave`)
+      .set('Authorization', `Bearer ${bob.token}`);
+
+    expect(res.status).toBe(409);
+    expect(res.body.error.code).toBe('ROSTER_LOCKED');
+  });
+
+  it('kick durante el draft -> 409 ROSTER_LOCKED', async () => {
+    const { alice, bob, leagueId } = await leagueWithLiveDraft();
+
+    const res = await request(app)
+      .delete(`/api/v1/leagues/${leagueId}/members/${bob.userId}`)
+      .set('Authorization', `Bearer ${alice.token}`);
+
+    expect(res.status).toBe(409);
+    expect(res.body.error.code).toBe('ROSTER_LOCKED');
+  });
+
+  it('despues de reset (vuelve a PENDING) el join funciona de nuevo', async () => {
+    const { alice, leagueId } = await leagueWithLiveDraft();
+    await request(app)
+      .post(`/api/v1/leagues/${leagueId}/draft/reset`)
+      .set('Authorization', `Bearer ${alice.token}`);
+    const carol = await authedUser('rl-carol');
+
+    const res = await request(app)
+      .post('/api/v1/leagues/join')
+      .set('Authorization', `Bearer ${carol.token}`)
+      .send({ inviteCode: 'locked' });
+
+    expect(res.status).toBe(201);
+  });
+});
+
+// ─── Rate limit user-based (B3 / PER-18) ──────────────────────────────
+// El limiter tiene `skip: isTestEnv` (rateLimit.ts) para que el resto de la suite no tope el
+// cap de 5/min. Este describe lo re-activa apagando las dos envs que isTestEnv mira — se
+// evalua por request, asi que alcanza con setearlas antes y restaurarlas despues.
+//
+// Lo que se prueba es la KEY del limiter, no el cap: dos users distintos desde la misma IP
+// (supertest siempre pega desde 127.0.0.1) no deben compartir contador. Si el limiter corre
+// antes que requireAuth, req.user es undefined en keyGenerator y cae al fallback por IP:
+// el 1er POST de B despues de los 5 de A da 429. Con requireAuth primero, B tiene su
+// propio bucket y da 201.
+
+describe('rate limit de POST /api/v1/leagues es por user, no por IP', () => {
+  const savedEnv = { NODE_ENV: process.env.NODE_ENV, VITEST: process.env.VITEST };
+
+  beforeAll(() => {
+    process.env.NODE_ENV = 'development';
+    process.env.VITEST = 'false';
+  });
+
+  afterAll(() => {
+    process.env.NODE_ENV = savedEnv.NODE_ENV;
+    process.env.VITEST = savedEnv.VITEST;
+  });
+
+  it('user B no hereda el contador agotado de user A en la misma IP', async () => {
+    const alice = await authedUser('rl-a');
+    const bob = await authedUser('rl-b');
+    const season = await seedSeason();
+
+    for (let i = 1; i <= 5; i++) {
+      const res = await request(app)
+        .post('/api/v1/leagues')
+        .set('Authorization', `Bearer ${alice.token}`)
+        .send({ name: `Liga A${i}`, inviteCode: `rl-alice-${i}`, seasonId: season.id });
+      expect(res.status).toBe(201);
+    }
+
+    const sixthFromAlice = await request(app)
+      .post('/api/v1/leagues')
+      .set('Authorization', `Bearer ${alice.token}`)
+      .send({ name: 'Liga A6', inviteCode: 'rl-alice-6', seasonId: season.id });
+    expect(sixthFromAlice.status).toBe(429);
+    expect(sixthFromAlice.body.error.code).toBe('RATE_LIMIT_EXCEEDED');
+
+    const firstFromBob = await request(app)
+      .post('/api/v1/leagues')
+      .set('Authorization', `Bearer ${bob.token}`)
+      .send({ name: 'Liga B1', inviteCode: 'rl-bob-1', seasonId: season.id });
+    expect(firstFromBob.status).toBe(201);
+  });
+});
