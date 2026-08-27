@@ -20,7 +20,11 @@ export async function start(req: Request, res: Response, next: NextFunction) {
     const result = await draftService.startDraft(leagueId);
     const io = getIo();
     if (io) {
-      void announceDraftStarted(io, leagueId);
+      // .catch obligatorio: es fire-and-forget (no bloqueamos la respuesta HTTP), y una promesa
+      // rechazada sin catch termina el proceso de Node entero (B1 / BOX-16).
+      void announceDraftStarted(io, leagueId).catch((err) =>
+        console.error('[draft] announceDraftStarted fallo', err),
+      );
     }
     res.status(201).json({ data: result });
   } catch (err) {
@@ -52,7 +56,9 @@ export async function pick(req: Request, res: Response, next: NextFunction) {
     const result = await draftService.submitPick(leagueId, req.leagueMember!.id, req.body);
     const io = getIo();
     if (io) {
-      void broadcastPickResult(io, leagueId);
+      void broadcastPickResult(io, leagueId).catch((err) =>
+        console.error('[draft] broadcastPickResult fallo', err),
+      );
     }
     res.json({ data: result });
   } catch (err) {
@@ -66,7 +72,9 @@ export async function reset(req: Request, res: Response, next: NextFunction) {
     const result = await draftService.resetDraft(leagueId);
     const io = getIo();
     if (io) {
-      void announceDraftReset(io, leagueId);
+      void announceDraftReset(io, leagueId).catch((err) =>
+        console.error('[draft] announceDraftReset fallo', err),
+      );
     }
     res.json({ data: result });
   } catch (err) {

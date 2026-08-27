@@ -109,7 +109,11 @@ function scheduleAutoPick(io: DraftServer, leagueId: number): void {
 
   const handle = setTimeout(() => {
     activeTimers.delete(leagueId);
-    void runAutoPick(io, leagueId);
+    // .catch obligatorio: nadie espera esta promesa. Si runAutoPick rechaza (ej. la liga ya no
+    // existe cuando dispara el timer) y no hay catch, Node termina el proceso (B1 / BOX-16).
+    void runAutoPick(io, leagueId).catch((err) =>
+      console.error(`[draft] auto-pick fallo (league ${leagueId})`, err),
+    );
   }, timeoutMs);
 
   activeTimers.set(leagueId, { handle, startedAt: Date.now(), timeoutMs });
@@ -140,10 +144,13 @@ async function runAutoPick(io: DraftServer, leagueId: number): Promise<void> {
 
   try {
     await submitPick(leagueId, state.currentTurnLeagueMemberId, input);
-  } catch {
-    // Race: un pick manual gano la carrera contra el timer entre el findFirst de arriba y
-    // este submitPick (el re-check WHERE-null de submitPick lo hace fallar en vez de pisar el
-    // pick manual). El pick manual ya broadcasteo su propio draft:update — no hacemos nada mas.
+  } catch (err) {
+    // Caso esperado: un pick manual gano la carrera contra el timer entre el findFirst de
+    // arriba y este submitPick (el re-check WHERE-null de submitPick lo hace fallar en vez de
+    // pisar el pick manual). El pick manual ya broadcasteo su propio draft:update.
+    // Caso NO esperado: DB caida, driver borrado, etc. Antes este catch estaba vacio y no
+    // dejaba rastro de ninguno de los dos — ahora al menos queda logueado (C3 / BOX-21).
+    console.warn(`[draft] auto-pick descartado (league ${leagueId})`, err);
     return;
   }
 
@@ -278,12 +285,13 @@ export function registerDraftGateway(
     socket.join(roomName(leagueId));
 
     // Snapshot inicial — fire and forget desde el handler sync de 'connection' (Socket.io no
-    // espera un return de esta callback), pero cualquier error queda logueado en vez de perdido.
+    // espera un return de esta callback). El .catch es obligatorio: sin el, un error aca
+    // (DB caida justo al conectar) seria un unhandled rejection y tiraria el proceso (B1).
     void (async () => {
       const state = await getDraftState(leagueId);
       const available = await getAvailablePicks(leagueId);
       socket.emit('draft:state', { ...state, available, timer: getTimerSnapshot(leagueId) });
-    })();
+    })().catch((err) => console.error(`[draft] snapshot inicial fallo (league ${leagueId})`, err));
 
     socket.on('draft:pick', (payload) => {
       void handleSocketPick(io, socket, payload);

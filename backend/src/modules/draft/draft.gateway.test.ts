@@ -6,7 +6,7 @@
 // nada que ver con los 60s reales de produccion, es solo para no tener que esperar 60s por
 // cada test del auto-pick.
 
-import { describe, it, expect, beforeAll, afterAll, afterEach } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from 'vitest';
 import { createServer } from 'http';
 import type { Server as HttpServer } from 'http';
 import type { Server as SocketIOServer } from 'socket.io';
@@ -358,5 +358,36 @@ describe('draft namespace — CORS del handshake', () => {
     const res = await request(httpServer).get(HANDSHAKE_PATH).set('Origin', 'http://evil.test');
 
     expect(res.headers['access-control-allow-origin']).toBe(env.FRONTEND_URL);
+  });
+});
+
+// ─── Errores en segundo plano (B1 / BOX-16) ───────────────────────────────────────────
+// El timer de auto-pick corre "fire and forget" (void runAutoPick(...)): nadie espera su
+// promesa. Si falla — ej. la liga ya no existe cuando dispara, que es exactamente lo que pasa
+// cuando el truncate de tests/setup.ts corre con un timer vivo — la promesa rechaza sin nadie
+// que la atrape, y Node termina el proceso. Este test reproduce ese caso a proposito y exige
+// que el error quede logueado y el server siga respondiendo.
+describe('draft namespace — errores en segundo plano no tiran el proceso', () => {
+  it('si el timer dispara contra una liga borrada, loguea el error y el server sigue vivo', async () => {
+    const { leagueId, owner } = await setupLeague(1);
+    await seedDriver();
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    try {
+      await request(app)
+        .post(`/api/v1/leagues/${leagueId}/draft/start`)
+        .set('Authorization', `Bearer ${owner.token}`);
+
+      // Timer armado (300ms). Borramos la liga por abajo, igual que hace el truncate entre tests.
+      await prisma.$executeRawUnsafe('TRUNCATE TABLE leagues CASCADE');
+      await new Promise((resolve) => setTimeout(resolve, PICK_TIMEOUT_MS + 300));
+
+      expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('[draft]'), expect.anything());
+
+      const health = await request(app).get('/api/v1/health');
+      expect(health.status).toBe(200);
+    } finally {
+      errorSpy.mockRestore();
+    }
   });
 });
