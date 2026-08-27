@@ -83,7 +83,7 @@ Códigos de error tipados que la API puede devolver en el envelope `{ error: { c
 | `REFRESH_TOKEN_MISSING` | 401  | `auth.controller.ts` (refresh)                                   | `POST /refresh` sin cookie `refreshToken` (típicamente despues de logout o sin login previo).                                                                                 |
 | `REFRESH_TOKEN_INVALID` | 401  | `shared/jwt.ts:verifyRefreshToken` + `auth.service.ts` (refresh) | Cookie `refreshToken` con firma inválida, expirada, payload raro, o user borrado. Mismo código para todos los casos.                                                          |
 | `USER_NOT_FOUND`        | 404  | `auth.service.ts` (getMe)                                        | `GET /me` con token válido pero el `userId` ya no existe en DB (user eliminado entre login y este request).                                                                   |
-| `ADMIN_REQUIRED`        | 403  | `middleware/admin.ts` (requireAdmin)                             | Slice 7. Endpoint admin-only accedido con token válido pero `role !== 'ADMIN'`. Se lee del payload del JWT — no hace query a DB (staleness ~15min hasta que expire el token). |
+| `ADMIN_REQUIRED`        | 403  | `middleware/admin.ts` (requireAdmin)                             | Slice 7 (`POST /races/:id/results`) + A5/BOX-15 (todo `POST`/`PATCH`/`DELETE` del catálogo: drivers, constructors, circuits, seasons incl. `/activate`, races). Endpoint admin-only accedido con token válido pero `role !== 'ADMIN'`. Se lee del payload del JWT — no hace query a DB (staleness ~15min hasta que expire el token). |
 
 ## Leagues
 

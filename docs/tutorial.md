@@ -86,8 +86,11 @@ Esto puebla la DB con datos de F1 2026:
 | `driver_seasons` | 22 (uniendo cada driver a su constructor para 2026) |
 | `circuits` | 8 |
 | `races` | 5 (primeras 5 fechas) |
+| `users` | 1 admin: `admin@boxbox.test` / `admin1234` (rol `ADMIN`) |
 
 El seed es **idempotente** — podés correrlo cuantas veces quieras, no duplica nada.
+
+**El admin importa**: crear, editar o borrar pilotos, escuderías, circuitos, temporadas y carreras (y cargar resultados) requiere un token de `ADMIN`. `POST /auth/register` siempre crea usuarios `USER`, así que la única forma de tener un admin en dev es este seed. Logueate con `POST /auth/login` usando esas credenciales y usá el `accessToken` en `Authorization: Bearer …`. Los `GET` del catálogo siguen siendo públicos.
 
 ### 7. Verificar
 

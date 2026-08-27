@@ -9,9 +9,9 @@ const router = Router();
 
 router.get('/', racesController.getAll);
 router.get('/:id', racesController.getById);
-router.post('/', validate(createRaceSchema), racesController.create);
-router.patch('/:id', validate(updateRaceSchema), racesController.update);
-router.delete('/:id', racesController.remove);
+router.post('/', requireAuth, requireAdmin, validate(createRaceSchema), racesController.create);
+router.patch('/:id', requireAuth, requireAdmin, validate(updateRaceSchema), racesController.update);
+router.delete('/:id', requireAuth, requireAdmin, racesController.remove);
 
 // Slice 7 — RaceResult
 router.get('/:id/results', racesController.getResults);
