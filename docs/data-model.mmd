@@ -103,7 +103,6 @@ erDiagram
         int leagueMemberId FK "UK - 1:1"
         int driver1Id FK "nullable until draft completes"
         int driver2Id FK "nullable until draft completes"
-        int reserveDriverId FK "nullable — set on first DriverSwap, not a draft pick"
         int constructorId FK "nullable until draft completes"
         datetime createdAt
     }
@@ -113,21 +112,10 @@ erDiagram
         int leagueId FK
         int leagueMemberId FK
         int pickNumber "unique within leagueId — enforce via @@unique([leagueId, pickNumber])"
-        int round "1-3 — starter1, starter2, constructor (reserve is waiver, not drafted)"
+        int round "1-3 — driver1, driver2, constructor (no reserve — ADR-0006)"
         int driverId FK "nullable — XOR with constructorId, exactly one must be set"
         int constructorId FK "nullable — XOR with driverId, exactly one must be set"
         datetime pickedAt
-    }
-
-    DriverSwap {
-        int id PK
-        int fantasyTeamId FK
-        int raceId FK
-        enum slot "DRIVER_1 | DRIVER_2"
-        int droppedDriverId FK
-        int activatedDriverId FK
-        enum type "MANUAL | AUTO_DNF"
-        datetime createdAt
     }
 
     RaceResult {
@@ -220,10 +208,8 @@ erDiagram
     LeagueMember ||--o{ Prediction : "makes"
     LeagueMember ||--o{ LeagueStanding : "has"
 
-    FantasyTeam ||--o{ DriverSwap : "has"
     FantasyTeam }o--|| Driver : "driver1"
     FantasyTeam }o--|| Driver : "driver2"
-    FantasyTeam }o--|| Driver : "reserve"
     FantasyTeam }o--|| Constructor : "picks"
 
     DraftPick }o--o| Driver : "picks driver"
@@ -231,7 +217,6 @@ erDiagram
 
     Race ||--o{ RaceResult : "has"
     Race ||--o{ ConstructorResult : "has"
-    Race ||--o{ DriverSwap : "for"
     Race ||--o{ Prediction : "for"
     Race ||--o{ LeagueStanding : "snapshot at"
 

@@ -149,7 +149,7 @@ Cada sección está taggeada con su estado actual:
 
 ### REST Endpoints
 
-4 rondas fijas por draft (una por slot de FantasyTeam): rondas 1-3 categoría DRIVER (llenan `driver1`/`driver2`/`reserveDriver` en ese orden), ronda 4 categoría CONSTRUCTOR (llena `constructor`). Con N miembros ACTIVE, el draft completo son `N × 4` picks.
+3 rondas fijas por draft (una por slot de FantasyTeam): rondas 1-2 categoría DRIVER (llenan `driver1`/`driver2` en ese orden), ronda 3 categoría CONSTRUCTOR (llena `constructor`). Con N miembros ACTIVE, el draft completo son `N × 3` picks. No hay piloto reserva (ADR-0006). `start` rechaza con 409 `TOO_MANY_MEMBERS_FOR_DRAFT` si los miembros superan `floor(season.driverCount / 2)`.
 
 | Método | Endpoint                       | Acceso        | Notas                             |
 | ------ | ------------------------------ | ------------- | ---------------------------------- |
@@ -186,9 +186,7 @@ Si el timer llega a 0 sin que nadie pickee, el servidor auto-asigna **al azar** 
 | ------ | ----------------------------- | ------------- | ----------------------------------------------------------------- |
 | GET    | `/leagues/:id/teams`          | League member | Todos los equipos de la liga                                      |
 | GET    | `/leagues/:id/teams/:userId`  | League member | Equipo de un usuario específico                                   |
-| GET    | `/leagues/:id/teams/me`       | League member | Slice 4. Mi FantasyTeam en esta liga; se crea vacío (slots `null`) al crear/joinear la liga |
-| POST   | `/leagues/:id/teams/me/swap`  | League member | Solo antes de `lockDate`. Body: `{ slot, reserveIn: true/false }` |
-| GET    | `/leagues/:id/teams/me/swaps` | League member | Historial de swaps                                                |
+| GET    | `/leagues/:id/teams/me`       | League member | Slice 4. Mi FantasyTeam en esta liga (`driver1Id`, `driver2Id`, `constructorId`); se crea vacío (slots `null`) al crear/joinear la liga |
 
 ---
 
@@ -290,7 +288,6 @@ Suma de los puntos reales de ambos pilotos del constructor en la carrera.
 | Pole position       | +8                    |
 | Team con más puntos | +12                   |
 
-### Piloto Reserva
+### Piloto que no termina (DNF / DSQ / DNS)
 
-- **Auto-sustitución**: Si un titular hace DNF/DSQ/DNS, el reserva lo reemplaza automáticamente. Se toman los mejores 2 puntajes de los 3 pilotos.
-- **Swap manual**: Antes del `lockDate`, el usuario puede intercambiar un titular por el reserva para esa carrera.
+- No hay piloto reserva ni swaps (ADR-0006). Un piloto con status `DNF`, `DSQ` o `DNS` suma 0 puntos para ese slot del FantasyTeam en esa carrera.

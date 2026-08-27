@@ -27,9 +27,9 @@ async function authedUser(suffix = '') {
 
 // seedSeason: crea Season 2026 (necesario porque truncate-cascade borra todas las seasons).
 // Devuelve la Season completa para que el test agarre el id.
-async function seedSeason() {
+async function seedSeason(driverCount = 22) {
   return prisma.season.create({
-    data: { year: 2026, isActive: true, driverCount: 22 },
+    data: { year: 2026, isActive: true, driverCount },
   });
 }
 
@@ -73,9 +73,10 @@ describe('POST /api/v1/leagues', () => {
     expect(team).toMatchObject({
       driver1Id: null,
       driver2Id: null,
-      reserveDriverId: null,
       constructorId: null,
     });
+    // ADR-0006: la reserva no existe — ni como columna.
+    expect(team).not.toHaveProperty('reserveDriverId');
   });
 
   it('rechaza sin name (400 VALIDATION_ERROR)', async () => {
@@ -842,9 +843,10 @@ describe('GET /api/v1/leagues/:id/teams/me', () => {
     expect(res.body.data).toMatchObject({
       driver1Id: null,
       driver2Id: null,
-      reserveDriverId: null,
       constructorId: null,
     });
+    // ADR-0006: el shape publico del FantasyTeam tiene 3 slots, no 4.
+    expect(res.body.data).not.toHaveProperty('reserveDriverId');
   });
 
   it('devuelve 404 LEAGUE_NOT_FOUND si no soy member (requireLeagueMember)', async () => {
@@ -914,54 +916,52 @@ describe('GET /api/v1/leagues/:id/teams/me', () => {
   });
 });
 
-// ─── Rate limit user-based (B3 / PER-18) ──────────────────────────────
-// El limiter tiene `skip: isTestEnv` (rateLimit.ts) para que el resto de la suite no tope el
-// cap de 5/min. Este describe lo re-activa apagando las dos envs que isTestEnv mira — se
-// evalua por request, asi que alcanza con setearlas antes y restaurarlas despues.
-//
-// Lo que se prueba es la KEY del limiter, no el cap: dos users distintos desde la misma IP
-// (supertest siempre pega desde 127.0.0.1) no deben compartir contador. Si el limiter corre
-// antes que requireAuth, req.user es undefined en keyGenerator y cae al fallback por IP:
-// el 1er POST de B despues de los 5 de A da 429. Con requireAuth primero, B tiene su
-// propio bucket y da 201.
+// ─── Tope de miembros derivado de la temporada (ADR-0006 / BOX-14) ────
+// Cada miembro draftea 2 pilotos y los picks son exclusivos por liga, asi que el tope es
+// floor(driverCount / 2): 11 para una grilla de 22, 10 para una de 20. Antes el 11 era un
+// numero fijo que no miraba la temporada.
 
-describe('rate limit de POST /api/v1/leagues es por user, no por IP', () => {
-  const savedEnv = { NODE_ENV: process.env.NODE_ENV, VITEST: process.env.VITEST };
+describe('tope de miembros = pilotos de la temporada / 2', () => {
+  it('sin maxMembers en el body, usa floor(driverCount / 2) de la temporada', async () => {
+    const alice = await authedUser();
+    const season = await seedSeason(20);
 
-  beforeAll(() => {
-    process.env.NODE_ENV = 'development';
-    process.env.VITEST = 'false';
-  });
-
-  afterAll(() => {
-    process.env.NODE_ENV = savedEnv.NODE_ENV;
-    process.env.VITEST = savedEnv.VITEST;
-  });
-
-  it('user B no hereda el contador agotado de user A en la misma IP', async () => {
-    const alice = await authedUser('rl-a');
-    const bob = await authedUser('rl-b');
-    const season = await seedSeason();
-
-    for (let i = 1; i <= 5; i++) {
-      const res = await request(app)
-        .post('/api/v1/leagues')
-        .set('Authorization', `Bearer ${alice.token}`)
-        .send({ name: `Liga A${i}`, inviteCode: `rl-alice-${i}`, seasonId: season.id });
-      expect(res.status).toBe(201);
-    }
-
-    const sixthFromAlice = await request(app)
+    const res = await request(app)
       .post('/api/v1/leagues')
       .set('Authorization', `Bearer ${alice.token}`)
-      .send({ name: 'Liga A6', inviteCode: 'rl-alice-6', seasonId: season.id });
-    expect(sixthFromAlice.status).toBe(429);
-    expect(sixthFromAlice.body.error.code).toBe('RATE_LIMIT_EXCEEDED');
+      .send({ name: 'Liga 20', inviteCode: 'cap-default', seasonId: season.id });
 
-    const firstFromBob = await request(app)
+    expect(res.status).toBe(201);
+    expect(res.body.data.maxMembers).toBe(10);
+  });
+
+  it('rechaza maxMembers mayor al tope de la temporada (409 MAX_MEMBERS_EXCEEDS_SEASON)', async () => {
+    const alice = await authedUser();
+    const season = await seedSeason(22);
+
+    const res = await request(app)
       .post('/api/v1/leagues')
-      .set('Authorization', `Bearer ${bob.token}`)
-      .send({ name: 'Liga B1', inviteCode: 'rl-bob-1', seasonId: season.id });
-    expect(firstFromBob.status).toBe(201);
+      .set('Authorization', `Bearer ${alice.token}`)
+      .send({ name: 'Liga 12', inviteCode: 'cap-over', seasonId: season.id, maxMembers: 12 });
+
+    expect(res.status).toBe(409);
+    expect(res.body.error.code).toBe('MAX_MEMBERS_EXCEEDS_SEASON');
+  });
+
+  it('PATCH tambien rechaza maxMembers mayor al tope (409)', async () => {
+    const alice = await authedUser();
+    const season = await seedSeason(22);
+    const created = await request(app)
+      .post('/api/v1/leagues')
+      .set('Authorization', `Bearer ${alice.token}`)
+      .send({ name: 'Liga', inviteCode: 'cap-patch', seasonId: season.id });
+
+    const res = await request(app)
+      .patch(`/api/v1/leagues/${created.body.data.id}`)
+      .set('Authorization', `Bearer ${alice.token}`)
+      .send({ maxMembers: 12 });
+
+    expect(res.status).toBe(409);
+    expect(res.body.error.code).toBe('MAX_MEMBERS_EXCEEDS_SEASON');
   });
 });

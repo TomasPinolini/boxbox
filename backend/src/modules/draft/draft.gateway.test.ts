@@ -305,7 +305,8 @@ describe('draft namespace — timer y auto-pick', () => {
 
   it('emite draft:complete cuando el ultimo pick termina el draft', async () => {
     const { leagueId, owner } = await setupLeague(1);
-    const drivers = await Promise.all(Array.from({ length: 3 }, () => seedDriver()));
+    // 3 rondas (ADR-0006): 2 drivers + 1 constructor por miembro.
+    const drivers = await Promise.all(Array.from({ length: 2 }, () => seedDriver()));
     const constructorId = await seedConstructor();
 
     const { socket } = await connectMember(owner.token, leagueId);
@@ -317,7 +318,7 @@ describe('draft namespace — timer y auto-pick', () => {
 
     const completePromise = waitForEvent<{ teams: { constructorId: number }[] }>(socket, 'draft:complete');
 
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < 2; i++) {
       const updatePromise = waitForEvent(socket, 'draft:update');
       socket.emit('draft:pick', { driverId: drivers[i] });
       await updatePromise;

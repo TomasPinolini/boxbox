@@ -11,7 +11,6 @@ beforeEach(async () => {
   await prisma.$executeRawUnsafe('TRUNCATE TABLE predictions CASCADE');
   await prisma.$executeRawUnsafe('TRUNCATE TABLE race_results CASCADE');
   await prisma.$executeRawUnsafe('TRUNCATE TABLE constructor_results CASCADE');
-  await prisma.$executeRawUnsafe('TRUNCATE TABLE driver_swaps CASCADE');
   await prisma.$executeRawUnsafe('TRUNCATE TABLE draft_picks CASCADE');
   await prisma.$executeRawUnsafe('TRUNCATE TABLE fantasy_teams CASCADE');
   await prisma.$executeRawUnsafe('TRUNCATE TABLE league_members CASCADE');

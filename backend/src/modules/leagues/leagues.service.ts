@@ -61,12 +61,31 @@ const fantasyTeamSelect = {
   leagueMemberId: true,
   driver1Id: true,
   driver2Id: true,
-  reserveDriverId: true,
   constructorId: true,
   createdAt: true,
 } as Prisma.FantasyTeamSelect;
 
+// maxMembersForSeason: cuantos miembros entran en una liga de esta temporada. Cada miembro
+// draftea 2 pilotos y los picks son exclusivos por liga (ADR-0006), asi que el tope es
+// floor(pilotos / 2): 11 para una grilla de 22. Unica fuente de la formula — draft.service.ts
+// la importa para el guard de startDraft.
+export function maxMembersForSeason(driverCount: number): number {
+  return Math.floor(driverCount / 2);
+}
+
 export async function createLeague(data: CreateLeagueInput, userId: number) {
+  const season = await prisma.season.findUnique({ where: { id: data.seasonId } });
+  if (!season) {
+    throw new NotFoundError('Season');
+  }
+  const cap = maxMembersForSeason(season.driverCount);
+  if (data.maxMembers !== undefined && data.maxMembers > cap) {
+    throw new ConflictError(
+      `maxMembers cannot exceed ${cap} for this season (${season.driverCount} drivers / 2)`,
+      'MAX_MEMBERS_EXCEEDS_SEASON',
+    );
+  }
+
   // Nested write atomico: Prisma crea League + LeagueMember en una sola transaccion.
   // Si la insert del member falla (raro — userId viene del JWT validado), la liga tampoco
   // se crea. Eso preserva la invariante de dominio "toda liga tiene exactamente 1 owner".
@@ -76,7 +95,7 @@ export async function createLeague(data: CreateLeagueInput, userId: number) {
         name: data.name,
         inviteCode: data.inviteCode,
         seasonId: data.seasonId,
-        maxMembers: data.maxMembers ?? 11,
+        maxMembers: data.maxMembers ?? cap,
         createdById: userId,
         members: {
           // Slice 4: nested create de dos niveles — League → LeagueMember → FantasyTeam,
@@ -136,6 +155,21 @@ export async function getLeagueById(id: number) {
 
 // updateLeague: ya NO chequea ownership. requireLeagueOwner (middleware) ya garantizo isOwner.
 export async function updateLeague(id: number, data: UpdateLeagueInput) {
+  // Mismo tope que en createLeague: maxMembers nunca puede superar lo que la temporada permite.
+  if (data.maxMembers !== undefined) {
+    const league = await prisma.league.findUnique({ where: { id }, include: { season: true } });
+    if (!league) {
+      throw new NotFoundError('League');
+    }
+    const cap = maxMembersForSeason(league.season.driverCount);
+    if (data.maxMembers > cap) {
+      throw new ConflictError(
+        `maxMembers cannot exceed ${cap} for this season (${league.season.driverCount} drivers / 2)`,
+        'MAX_MEMBERS_EXCEEDS_SEASON',
+      );
+    }
+  }
+
   try {
     return await prisma.league.update({ where: { id }, data, select: leagueSelect });
   } catch (err) {

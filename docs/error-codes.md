@@ -32,7 +32,7 @@ Códigos de error tipados que la API puede devolver en el envelope `{ error: { c
 | ------------------------- | ---- | -------------------------- | --------------------------------------------------------------------------------------- |
 | `DRIVER_NOT_FOUND`        | 404  | `drivers.service.ts:40`    | GET/PATCH/DELETE de un Driver inexistente o soft-deleted.                               |
 | `DRIVER_ALREADY_EXISTS`   | 409  | `drivers.service.ts:52-55` | POST con un `externalId` ya usado (incluso en filas soft-deleted).                      |
-| `DRIVER_HAS_DEPENDENCIES` | 409  | `drivers.service.ts:77-80` | DELETE de un Driver referenciado por un `FantasyTeam` activo (driver1/driver2/reserve). |
+| `DRIVER_HAS_DEPENDENCIES` | 409  | `drivers.service.ts:77-80` | DELETE de un Driver referenciado por un `FantasyTeam` activo (driver1/driver2). |
 
 ## Constructors
 
@@ -96,6 +96,7 @@ Códigos de error tipados que la API puede devolver en el envelope `{ error: { c
 | `INVITE_CODE_TAKEN`     | 409  | `leagues.service.ts` (createLeague, updateLeague — catch P2002)               | POST/PATCH con un `inviteCode` ya usado (después de normalizar a lowercase). Catch del Prisma error `P2002` hace el chequeo race-free.                                                                                  |
 | `ALREADY_MEMBER`        | 409  | `leagues.service.ts` (joinLeague)                                             | `POST /leagues/join` cuando ya soy ACTIVE member de esa liga. Rejoin de LEFT/KICKED NO tira esto — solo si estoy actualmente ACTIVE.                                                                                    |
 | `LEAGUE_FULL`           | 409  | `leagues.service.ts` (joinLeague)                                             | Intento de joinear cuando `count(ACTIVE members) === maxMembers`.                                                                                                                                                       |
+| `MAX_MEMBERS_EXCEEDS_SEASON` | 409 | `leagues.service.ts` (createLeague, updateLeague)                        | `maxMembers` mayor a `floor(season.driverCount / 2)` — cada miembro draftea 2 pilotos exclusivos (ADR-0006). 11 para la grilla de 22.                                                                                     |
 | `OWNER_CANNOT_LEAVE`    | 409  | `leagues.service.ts` (leaveLeague, kickMember)                                | Owner intenta `POST /leagues/:id/leave` O `DELETE /:id/members/:ownerId`. Debe transferir ownership antes (fuera de scope hoy).                                                                                         |
 | `NOT_LEAGUE_OWNER`      | 403  | `middleware/leagueMembership.ts` (requireLeagueOwner)                         | User ES ACTIVE member pero la ruta requiere owner (PATCH, DELETE kick). Único caso donde 403 NO leakea info (user ya sabe que la liga existe porque es member).                                                         |
 | `FANTASY_TEAM_NOT_FOUND` | 404  | `leagues.service.ts` (getMyFantasyTeam)                                       | Slice 4. Defense-in-depth — no debería ocurrir en la práctica: el FantasyTeam se crea atómicamente junto al LeagueMember en `createLeague`/`joinLeague`.                                                                |
@@ -114,13 +115,6 @@ Estos van a aparecer cuando se construyan los slices del [`roadmap.md`](./roadma
 | -------------------- | ---- | ---------------------------------------------------------- |
 | `PREDICTIONS_LOCKED` | 409  | Crear/editar Prediction después del `lockDate` de la Race. |
 
-### Slice 11 — DriverSwap
-
-| Código                  | HTTP | Cuándo                                                |
-| ----------------------- | ---- | ----------------------------------------------------- |
-| `SWAPS_LOCKED`          | 409  | Swap manual después del `lockDate` de la Race.        |
-| `RESERVE_NOT_AVAILABLE` | 409  | Intento de swap sin tener un piloto reserva asignado. |
-
 ---
 
 ## Draft (Slice 5 REST + Slice 6 WebSocket)
@@ -128,6 +122,7 @@ Estos van a aparecer cuando se construyan los slices del [`roadmap.md`](./roadma
 | Código                         | HTTP | Origen                          | Cuándo                                                                                                                                            |
 | ------------------------------ | ---- | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `DRAFT_ALREADY_STARTED`        | 409  | `draft.service.ts` (startDraft)  | `POST /leagues/:id/draft/start` cuando `League.draftStatus != PENDING` — el draft ya arrancó (o ya terminó).                                        |
+| `TOO_MANY_MEMBERS_FOR_DRAFT`   | 409  | `draft.service.ts` (startDraft)  | Miembros ACTIVE > `floor(season.driverCount / 2)`: no hay pilotos suficientes para 2 por miembro. Red de seguridad de `MAX_MEMBERS_EXCEEDS_SEASON` (ADR-0006). |
 | `DRAFT_NOT_LIVE`                | 409  | `draft.service.ts` (submitPick)  | `POST /leagues/:id/draft/pick` cuando `League.draftStatus != LIVE` (todavía no arrancó, o ya terminó). También defense-in-depth si no hay ningún pick abierto. |
 | `NOT_YOUR_TURN`                 | 409  | `draft.service.ts` (submitPick)  | El pick actual (menor `pickNumber` sin llenar) pertenece a otro `LeagueMember`.                                                                     |
 | `WRONG_PICK_CATEGORY`           | 409  | `draft.service.ts` (submitPick)  | La ronda actual espera `driverId` (rondas 1-3) o `constructorId` (ronda 4) y el body mandó el otro campo.                                           |
