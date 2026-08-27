@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-BoxBox is a Formula 1 Fantasy League web app — a university project (TP) for Desarrollo de Software at UTN FRRO. Users create/join private leagues, participate in a live snake draft to build a team (2 starter drivers, 1 reserve, 1 constructor), and compete across the F1 season with real race results.
+BoxBox is a Formula 1 Fantasy League web app — a university project (TP) for Desarrollo de Software at UTN FRRO. Users create/join private leagues, participate in a live snake draft to build a team (2 drivers, 1 constructor — no reserve driver, see ADR-0006), and compete across the F1 season with real race results.
 
 The project is backend-only so far (Slices 1–7 shipped: auth, leagues, membership, fantasy teams, snake draft over REST + Socket.io, race-result ingestion). Scoring, predictions, sync and the frontend are still **planned, not built**. When in doubt about what is actually implemented, trust the source, not the docs.
 
@@ -23,16 +23,16 @@ Built (one slice = one PR; full log in `docs/roadmap.md` → "Completados"):
 - Backend scaffold (Express 5, TypeScript, Prisma 7, Postgres) + Zod validation + centralized errors + Vitest integration tests against a real Postgres DB (168 tests across 9 files).
 - CRUD modules: `drivers`, `constructors`, `circuits`, `seasons`, `races`.
 - **Auth (Slice 1)**: `auth/` module, `requireAuth`, JWT access (15m) + refresh (7d, httpOnly cookie). `POST /auth/register|login|refresh|logout`, `GET /auth/me`.
-- **Leagues (Slice 2)**: `POST/GET /leagues`, `GET/PATCH /leagues/:id`. Archive via `PATCH status='ARCHIVED'` — no DELETE. `inviteCode` user-supplied (4-20 chars, lowercase, reserved blacklist).
+- **Leagues (Slice 2)**: `POST/GET /leagues`, `GET/PATCH /leagues/:id`. Archive via `PATCH status='ARCHIVED'` — no DELETE. `inviteCode` user-supplied (4-20 chars, lowercase, reserved blacklist). `maxMembers` defaults to and is capped at `maxMembersForSeason(season.driverCount) = floor(driverCount / 2)` — 11 for 2026 (ADR-0006); over the cap → 409 `MAX_MEMBERS_EXCEEDS_SEASON`.
 - **Membership (Slice 3)**: `POST /leagues/join`, `POST /leagues/:id/leave`, `GET /leagues/:id/members`, `DELETE /leagues/:id/members/:userId`. Middleware `requireLeagueMember` (404 if not an ACTIVE member — anti-enumeration) + `requireLeagueOwner` (403). User-based rate limits on `POST /leagues` (5/min) and `/leagues/join` (10/min); skipped when `NODE_ENV=test` / `VITEST=true` / `SMOKE=1`. Path params via `validateParams(schema)`.
 - **FantasyTeam shell (Slice 4)**: `GET /leagues/:id/teams/me`. Lives inside `leagues/` (no new module) — rule: resources tightly coupled to a parent stay in the parent module.
-- **Draft REST (Slice 5)**: `modules/draft/` mounted as a sub-router from `leagues.routes.ts`: `router.use('/:id/draft', requireAuth, validateParams, requireLeagueMember, draftRoutes)`. `POST start|reset` (owner), `GET state|available`, `POST pick`. 4 fixed rounds (driver1, driver2, reserve, constructor); snake order materialized up-front as placeholder `DraftPick` rows; "current pick" = lowest unfilled `pickNumber`. `submitPick` uses `updateMany` + row-count check to survive concurrent writes.
+- **Draft REST (Slice 5)**: `modules/draft/` mounted as a sub-router from `leagues.routes.ts`: `router.use('/:id/draft', requireAuth, validateParams, requireLeagueMember, draftRoutes)`. `POST start|reset` (owner), `GET state|available`, `POST pick`. 3 fixed rounds (driver1, driver2, constructor — ADR-0006 removed the reserve round); `startDraft` re-checks the season cap (409 `TOO_MANY_MEMBERS_FOR_DRAFT`); snake order materialized up-front as placeholder `DraftPick` rows; "current pick" = lowest unfilled `pickNumber`. `submitPick` uses `updateMany` + row-count check to survive concurrent writes.
 - **Draft realtime (Slice 6)**: Socket.io namespace `/draft` in `modules/draft/draft.gateway.ts`, attached in `server.ts` (not `app.ts`). Handshake `auth: { token, leagueId }`; rejected unless ACTIVE member. Rooms `league:<id>`. Events out: `draft:state|update|timer|complete|error`; in: `draft:pick`. 60s `setTimeout` auto-pick (in-memory, lost on restart). REST controllers broadcast the same events through the `shared/socket.ts` singleton (`getIo()` is `null` in supertest tests → no-op). Gateway tests bind a real port and override `pickTimeoutMs` to 300ms.
 - **RaceResult ingestion (Slice 7)**: `GET /races/:id/results` (public), `POST /races/:id/results` (`requireAuth → requireAdmin`), transitions the race to `COMPLETED`. `middleware/admin.ts` reads `role` from the JWT — no DB hit, stale until token expiry.
 
 Not yet built — **intentionally deferred**. Do not suggest implementing any of these without an explicit ask from the user; ordering and blockers live in `docs/roadmap.md`:
 
-- Slice 8 ConstructorResult, Slice 9 LeagueStanding (scoring), Slice 10 Predictions, Slice 11 DriverSwap
+- Slice 8 ConstructorResult, Slice 9 LeagueStanding (scoring), Slice 10 Predictions. Slice 11 DriverSwap was **dropped** (ADR-0006) — do not reintroduce a reserve driver or swaps.
 - Slice 12 external API sync (Jolpica, OpenF1)
 - Slice 13 Frontend (no directory exists yet)
 - Transfer ownership of leagues — owner trying to leave gets 409 `OWNER_CANNOT_LEAVE`

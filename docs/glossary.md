@@ -42,9 +42,8 @@ Definiciones de una línea de todos los términos del dominio. Si necesitás nar
 | Término | Definición | Evitar |
 |---|---|---|
 | **League** | Competencia privada de hasta 11 **LeagueMember**s sobre una **Season**, con `inviteCode` único y `draftStatus`. | room, group, lobby |
-| **FantasyTeam** | Equipo armado por un **LeagueMember** en su **League**: 2 titulares, 1 reserva, 1 constructor; 1:1 estricto con LeagueMember. | team (suelto — ambiguo con Constructor), lineup |
+| **FantasyTeam** | Equipo armado por un **LeagueMember** en su **League**: 2 pilotos y 1 constructor (sin reserva — ADR-0006); 1:1 estricto con LeagueMember. | team (suelto — ambiguo con Constructor), lineup |
 | **DraftPick** | Una elección hecha por un **LeagueMember** durante el draft; referencia O un Driver O un Constructor (nunca ambos). | selection, choice |
-| **DriverSwap** | Sustitución de un titular del **FantasyTeam** por el reserva para una **Race** específica; `type` MANUAL o AUTO_DNF. | substitution, change |
 | **Prediction** | Pronóstico pre-carrera de un **LeagueMember**: ganador, pole y top constructor; suma bonus si acierta. | guess, bet, forecast |
 | **LeagueStanding** | Snapshot inmutable de la posición de un **LeagueMember** en su **League** después de una **Race** específica; guarda totalPoints, position, positionChange. | leaderboard entry, ranking row |
 
@@ -62,7 +61,7 @@ Definiciones de una línea de todos los términos del dominio. Si necesitás nar
 
 | Término | Definición | Evitar |
 |---|---|---|
-| **lockDate** | Timestamp por **Race** después del cual no se aceptan más **Prediction**s ni **DriverSwap**s manuales; típicamente 1h antes del race start, no necesariamente = qualifyingDate. | deadline, cutoff |
+| **lockDate** | Timestamp por **Race** después del cual no se aceptan más **Prediction**s; típicamente 1h antes del race start, no necesariamente = qualifyingDate. | deadline, cutoff |
 | **snake draft** | Modalidad de draft donde el orden de picks se revierte cada ronda (1→N, N→1, 1→N); 3 rondas en BoxBox: titular 1, titular 2, constructor. | serpentine draft, mirror draft |
 | **soft-delete** | Política de borrado lógico: la fila queda en DB con `deletedAt` seteado y se filtra de reads; solo aplica a entidades de catálogo (Driver, Constructor, Circuit). | logical delete (en docs); usar "borrar" cuando se borra físicamente |
 | **externalId** | ID estable que viene de Jolpica-F1 / OpenF1 para reconciliar entidades en re-syncs; `@unique` en Driver, Constructor, Circuit; `@unique` compuesto en Race. | external_key, jolpica_id |
@@ -92,17 +91,17 @@ Definiciones de una línea de todos los términos del dominio. Si necesitás nar
 
 ## Diálogo de ejemplo
 
-> **Dev A:** "Si un **Driver** hace **DNF** en una **Race**, ¿el sistema swapea automático?"
+> **Dev A:** "Si un **Driver** hace **DNF** en una **Race**, ¿el sistema lo reemplaza?"
 >
-> **Dev B:** "Sí — al procesar el **RaceResult** con status `DNF`, se crea un **DriverSwap** con `type = AUTO_DNF` que activa el reserva del **FantasyTeam**. El scoring usa los 2 mejores de los 3 pilotos para esa carrera."
+> **Dev B:** "No — no hay piloto reserva (ADR-0006). El **RaceResult** con status `DNF` suma 0 puntos para ese slot del **FantasyTeam** en esa carrera, y listo."
 >
-> **Dev A:** "¿Y si el **LeagueMember** ya había hecho un swap **MANUAL** antes del **lockDate**?"
+> **Dev A:** "¿Y cuántos pueden entrar en una **League**?"
 >
-> **Dev B:** "Esa decisión queda — el AUTO_DNF solo dispara si después del swap manual otro titular sigue haciendo DNF. Cada swap es inmutable; el historial completo se ve con `GET /leagues/:id/teams/me/swaps`."
+> **Dev B:** "`floor(driverCount / 2)` de la **Season**: 11 con la grilla de 22. Cada **LeagueMember** draftea 2 pilotos y los picks son exclusivos dentro de la liga, así que con 12 alguien se queda sin piloto."
 >
 > **Dev A:** "OK, y el **LeagueStanding** se regenera cuando se carga el RaceResult, ¿no?"
 >
-> **Dev B:** "Lo dispara el endpoint `/recalculate`: recalcula `driverPoints` (de los titulares con swap aplicado), `constructorPoints` (de su Constructor) y `predictionPoints` (de las Predictions evaluadas). El `positionChange` se computa contra el LeagueStanding de la Race anterior."
+> **Dev B:** "Lo dispara el endpoint `/recalculate`: recalcula `driverPoints` (de los 2 pilotos), `constructorPoints` (de su Constructor) y `predictionPoints` (de las Predictions evaluadas). El `positionChange` se computa contra el LeagueStanding de la Race anterior."
 
 ---
 
@@ -113,4 +112,4 @@ Definiciones de una línea de todos los términos del dominio. Si necesitás nar
 - **"DriverContract"** (histórico) — fue rechazado a favor de **DriverSeason**. Si aparece en docs viejos o branches, corregir. La entidad no tiene semánticas de contrato (no hay fechas, salario, cláusulas).
 - **"result"** suelto — ambiguo entre **RaceResult** (por piloto) y **ConstructorResult** (por equipo). Siempre prefijar.
 - **"pick"** suelto — usar **DraftPick** cuando refiere a la entidad; verbo "pick" libre en conversación.
-- **"swap"** suelto — usar **DriverSwap** cuando refiere a la entidad; verbo libre.
+- **"reserva" / "swap"** — ya no existen en el dominio (ADR-0006). Si aparecen en docs viejos o branches, corregir.
