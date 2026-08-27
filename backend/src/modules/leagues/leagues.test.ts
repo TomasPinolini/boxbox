@@ -2,7 +2,7 @@
 // Sin mocks (ADR-0003). setup.ts trunca todas las tablas antes de cada test,
 // asi que cada test arranca con DB vacia y necesita crear Season + User inline.
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import request from 'supertest';
 import app from '../../app';
 import { prisma } from '../../shared/prisma';

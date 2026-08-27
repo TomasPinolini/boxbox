@@ -6,13 +6,14 @@
 // nada que ver con los 60s reales de produccion, es solo para no tener que esperar 60s por
 // cada test del auto-pick.
 
-import { describe, it, expect, beforeAll, afterAll, afterEach } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from 'vitest';
 import { createServer } from 'http';
 import type { Server as HttpServer } from 'http';
 import type { Server as SocketIOServer } from 'socket.io';
 import { io as ioClient, Socket as ClientSocket } from 'socket.io-client';
 import request from 'supertest';
 import app from '../../app';
+import { env } from '../../config/env';
 import { prisma } from '../../shared/prisma';
 import { registerDraftGateway, clearAllDraftTimers } from './draft.gateway';
 import { setIo } from '../../shared/socket';
@@ -329,5 +330,65 @@ describe('draft namespace — timer y auto-pick', () => {
     expect(complete.teams[0].constructorId).toBe(constructorId);
 
     socket.disconnect();
+  });
+});
+
+// ─── CORS del handshake (A1 / PER-11) ─────────────────────────────────────────────────
+// Socket.io atiende /socket.io/* directo sobre el http.Server, ANTES que Express — el cors()
+// de app.ts nunca corre para el handshake. Por eso estos tests pegan a `httpServer`, no a `app`:
+// contra `app` pasarian siempre (Express si tiene cors) y no probarian nada.
+//
+// Reproducen el PRIMER request que hace un browser real: GET polling con header Origin. Los
+// demas tests de este archivo usan transports: ['websocket'] desde Node, que es justamente la
+// combinacion que esconde el bug (Node no aplica same-origin; el upgrade a WS no pasa por CORS).
+describe('draft namespace — CORS del handshake', () => {
+  const HANDSHAKE_PATH = '/socket.io/?EIO=4&transport=polling';
+
+  it('responde Access-Control-Allow-Origin para FRONTEND_URL en el polling inicial', async () => {
+    const res = await request(httpServer).get(HANDSHAKE_PATH).set('Origin', env.FRONTEND_URL);
+
+    expect(res.headers['access-control-allow-origin']).toBe(env.FRONTEND_URL);
+  });
+
+  // El paquete `cors` (que usa Socket.io por abajo, igual que app.ts) con `origin: string` NO
+  // refleja el Origin del request ni omite el header: siempre responde el origin configurado.
+  // El browser compara ese valor con su propio origin y bloquea si no coincide. Lo que este
+  // test protege es que nadie "arregle" el cors con `origin: '*'` o `origin: true` (reflejar
+  // cualquiera) — ambos harian que evil.test pase.
+  it('para un origin ajeno sigue respondiendo FRONTEND_URL (no refleja, no es *)', async () => {
+    const res = await request(httpServer).get(HANDSHAKE_PATH).set('Origin', 'http://evil.test');
+
+    expect(res.headers['access-control-allow-origin']).toBe(env.FRONTEND_URL);
+  });
+});
+
+// ─── Errores en segundo plano (B1 / BOX-16) ───────────────────────────────────────────
+// El timer de auto-pick corre "fire and forget" (void runAutoPick(...)): nadie espera su
+// promesa. Si falla — ej. la liga ya no existe cuando dispara, que es exactamente lo que pasa
+// cuando el truncate de tests/setup.ts corre con un timer vivo — la promesa rechaza sin nadie
+// que la atrape, y Node termina el proceso. Este test reproduce ese caso a proposito y exige
+// que el error quede logueado y el server siga respondiendo.
+describe('draft namespace — errores en segundo plano no tiran el proceso', () => {
+  it('si el timer dispara contra una liga borrada, loguea el error y el server sigue vivo', async () => {
+    const { leagueId, owner } = await setupLeague(1);
+    await seedDriver();
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    try {
+      await request(app)
+        .post(`/api/v1/leagues/${leagueId}/draft/start`)
+        .set('Authorization', `Bearer ${owner.token}`);
+
+      // Timer armado (300ms). Borramos la liga por abajo, igual que hace el truncate entre tests.
+      await prisma.$executeRawUnsafe('TRUNCATE TABLE leagues CASCADE');
+      await new Promise((resolve) => setTimeout(resolve, PICK_TIMEOUT_MS + 300));
+
+      expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('[draft]'), expect.anything());
+
+      const health = await request(app).get('/api/v1/health');
+      expect(health.status).toBe(200);
+    } finally {
+      errorSpy.mockRestore();
+    }
   });
 });
