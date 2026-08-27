@@ -4,20 +4,34 @@ import app from '../../app';
 import { prisma } from '../../shared/prisma';
 import { createTestAdmin, createTestUser } from '../../tests/setup';
 
+// adminToken: el CRUD de races es admin-only (A5 / BOX-15), igual que /results desde Slice 7.
+// Se recrea por test (setup.ts trunca la DB).
+let adminToken: string;
+
+beforeEach(async () => {
+  adminToken = (await createTestAdmin()).accessToken;
+});
+
 // Races depend on Season + Circuit, so we create those first in each test
 let seasonId: number;
 let circuitId: number;
 
 beforeEach(async () => {
-  const season = await request(app).post('/api/v1/seasons').send({ year: 2026 });
+  const season = await request(app)
+    .post('/api/v1/seasons')
+    .set('Authorization', `Bearer ${adminToken}`)
+    .send({ year: 2026 });
   seasonId = season.body.data.id;
 
-  const circuit = await request(app).post('/api/v1/circuits').send({
-    name: 'Silverstone',
-    country: 'UK',
-    city: 'Silverstone',
-    externalId: 'silverstone',
-  });
+  const circuit = await request(app)
+    .post('/api/v1/circuits')
+    .set('Authorization', `Bearer ${adminToken}`)
+    .send({
+      name: 'Silverstone',
+      country: 'UK',
+      city: 'Silverstone',
+      externalId: 'silverstone',
+    });
   circuitId = circuit.body.data.id;
 });
 
@@ -40,7 +54,10 @@ describe('GET /api/v1/races', () => {
   });
 
   it('filters by seasonId', async () => {
-    await request(app).post('/api/v1/races').send(validRace());
+    await request(app)
+      .post('/api/v1/races')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send(validRace());
 
     const res = await request(app).get(`/api/v1/races?seasonId=${seasonId}`);
     expect(res.status).toBe(200);
@@ -53,7 +70,10 @@ describe('GET /api/v1/races', () => {
 
 describe('GET /api/v1/races/:id', () => {
   it('returns a race with circuit and season included', async () => {
-    const created = await request(app).post('/api/v1/races').send(validRace());
+    const created = await request(app)
+      .post('/api/v1/races')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send(validRace());
     const id = created.body.data.id;
 
     const res = await request(app).get(`/api/v1/races/${id}`);
@@ -71,7 +91,10 @@ describe('GET /api/v1/races/:id', () => {
 
 describe('POST /api/v1/races', () => {
   it('creates a race with valid data', async () => {
-    const res = await request(app).post('/api/v1/races').send(validRace());
+    const res = await request(app)
+      .post('/api/v1/races')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send(validRace());
 
     expect(res.status).toBe(201);
     expect(res.body.data.name).toBe('British Grand Prix');
@@ -81,6 +104,7 @@ describe('POST /api/v1/races', () => {
   it('rejects when season does not exist', async () => {
     const res = await request(app)
       .post('/api/v1/races')
+      .set('Authorization', `Bearer ${adminToken}`)
       .send({
         ...validRace(),
         seasonId: 9999,
@@ -91,6 +115,7 @@ describe('POST /api/v1/races', () => {
   it('rejects when circuit does not exist', async () => {
     const res = await request(app)
       .post('/api/v1/races')
+      .set('Authorization', `Bearer ${adminToken}`)
       .send({
         ...validRace(),
         circuitId: 9999,
@@ -99,10 +124,14 @@ describe('POST /api/v1/races', () => {
   });
 
   it('rejects duplicate round in same season', async () => {
-    await request(app).post('/api/v1/races').send(validRace());
+    await request(app)
+      .post('/api/v1/races')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send(validRace());
 
     const res = await request(app)
       .post('/api/v1/races')
+      .set('Authorization', `Bearer ${adminToken}`)
       .send({
         ...validRace(),
         name: 'Another GP',
@@ -112,38 +141,62 @@ describe('POST /api/v1/races', () => {
   });
 
   it('rejects missing required fields', async () => {
-    const res = await request(app).post('/api/v1/races').send({ name: 'GP' });
+    const res = await request(app)
+      .post('/api/v1/races')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ name: 'GP' });
     expect(res.status).toBe(400);
   });
 });
 
 describe('PATCH /api/v1/races/:id', () => {
   it('updates a race partially', async () => {
-    const created = await request(app).post('/api/v1/races').send(validRace());
+    const created = await request(app)
+      .post('/api/v1/races')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send(validRace());
     const id = created.body.data.id;
 
-    const res = await request(app).patch(`/api/v1/races/${id}`).send({ name: 'Silverstone GP' });
+    const res = await request(app)
+      .patch(`/api/v1/races/${id}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ name: 'Silverstone GP' });
     expect(res.status).toBe(200);
     expect(res.body.data.name).toBe('Silverstone GP');
   });
 
   it('returns 404 when updating non-existent race', async () => {
-    const res = await request(app).patch('/api/v1/races/999').send({ name: 'X' });
+    const res = await request(app)
+      .patch('/api/v1/races/999')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ name: 'X' });
     expect(res.status).toBe(404);
   });
 });
 
 describe('DELETE /api/v1/races/:id', () => {
   it('deletes a race', async () => {
-    const created = await request(app).post('/api/v1/races').send(validRace());
+    const created = await request(app)
+      .post('/api/v1/races')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send(validRace());
     const id = created.body.data.id;
 
-    expect((await request(app).delete(`/api/v1/races/${id}`)).status).toBe(204);
+    expect(
+      (
+        await request(app)
+          .delete(`/api/v1/races/${id}`)
+          .set('Authorization', `Bearer ${adminToken}`)
+      ).status,
+    ).toBe(204);
     expect((await request(app).get('/api/v1/races')).body.data).toHaveLength(0);
   });
 
   it('returns 404 when deleting non-existent race', async () => {
-    expect((await request(app).delete('/api/v1/races/999')).status).toBe(404);
+    expect(
+      (await request(app).delete('/api/v1/races/999').set('Authorization', `Bearer ${adminToken}`))
+        .status,
+    ).toBe(404);
   });
 });
 
@@ -156,6 +209,7 @@ async function createDrivers(n: number) {
     const num = i.toString().padStart(2, '0');
     const res = await request(app)
       .post('/api/v1/drivers')
+      .set('Authorization', `Bearer ${adminToken}`)
       .send({
         firstName: 'Test',
         lastName: `Driver${num}`,
@@ -185,7 +239,10 @@ function buildResults(drivers: Array<{ id: number }>) {
 
 describe('POST /api/v1/races/:id/results', () => {
   it('carga 20 resultados: retorna 201, count=20 en DB, Race pasa a COMPLETED', async () => {
-    const raceRes = await request(app).post('/api/v1/races').send(validRace());
+    const raceRes = await request(app)
+      .post('/api/v1/races')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send(validRace());
     const raceId = raceRes.body.data.id;
     const drivers = await createDrivers(20);
     const { accessToken } = await createTestAdmin();
@@ -207,7 +264,10 @@ describe('POST /api/v1/races/:id/results', () => {
 
   // ── Auth guards ────────────────────────────────────────────────
   it('sin token → 401 TOKEN_MISSING', async () => {
-    const raceRes = await request(app).post('/api/v1/races').send(validRace());
+    const raceRes = await request(app)
+      .post('/api/v1/races')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send(validRace());
     const drivers = await createDrivers(3);
 
     const res = await request(app)
@@ -219,7 +279,10 @@ describe('POST /api/v1/races/:id/results', () => {
   });
 
   it('con token de user no-admin → 403 ADMIN_REQUIRED', async () => {
-    const raceRes = await request(app).post('/api/v1/races').send(validRace());
+    const raceRes = await request(app)
+      .post('/api/v1/races')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send(validRace());
     const drivers = await createDrivers(3);
     const { accessToken } = await createTestUser(); // role=USER por default
 
@@ -247,7 +310,10 @@ describe('POST /api/v1/races/:id/results', () => {
   });
 
   it('driverId inexistente en payload → 404 DRIVER_NOT_FOUND + zero rows inserted (rollback)', async () => {
-    const raceRes = await request(app).post('/api/v1/races').send(validRace());
+    const raceRes = await request(app)
+      .post('/api/v1/races')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send(validRace());
     const raceId = raceRes.body.data.id;
     const drivers = await createDrivers(2);
     const { accessToken } = await createTestAdmin();
@@ -274,7 +340,10 @@ describe('POST /api/v1/races/:id/results', () => {
 
   // ── Conflict — race en estado no cargable ──────────────────────
   it('Race ya COMPLETED → 409 RACE_ALREADY_COMPLETED (idempotency guard)', async () => {
-    const raceRes = await request(app).post('/api/v1/races').send(validRace());
+    const raceRes = await request(app)
+      .post('/api/v1/races')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send(validRace());
     const raceId = raceRes.body.data.id;
     const drivers = await createDrivers(3);
     const { accessToken } = await createTestAdmin();
@@ -296,7 +365,10 @@ describe('POST /api/v1/races/:id/results', () => {
   });
 
   it('Race CANCELLED → 409 RACE_NOT_LOADABLE', async () => {
-    const raceRes = await request(app).post('/api/v1/races').send(validRace());
+    const raceRes = await request(app)
+      .post('/api/v1/races')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send(validRace());
     const raceId = raceRes.body.data.id;
     // Ponemos la Race en CANCELLED via update directo — no hay endpoint publico para esto.
     await prisma.race.update({ where: { id: raceId }, data: { status: 'CANCELLED' } });
@@ -314,7 +386,10 @@ describe('POST /api/v1/races/:id/results', () => {
   });
 
   it('Race POSTPONED → 409 RACE_NOT_LOADABLE', async () => {
-    const raceRes = await request(app).post('/api/v1/races').send(validRace());
+    const raceRes = await request(app)
+      .post('/api/v1/races')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send(validRace());
     const raceId = raceRes.body.data.id;
     await prisma.race.update({ where: { id: raceId }, data: { status: 'POSTPONED' } });
 
@@ -331,7 +406,10 @@ describe('POST /api/v1/races/:id/results', () => {
   });
 
   it('Race QUALIFYING_LOCKED → 201 (estado valido para cargar)', async () => {
-    const raceRes = await request(app).post('/api/v1/races').send(validRace());
+    const raceRes = await request(app)
+      .post('/api/v1/races')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send(validRace());
     const raceId = raceRes.body.data.id;
     // QUALIFYING_LOCKED es el otro estado en LOADABLE_STATUSES ademas de UPCOMING.
     // Verificamos explicitamente que ambos son aceptados.
@@ -351,7 +429,10 @@ describe('POST /api/v1/races/:id/results', () => {
   });
 
   it('unique constraint DB atrapa duplicados si el pre-check falla (defense in depth)', async () => {
-    const raceRes = await request(app).post('/api/v1/races').send(validRace());
+    const raceRes = await request(app)
+      .post('/api/v1/races')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send(validRace());
     const raceId = raceRes.body.data.id;
     const drivers = await createDrivers(2);
     const { accessToken } = await createTestAdmin();
@@ -379,7 +460,10 @@ describe('POST /api/v1/races/:id/results', () => {
 
   // ── Conflict — payload malformado (aunque valido para Zod) ─────
   it('driverId duplicado en el payload → 409 RACE_RESULT_DUPLICATE_DRIVER', async () => {
-    const raceRes = await request(app).post('/api/v1/races').send(validRace());
+    const raceRes = await request(app)
+      .post('/api/v1/races')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send(validRace());
     const drivers = await createDrivers(2);
     const { accessToken } = await createTestAdmin();
 
@@ -400,7 +484,10 @@ describe('POST /api/v1/races/:id/results', () => {
 
   // ── Zod validation (400) ───────────────────────────────────────
   it('array de results vacio → 400 VALIDATION_ERROR', async () => {
-    const raceRes = await request(app).post('/api/v1/races').send(validRace());
+    const raceRes = await request(app)
+      .post('/api/v1/races')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send(validRace());
     const { accessToken } = await createTestAdmin();
 
     const res = await request(app)
@@ -413,7 +500,10 @@ describe('POST /api/v1/races/:id/results', () => {
   });
 
   it('status invalido en un item → 400 VALIDATION_ERROR', async () => {
-    const raceRes = await request(app).post('/api/v1/races').send(validRace());
+    const raceRes = await request(app)
+      .post('/api/v1/races')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send(validRace());
     const drivers = await createDrivers(1);
     const { accessToken } = await createTestAdmin();
 
@@ -431,7 +521,10 @@ describe('POST /api/v1/races/:id/results', () => {
 
 describe('GET /api/v1/races/:id/results', () => {
   it('devuelve los results ordenados por position', async () => {
-    const raceRes = await request(app).post('/api/v1/races').send(validRace());
+    const raceRes = await request(app)
+      .post('/api/v1/races')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send(validRace());
     const raceId = raceRes.body.data.id;
     const drivers = await createDrivers(3);
     const { accessToken } = await createTestAdmin();
@@ -450,7 +543,10 @@ describe('GET /api/v1/races/:id/results', () => {
   });
 
   it('devuelve array vacio si la Race no tiene results', async () => {
-    const raceRes = await request(app).post('/api/v1/races').send(validRace());
+    const raceRes = await request(app)
+      .post('/api/v1/races')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send(validRace());
 
     const res = await request(app).get(`/api/v1/races/${raceRes.body.data.id}/results`);
 
@@ -463,5 +559,25 @@ describe('GET /api/v1/races/:id/results', () => {
 
     expect(res.status).toBe(404);
     expect(res.body.error.code).toBe('RACE_NOT_FOUND');
+  });
+});
+
+// ─── Solo admin muta el catalogo (A5 / BOX-15) ─────────────────────────
+// /results ya estaba gateado desde Slice 7; esto extiende el mismo criterio al CRUD.
+
+describe('races — solo admin puede mutar', () => {
+  it('rechaza POST sin token (401 TOKEN_MISSING)', async () => {
+    const res = await request(app).post('/api/v1/races').send({});
+    expect(res.status).toBe(401);
+    expect(res.body.error.code).toBe('TOKEN_MISSING');
+  });
+
+  it('rechaza DELETE con token de USER (403 ADMIN_REQUIRED)', async () => {
+    const { accessToken } = await createTestUser();
+    const res = await request(app)
+      .delete('/api/v1/races/1')
+      .set('Authorization', `Bearer ${accessToken}`);
+    expect(res.status).toBe(403);
+    expect(res.body.error.code).toBe('ADMIN_REQUIRED');
   });
 });

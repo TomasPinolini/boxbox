@@ -17,6 +17,7 @@
  */
 
 import { prisma } from '../src/shared/prisma';
+import { hashPassword } from '../src/shared/password';
 
 const oneHourBefore = (date: Date) => new Date(date.getTime() - 60 * 60 * 1000);
 
@@ -531,6 +532,22 @@ const races2026: RaceData[] = [
 // ───────────────────────────────────────────────────────────────────────────
 
 async function main() {
+  // 0. Admin de desarrollo ---------------------------------------------------
+  // El CRUD de catalogo (drivers, constructors, circuits, seasons, races) es admin-only
+  // (A5 / BOX-15) y `POST /auth/register` siempre crea USER. Sin este upsert no hay forma
+  // de cargar pilotos o resultados desde la API en dev. Password fija de desarrollo,
+  // documentada en docs/tutorial.md — NUNCA reutilizar en un ambiente real.
+  await prisma.user.upsert({
+    where: { email: 'admin@boxbox.test' },
+    update: { role: 'ADMIN' },
+    create: {
+      email: 'admin@boxbox.test',
+      name: 'Admin BoxBox',
+      passwordHash: await hashPassword('admin1234'),
+      role: 'ADMIN',
+    },
+  });
+
   // 1. Season ---------------------------------------------------------------
   const season = await prisma.season.upsert({
     where: { year: 2026 },
@@ -609,6 +626,7 @@ async function main() {
 
   // 5. Summary --------------------------------------------------------------
   const counts = {
+    admins: await prisma.user.count({ where: { role: 'ADMIN' } }),
     seasons: await prisma.season.count(),
     constructors: await prisma.constructor.count({ where: { deletedAt: null } }),
     drivers: await prisma.driver.count({ where: { deletedAt: null } }),

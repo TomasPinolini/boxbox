@@ -99,7 +99,7 @@ Auth chains, outermost first:
 
 - Logged in: `requireAuth`
 - League-scoped: `requireAuth → validateParams(leagueIdParamSchema) → requireLeagueMember [→ requireLeagueOwner]`
-- Admin: `requireAuth → requireAdmin`
+- Admin: `requireAuth → requireAdmin` — every `POST/PATCH/DELETE` on the catalog modules (drivers, constructors, circuits, seasons incl. `/activate`, races) plus `POST /races/:id/results`. `GET`s stay public. `register` only creates `USER`; the dev admin comes from the seed (`admin@boxbox.test` / `admin1234`). Tests get one via `createTestAdmin()` in a per-file `beforeEach`.
 
 `src/types/express.d.ts` augments `Request` with `req.user` (set by `requireAuth`) and `req.leagueMember` (set by `requireLeagueMember`).
 

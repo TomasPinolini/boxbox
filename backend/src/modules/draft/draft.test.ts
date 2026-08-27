@@ -8,6 +8,7 @@
 import { describe, it, expect } from 'vitest';
 import request from 'supertest';
 import app from '../../app';
+import { createTestAdmin } from '../../tests/setup';
 import { prisma } from '../../shared/prisma';
 
 // ─── Helpers locales ───────────────────────────────────────────────────
@@ -31,7 +32,12 @@ async function seedSeason() {
 let driverCounter = 0;
 async function seedDriver() {
   const n = ++driverCounter;
-  const res = await request(app).post('/api/v1/drivers').send({
+  // El CRUD de catalogo es admin-only (A5 / BOX-15): cada seed pide su propio admin.
+  const { accessToken } = await createTestAdmin();
+  const res = await request(app)
+    .post('/api/v1/drivers')
+    .set('Authorization', `Bearer ${accessToken}`)
+    .send({
     firstName: 'Driver',
     lastName: `D${n}`,
     number: n,
@@ -45,8 +51,10 @@ async function seedDriver() {
 let constructorCounter = 0;
 async function seedConstructor() {
   const n = ++constructorCounter;
+  const { accessToken } = await createTestAdmin();
   const res = await request(app)
     .post('/api/v1/constructors')
+    .set('Authorization', `Bearer ${accessToken}`)
     .send({ name: `Constructor ${n}`, color: '#000000', externalId: `draft-constructor-${n}` });
   if (res.status !== 201) throw new Error(`seedConstructor fallo: ${JSON.stringify(res.body)}`);
   return res.body.data.id as number;

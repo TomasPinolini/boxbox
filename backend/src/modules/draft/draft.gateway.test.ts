@@ -13,6 +13,7 @@ import type { Server as SocketIOServer } from 'socket.io';
 import { io as ioClient, Socket as ClientSocket } from 'socket.io-client';
 import request from 'supertest';
 import app from '../../app';
+import { createTestAdmin } from '../../tests/setup';
 import { env } from '../../config/env';
 import { prisma } from '../../shared/prisma';
 import { registerDraftGateway, clearAllDraftTimers } from './draft.gateway';
@@ -69,8 +70,11 @@ async function seedSeason() {
 let driverCounter = 0;
 async function seedDriver() {
   const n = ++driverCounter;
+  // El CRUD de catalogo es admin-only (A5 / BOX-15): cada seed pide su propio admin.
+  const { accessToken } = await createTestAdmin();
   const res = await request(app)
     .post('/api/v1/drivers')
+    .set('Authorization', `Bearer ${accessToken}`)
     .send({ firstName: 'GW', lastName: `D${n}`, number: n, code: `G${String(n).padStart(2, '0')}`, externalId: `gw-driver-${n}` });
   if (res.status !== 201) throw new Error(`seedDriver fallo: ${JSON.stringify(res.body)}`);
   return res.body.data.id as number;
@@ -79,8 +83,10 @@ async function seedDriver() {
 let constructorCounter = 0;
 async function seedConstructor() {
   const n = ++constructorCounter;
+  const { accessToken } = await createTestAdmin();
   const res = await request(app)
     .post('/api/v1/constructors')
+    .set('Authorization', `Bearer ${accessToken}`)
     .send({ name: `GW Constructor ${n}`, color: '#111111', externalId: `gw-constructor-${n}` });
   if (res.status !== 201) throw new Error(`seedConstructor fallo: ${JSON.stringify(res.body)}`);
   return res.body.data.id as number;
