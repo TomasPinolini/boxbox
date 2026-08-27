@@ -607,3 +607,18 @@ describe('races — solo admin puede mutar', () => {
     expect(res.body.error.code).toBe('ADMIN_REQUIRED');
   });
 });
+
+// A3 / BOX-13: un :id no numerico antes llegaba a Prisma como NaN y explotaba en 500.
+describe('races — :id no numerico', () => {
+  it('GET /races/abc responde 400 VALIDATION_ERROR, no 500', async () => {
+    const res = await request(app).get('/api/v1/races/abc');
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  it('GET /races/abc/results tambien', async () => {
+    const res = await request(app).get('/api/v1/races/abc/results');
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+});

@@ -22,6 +22,8 @@ Códigos de error tipados que la API puede devolver en el envelope `{ error: { c
 | Código             | HTTP | Origen                                                                      | Cuándo                                                                                                                                  |
 | ------------------ | ---- | --------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
 | `VALIDATION_ERROR` | 400  | [`middleware/validate.ts`](../backend/src/middleware/validate.ts)           | El body no matchea el Zod schema del endpoint. `error.details` lleva el detalle por campo.                                              |
+| `INVALID_JSON`     | 400  | [`middleware/error-handler.ts`](../backend/src/middleware/error-handler.ts) | Body que no es JSON válido (`express.json()` tira `entity.parse.failed`). A3 / BOX-13 — antes caía en 500.                            |
+| `ROUTE_NOT_FOUND`  | 404  | [`app.ts`](../backend/src/app.ts) (catch-all antes del errorHandler)       | Ninguna ruta matcheó el path. A3 / BOX-13 — antes Express respondía su página HTML `Cannot GET`.                                       |
 | `INTERNAL_ERROR`   | 500  | [`middleware/error-handler.ts`](../backend/src/middleware/error-handler.ts) | Cualquier excepción que no es `AppError`. Se loguea en server-side; al cliente solo le llega genérico (no leakeamos detalles internos). |
 
 ---

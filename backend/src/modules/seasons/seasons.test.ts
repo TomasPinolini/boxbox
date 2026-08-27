@@ -152,3 +152,15 @@ describe('seasons — solo admin puede mutar', () => {
     expect(res.body.error.code).toBe('ADMIN_REQUIRED');
   });
 });
+
+// A3 / BOX-13: un :id no numerico antes llegaba a Prisma como NaN y explotaba en 500.
+// Seasons no tiene GET /:id — se prueba con DELETE (admin) para que el 400 sea del id, no del auth.
+describe('seasons — :id no numerico', () => {
+  it('DELETE /seasons/abc responde 400 VALIDATION_ERROR, no 500', async () => {
+    const res = await request(app)
+      .delete('/api/v1/seasons/abc')
+      .set('Authorization', `Bearer ${adminToken}`);
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+});
