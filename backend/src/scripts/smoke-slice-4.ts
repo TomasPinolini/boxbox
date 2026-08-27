@@ -74,10 +74,9 @@ function expectEmptySlots(team: Record<string, unknown>, label: string) {
   const empty =
     team.driver1Id === null &&
     team.driver2Id === null &&
-    team.reserveDriverId === null &&
     team.constructorId === null;
   if (!empty) fail(`${label}: esperaba todos los slots null`, team);
-  ok(`${label}: driver1Id/driver2Id/reserveDriverId/constructorId = null`);
+  ok(`${label}: driver1Id/driver2Id/constructorId = null`);
 }
 
 async function main() {

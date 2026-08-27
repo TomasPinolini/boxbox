@@ -118,16 +118,17 @@ async function discoverOrder(leagueId: number, members: Member[]): Promise<Membe
 // ─── POST /leagues/:id/draft/start ─────────────────────────────────────
 
 describe('POST /api/v1/leagues/:id/draft/start', () => {
-  it('genera 4 rondas x N miembros picks placeholder y pasa a LIVE', async () => {
+  // 3 rondas (ADR-0006): driver1, driver2, constructor. La reserva no existe en el juego.
+  it('genera 3 rondas x N miembros picks placeholder y pasa a LIVE', async () => {
     const { leagueId, owner } = await setupLeague(3);
 
     const res = await startDraft(owner.token, leagueId);
 
     expect(res.status).toBe(201);
-    expect(res.body.data).toMatchObject({ draftStatus: 'LIVE', totalPicks: 12 });
+    expect(res.body.data).toMatchObject({ draftStatus: 'LIVE', totalPicks: 9 });
 
     const picks = await prisma.draftPick.findMany({ where: { leagueId } });
-    expect(picks).toHaveLength(12);
+    expect(picks).toHaveLength(9);
     expect(picks.every((p) => p.driverId === null && p.constructorId === null)).toBe(true);
 
     const league = await prisma.league.findUnique({ where: { id: leagueId } });
@@ -158,7 +159,7 @@ describe('POST /api/v1/leagues/:id/draft/start', () => {
     expect(order1).toHaveLength(members.length);
     expect(order2).toEqual([...order1].reverse());
     expect(order3).toEqual(order1);
-    // pickNumber es global y secuencial 1..12 sin huecos.
+    // pickNumber es global y secuencial 1..9 sin huecos (3 rondas x 3 miembros).
     const allPickNumbers = [...round1, ...round2, ...round3].map((p) => p.pickNumber);
     expect(new Set(allPickNumbers).size).toBe(9); // 3 rondas x 3 miembros, sin duplicados
   });
@@ -168,6 +169,20 @@ describe('POST /api/v1/leagues/:id/draft/start', () => {
     const res = await startDraft(members[1].token, leagueId);
     expect(res.status).toBe(403);
     expect(res.body.error.code).toBe('NOT_LEAGUE_OWNER');
+  });
+
+  // Red de seguridad (ADR-0006): createLeague ya valida maxMembers contra la temporada, pero una
+  // liga vieja o una temporada que cambio de driverCount podrian tener mas miembros que picks
+  // disponibles. Mejor 409 al arrancar que un draft que nunca termina.
+  it('rechaza si hay mas miembros que el tope de la temporada (409 TOO_MANY_MEMBERS_FOR_DRAFT)', async () => {
+    const { leagueId, owner } = await setupLeague(3);
+    // Achicamos la grilla por abajo: 4 pilotos / 2 = tope 2, y la liga tiene 3.
+    await prisma.season.updateMany({ data: { driverCount: 4 } });
+
+    const res = await startDraft(owner.token, leagueId);
+
+    expect(res.status).toBe(409);
+    expect(res.body.error.code).toBe('TOO_MANY_MEMBERS_FOR_DRAFT');
   });
 
   it('rechaza doble start (409 DRAFT_ALREADY_STARTED)', async () => {
@@ -342,23 +357,25 @@ describe('POST /api/v1/leagues/:id/draft/pick', () => {
     expect(res.body.error.code).toBe('DRIVER_NOT_FOUND');
   });
 
-  it('completa las 4 rondas: draftStatus COMPLETED y los 2 FantasyTeams llenos', async () => {
+  it('completa las 3 rondas: draftStatus COMPLETED y los 2 FantasyTeams llenos', async () => {
     const { leagueId, owner, members } = await setupLeague(2);
     await startDraft(owner.token, leagueId);
     const order = await discoverOrder(leagueId, members);
 
-    // 3 rondas de driver x 2 miembros = 6 drivers distintos necesarios.
-    const drivers = await Promise.all(Array.from({ length: 6 }, () => seedDriver()));
+    // 2 rondas de driver x 2 miembros = 4 drivers distintos necesarios.
+    const drivers = await Promise.all(Array.from({ length: 4 }, () => seedDriver()));
     // 1 ronda de constructor x 2 miembros = 2 constructors distintos.
     const constructors = await Promise.all(Array.from({ length: 2 }, () => seedConstructor()));
 
     let driverIdx = 0;
     let constructorIdx = 0;
-    for (let round = 1; round <= 4; round++) {
+    for (let round = 1; round <= 3; round++) {
       const roundOrder = round % 2 === 1 ? order : [...order].reverse();
       for (const member of roundOrder) {
         const body =
-          round <= 3 ? { driverId: drivers[driverIdx++] } : { constructorId: constructors[constructorIdx++] };
+          round <= 2
+            ? { driverId: drivers[driverIdx++] }
+            : { constructorId: constructors[constructorIdx++] };
         const res = await submitPick(member.token, leagueId, body);
         expect(res.status).toBe(200);
       }
@@ -373,8 +390,9 @@ describe('POST /api/v1/leagues/:id/draft/pick', () => {
       });
       expect(team!.driver1Id).not.toBeNull();
       expect(team!.driver2Id).not.toBeNull();
-      expect(team!.reserveDriverId).not.toBeNull();
       expect(team!.constructorId).not.toBeNull();
+      // ADR-0006: la reserva no existe — ni como columna.
+      expect(team).not.toHaveProperty('reserveDriverId');
     }
   });
 

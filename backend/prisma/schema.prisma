@@ -40,16 +40,6 @@ enum MemberStatus {
   KICKED
 }
 
-enum SwapSlot {
-  DRIVER_1
-  DRIVER_2
-}
-
-enum SwapType {
-  MANUAL
-  AUTO_DNF
-}
-
 enum RaceResultStatus {
   CLASSIFIED
   DNF
@@ -106,12 +96,9 @@ model Driver {
   raceResults RaceResult[]
   teamsAsD1   FantasyTeam[]  @relation("Driver1")
   teamsAsD2   FantasyTeam[]  @relation("Driver2")
-  teamsAsRes  FantasyTeam[]  @relation("ReserveDriver")
   draftsAsPick DraftPick[]
   predictedWinner Prediction[] @relation("PredictedWinner")
   predictedPole   Prediction[] @relation("PredictedPole")
-  swapsDropped    DriverSwap[] @relation("DroppedDriver")
-  swapsActivated  DriverSwap[] @relation("ActivatedDriver")
 
   @@map("drivers")
 }
@@ -197,7 +184,6 @@ model Race {
   circuit            Circuit             @relation(fields: [circuitId], references: [id])
   raceResults        RaceResult[]
   constructorResults ConstructorResult[]
-  driverSwaps        DriverSwap[]
   predictions        Prediction[]
   standings          LeagueStanding[]
 
@@ -249,16 +235,13 @@ model FantasyTeam {
   leagueMemberId  Int  @unique
   driver1Id       Int?
   driver2Id       Int?
-  reserveDriverId Int?
   constructorId   Int?
   createdAt       DateTime @default(now())
 
   leagueMember LeagueMember @relation(fields: [leagueMemberId], references: [id])
   driver1      Driver?      @relation("Driver1", fields: [driver1Id], references: [id])
   driver2      Driver?      @relation("Driver2", fields: [driver2Id], references: [id])
-  reserveDriver Driver?     @relation("ReserveDriver", fields: [reserveDriverId], references: [id])
   constructor  Constructor? @relation(fields: [constructorId], references: [id])
-  driverSwaps  DriverSwap[]
 
   @@map("fantasy_teams")
 }
@@ -279,24 +262,6 @@ model DraftPick {
   constructor  Constructor? @relation(fields: [constructorId], references: [id])
 
   @@map("draft_picks")
-}
-
-model DriverSwap {
-  id               Int      @id @default(autoincrement())
-  fantasyTeamId    Int
-  raceId           Int
-  slot             SwapSlot
-  droppedDriverId  Int
-  activatedDriverId Int
-  type             SwapType
-  createdAt        DateTime @default(now())
-
-  fantasyTeam    FantasyTeam @relation(fields: [fantasyTeamId], references: [id])
-  race           Race        @relation(fields: [raceId], references: [id])
-  droppedDriver  Driver      @relation("DroppedDriver", fields: [droppedDriverId], references: [id])
-  activatedDriver Driver     @relation("ActivatedDriver", fields: [activatedDriverId], references: [id])
-
-  @@map("driver_swaps")
 }
 
 model RaceResult {
