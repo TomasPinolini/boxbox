@@ -1,278 +1,229 @@
-# Slice 13a — Frontend bootstrap (Angular) — Plan de implementación
+# Slice 13a — Frontend bootstrap (React + Vite) — Plan de implementación
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Un frontend Angular clickeable: registro, login, mis ligas (crear / unirme), detalle de liga con miembros y "Iniciar draft" para el owner — contra el backend real, sin curl.
+**Goal:** Un frontend React clickeable: registro, login, mis ligas (crear / unirme), detalle de liga con miembros y "Iniciar draft" para el owner — contra el backend real, sin curl.
 
-**Architecture:** SPA Angular 21 (standalone components, signals, sin SSR) en `frontend/`, hablando con `backend/` por `HttpClient`. `AuthService` guarda el access token en memoria; la sesión persiste por la cookie httpOnly de refresh que el backend ya emite. Un interceptor agrega el `Bearer`, y un guard protege `/leagues/**`. Componentes por feature; `shared/ui` no conoce el dominio.
+**Architecture:** SPA Vite + React 19 + TypeScript en `frontend/`, hablando con `backend/` a través de una clase `ApiClient` (axios + interceptores) y hooks de react-query. El access token vive en memoria en un store de zustand; la sesión persiste por la cookie httpOnly de refresh que el backend ya emite. Guards como layout routes de react-router. Componentes por feature; `components/ui` no conoce el dominio.
 
-**Tech Stack:** Angular 21 (CLI), TypeScript strict, Tailwind v4 (`@tailwindcss/postcss`), Vitest (default del CLI), Playwright, angular-eslint, Prettier del root.
+**Tech Stack:** Vite 7, React 19, TypeScript strict, react-router-dom 7, @tanstack/react-query 5, axios, zustand 5, react-hook-form 7 + zod, Tailwind v4 (`@tailwindcss/vite`), Vitest + Testing Library, Playwright. Mismo stack que `utnfrrodsw/react` salvo TS, Vitest y Tailwind (ver spec §3).
 
 **Spec:** [`docs/specs/2026-08-27-slice-13a-frontend-bootstrap.md`](../specs/2026-08-27-slice-13a-frontend-bootstrap.md)
 
 ## Global Constraints
 
-- Angular **21**, standalone components, signals, **sin SSR** (`--ssr=false`). Node 24.
-- El access token vive **solo en memoria** (signal). Nada en `localStorage` / `sessionStorage`.
-- Todo request a `environment.apiUrl` va con `withCredentials: true` (cookie de refresh).
-- Angular sirve en **4200**; el backend espera `FRONTEND_URL=http://localhost:4200`.
-- Reglas de imports: `core/` no importa de `features/`; `features/` importa de `core/`, `models/`, `shared/`; `shared/ui/` **no importa `models/`**.
-- Nombres de archivo con sufijo explícito: `*.page.ts`, `*.component.ts`, `*.service.ts`, `*.guard.ts`, `*.interceptor.ts`. Selectores: `app-*` para features, `ui-*` para `shared/ui`.
-- Copy de UI en **español**; código, identificadores y commits en inglés (commits con summary en español, como el resto del repo).
+- Node 24. Vite sirve en **5173**; el backend espera `FRONTEND_URL=http://localhost:5173` (ya es el default).
+- El access token vive **solo en memoria** (store de zustand, sin `persist`). Nada en `localStorage` / `sessionStorage`.
+- Todo request a la API sale por `ApiClient` con `withCredentials: true`. Los componentes nunca importan axios.
+- Reglas de imports: `components/ui` no importa `models/` ni `services/`; `services/` no importa React; `store/` no importa `services/`; `features/` importa de todos.
+- Nombres: componentes y páginas en `PascalCase.tsx`; el resto en `kebab-case.ts`. Hooks `useX`.
+- Copy de UI en **español**; código, identificadores y commits en inglés (summary de commit en español, como el resto del repo).
 - Shapes de datos copiados de `docs/api-endpoints.md` y de los `select` del backend. No inventar campos.
 - Mobile-first: clases base para SM, `md:` y `lg:` agregan.
-- Cada task termina con `npm run lint` limpio, `npm test` verde, y un commit. El usuario tipea el scaffold (Task 1) y el primer componente (Task 3 · `button`) a mano.
+- Cada task termina con `npm run lint` limpio, `npm test` verde y un commit. El usuario tipea el scaffold (Task 1) y el componente `Button` (Task 4) a mano. **Ningún commit sin confirmación explícita.**
 
 ---
 
 ## File Structure
 
 ```
-backend/.env.example                       (Task 0) FRONTEND_URL → 4200
-backend/src/modules/leagues/leagues.service.ts (Task 0) memberSelect + user.name
-backend/src/modules/leagues/leagues.test.ts    (Task 0) assert user.name
-docs/api-endpoints.md                      (Task 0) members incluye user.name
+backend/src/modules/leagues/leagues.service.ts   (Task 0, hecho) memberSelect + user.name
+backend/src/modules/leagues/leagues.test.ts      (Task 0, hecho)
+docs/api-endpoints.md                            (Task 0, hecho)
 
-frontend/                                  (Task 1) ng new + Tailwind + environments + eslint
-frontend/src/environments/environment*.ts  (Task 1) apiUrl, socketUrl
-frontend/src/app/models/api.ts             (Task 2) ApiEnvelope<T>, ApiErrorBody
-frontend/src/app/models/user.ts            (Task 2) User
-frontend/src/app/models/league.ts          (Task 2) League, DraftStatus, LeagueStatus
-frontend/src/app/models/league-member.ts   (Task 2) LeagueMember, FantasyTeam
-frontend/src/app/core/api-error.ts         (Task 2) class ApiError + toApiError()
-frontend/src/app/shared/ui/*.component.ts  (Task 3) button, field, card, alert, badge, page-shell
-frontend/src/app/core/auth.service.ts      (Task 4) token/user signals, login/register/refresh/logout
-frontend/src/app/core/auth.interceptor.ts  (Task 4) Bearer + withCredentials + 1 refresh en 401
-frontend/src/app/core/auth.guard.ts        (Task 4) authGuard, guestGuard
-frontend/src/app/app.config.ts             (Task 4) router, http+interceptor, app initializer
-frontend/src/app/features/auth/*.page.ts   (Task 5) login, register
-frontend/src/app/app.routes.ts             (Task 5, 6, 7)
-frontend/src/app/features/leagues/leagues.service.ts        (Task 6)
-frontend/src/app/features/leagues/league-card.component.ts  (Task 6)
-frontend/src/app/features/leagues/leagues.page.ts           (Task 6)
-frontend/src/app/features/leagues/members-table.component.ts (Task 7)
-frontend/src/app/features/leagues/league-detail.page.ts     (Task 7)
-frontend/e2e/leagues.spec.ts + playwright.config.ts          (Task 8)
-docs/test-evidence/slice-13a-*.txt          (Task 8)
-README.md, docs/roadmap.md, CLAUDE.md, docs/tutorial.md (Task 9)
+frontend/                                        (Task 1) create-vite react-ts + Tailwind + deps + Vitest
+frontend/.env.example, .env                      (Task 1) VITE_API_URL, VITE_SOCKET_URL
+frontend/src/config/env.ts                       (Task 1)
+frontend/src/test/setup.ts                       (Task 1) jest-dom
+frontend/src/models/{api,user,league,league-member}.ts   (Task 2)
+frontend/src/services/api-error.ts (+ .test.ts)  (Task 2)
+frontend/src/store/auth.store.ts (+ .test.ts)    (Task 3)
+frontend/src/services/api-client.ts              (Task 3) class ApiClient
+frontend/src/services/auth.service.ts            (Task 3)
+frontend/src/components/ui/{Button,Field,Card,Badge,Alert,PageShell}.tsx + index.ts + Alert.test.tsx  (Task 4)
+frontend/src/features/auth/{RequireAuth,GuestOnly}.tsx (+ RequireAuth.test.tsx)   (Task 5)
+frontend/src/features/auth/{LoginPage,RegisterPage}.tsx                           (Task 5)
+frontend/src/app/{providers,SessionGate,router,App}.tsx                           (Task 5)
+frontend/src/services/leagues.service.ts         (Task 6)
+frontend/src/features/leagues/leagues.queries.ts (Task 6)
+frontend/src/features/leagues/LeagueCard.tsx (+ .test.tsx), LeaguesPage.tsx       (Task 6)
+frontend/src/features/leagues/MembersTable.tsx, LeagueDetailPage.tsx              (Task 7)
+frontend/e2e/leagues.spec.ts, playwright.config.ts                                (Task 8)
+docs/test-evidence/slice-13a-*.txt               (Task 8)
+README.md, docs/roadmap.md, CLAUDE.md, docs/tutorial.md                          (Task 9)
 ```
 
 ---
 
-### Task 0: Backend — `FRONTEND_URL` a 4200 y `user.name` en los miembros
+### Task 0: Backend — `user.name` en los miembros (HECHO, pendiente de commit)
 
-**Files:**
+**Files:** `backend/src/modules/leagues/leagues.service.ts` (`memberSelect` con `user: { select: { name: true } }`), `leagues.test.ts` (test "cada miembro incluye user.name"), `docs/api-endpoints.md`.
 
-- Modify: `backend/.env.example` (línea `FRONTEND_URL`)
-- Modify: `backend/.env` (tu copia local — no se commitea)
-- Modify: `backend/src/modules/leagues/leagues.service.ts` (`memberSelect`, ~línea 42)
-- Modify: `backend/src/modules/leagues/leagues.test.ts` (describe `GET /api/v1/leagues/:id/members`)
-- Modify: `docs/api-endpoints.md` (fila `GET /leagues/:id/members`)
+**Interfaces:** Produces `GET /leagues/:id/members` → `{ data: Array<{ id, userId, isOwner, status, joinedAt, user: { name } }> }`.
 
-**Interfaces:**
-
-- Produces: `GET /leagues/:id/members` → `{ data: Array<{ id, userId, isOwner, status, joinedAt, user: { name } }> }`. Task 7 lo consume.
-
-- [ ] **Step 1: Test rojo — cada miembro trae `user.name`**
-
-En `backend/src/modules/leagues/leagues.test.ts`, dentro de `describe('GET /api/v1/leagues/:id/members', ...)`, agregar al final del bloque:
-
-```ts
-it('cada miembro incluye user.name (Slice 13a: la tabla del frontend muestra nombres)', async () => {
-  const alice = await authedUser('a');
-  const season = await seedSeason();
-  const created = await request(app)
-    .post('/api/v1/leagues')
-    .set('Authorization', `Bearer ${alice.token}`)
-    .send({ name: 'Con nombres', inviteCode: 'con-nombres', seasonId: season.id });
-
-  const res = await request(app)
-    .get(`/api/v1/leagues/${created.body.data.id}/members`)
-    .set('Authorization', `Bearer ${alice.token}`);
-
-  expect(res.status).toBe(200);
-  expect(res.body.data[0].user).toEqual({ name: 'User a' });
-});
-```
-
-- [ ] **Step 2: Correr y ver rojo**
-
-Run (desde `backend/`): `npx vitest run src/modules/leagues/leagues.test.ts -t "user.name"`
-Expected: FAIL — `expected undefined to deeply equal { name: 'User a' }`.
-
-- [ ] **Step 3: Agregar `user.name` al select**
-
-En `leagues.service.ts`, `memberSelect` pasa de:
-
-```ts
-const memberSelect = {
-  id: true,
-  userId: true,
-  isOwner: true,
-  status: true,
-  joinedAt: true,
-} as const;
-```
-
-a:
-
-```ts
-// user.name: la tabla de miembros del frontend (Slice 13a) muestra nombres, no ids.
-const memberSelect = {
-  id: true,
-  userId: true,
-  isOwner: true,
-  status: true,
-  joinedAt: true,
-  user: { select: { name: true } },
-} as const;
-```
-
-- [ ] **Step 4: Verde + suite del módulo**
-
-Run: `npx vitest run src/modules/leagues/leagues.test.ts` — Expected: todos verdes (49+1).
-Run: `npx tsc --noEmit` — Expected: sin errores.
-
-- [ ] **Step 5: `FRONTEND_URL` a 4200**
-
-En `backend/.env.example` y en tu `backend/.env`: `FRONTEND_URL=http://localhost:4200`. En `docs/api-endpoints.md`, fila de `GET /leagues/:id/members`, agregar en Notas: "Cada miembro incluye `user: { name }` (Slice 13a)".
-
-- [ ] **Step 6: Commit**
+- [x] Test rojo → verde (50/50), `tsc` limpio, eslint limpio.
+- [ ] **Commit** (al confirmar):
 
 ```bash
-git add backend/.env.example backend/src/modules/leagues/leagues.service.ts backend/src/modules/leagues/leagues.test.ts docs/api-endpoints.md
-git commit -m "feat(leagues): user.name en GET /members + FRONTEND_URL 4200 para Angular (Slice 13a)"
+git add backend/src/modules/leagues/leagues.service.ts backend/src/modules/leagues/leagues.test.ts docs/api-endpoints.md
+git commit -m "feat(leagues): user.name en GET /members para la tabla del frontend (Slice 13a)"
 ```
+
+(`backend/.env.example` no cambia: `FRONTEND_URL` ya era `http://localhost:5173`.)
 
 ---
 
-### Task 1: Scaffold Angular 21 + Tailwind + environments + ESLint (lo tipeás vos)
+### Task 1: Scaffold Vite + React + TS, Tailwind, env, deps, Vitest (lo tipeás vos)
 
 **Files:**
 
-- Create: `frontend/` completo (CLI)
-- Create: `frontend/.postcssrc.json`
-- Modify: `frontend/src/styles.css`, `frontend/src/app/app.html`, `frontend/src/app/app.spec.ts`
-- Create: `frontend/src/environments/environment.ts`, `environment.development.ts` (CLI)
+- Create: `frontend/` (create-vite)
+- Modify: `frontend/vite.config.ts`, `frontend/src/index.css`, `frontend/src/App.tsx`, `frontend/tsconfig.app.json`, `frontend/package.json`
+- Create: `frontend/.env.example`, `frontend/.env`, `frontend/src/config/env.ts`, `frontend/src/test/setup.ts`, `frontend/src/App.test.tsx`
 
 **Interfaces:**
 
-- Produces: `environment.apiUrl = 'http://localhost:3000/api/v1'`, `environment.socketUrl = 'http://localhost:3000'`. Todo lo demás los importa desde `src/environments/environment`.
+- Produces: `env.apiUrl`, `env.socketUrl` desde `src/config/env.ts`. `npm test` corre Vitest con jsdom + jest-dom.
 
-- [ ] **Step 1: Crear el proyecto** (desde la raíz del repo `C:\Users\tomas\dev\desarrollo`)
+- [ ] **Step 1: Crear el proyecto** (desde la raíz del repo)
 
 ```bash
-npx @angular/cli@21 new frontend --style=css --ssr=false --skip-git --package-manager=npm
+npm create vite@latest frontend -- --template react-ts
+cd frontend && npm install
 ```
 
-Prompts: zoneless → **Yes** (default). "AI tools / config files" → **None**. Tarda ~1 min.
-Verify: existe `frontend/angular.json` y `frontend/src/app/app.ts`.
+Verify: existen `frontend/vite.config.ts`, `frontend/src/App.tsx`, `frontend/eslint.config.js`.
 
 - [ ] **Step 2: Levantar y ver la página default**
 
 ```bash
-cd frontend && npm start
+npm run dev
 ```
 
-Verify: `http://localhost:4200` muestra la landing de Angular. `Ctrl+C`.
+`http://localhost:5173` muestra el contador de Vite + React. `Ctrl+C`.
 
 - [ ] **Step 3: Tailwind v4**
 
 ```bash
-npm install tailwindcss @tailwindcss/postcss postcss
+npm install tailwindcss @tailwindcss/vite
 ```
 
-Crear `frontend/.postcssrc.json`:
+`vite.config.ts` (reemplazar entero — incluye ya la config de Vitest del Step 7):
 
-```json
-{
-  "plugins": {
-    "@tailwindcss/postcss": {}
-  }
-}
+```ts
+/// <reference types="vitest/config" />
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
+
+export default defineConfig({
+  plugins: [react(), tailwindcss()],
+  test: {
+    environment: 'jsdom',
+    globals: true,
+    setupFiles: ['./src/test/setup.ts'],
+    exclude: ['e2e/**', 'node_modules/**'],
+    css: false,
+  },
+});
 ```
 
-Reemplazar el contenido de `frontend/src/styles.css` por:
+`src/index.css` (reemplazar entero):
 
 ```css
 @import 'tailwindcss';
 ```
 
+Borrar `src/App.css` y `src/assets/react.svg` (no se usan más).
+
 - [ ] **Step 4: Probar que Tailwind aplica**
 
-Reemplazar `frontend/src/app/app.html` por:
+`src/App.tsx` (reemplazar entero):
 
-```html
-<main class="min-h-screen bg-slate-50 text-slate-900">
-  <h1 class="p-6 text-3xl font-bold text-red-600">BoxBox</h1>
-  <router-outlet />
-</main>
+```tsx
+export default function App() {
+  return (
+    <main className="min-h-screen bg-slate-50 text-slate-900">
+      <h1 className="p-6 text-3xl font-bold text-red-600">BoxBox</h1>
+    </main>
+  );
+}
 ```
 
-`npm start` → `http://localhost:4200` muestra "BoxBox" en rojo, grande, fondo gris claro. Si se ve en negro y chico, Tailwind no cargó: revisar `.postcssrc.json` y `styles.css`. `Ctrl+C`.
+`npm run dev` → "BoxBox" en rojo, grande, fondo gris claro. Si se ve negro y chico, revisar el plugin en `vite.config.ts` y el `@import` en `index.css`. `Ctrl+C`.
 
-- [ ] **Step 5: Environments**
+- [ ] **Step 5: Ambientes**
 
-```bash
-npx ng generate environments
+`frontend/.env.example` y `frontend/.env` (mismo contenido; `.env` ya está en el `.gitignore` de Vite):
+
+```
+VITE_API_URL=http://localhost:3000/api/v1
+VITE_SOCKET_URL=http://localhost:3000
 ```
 
-Reemplazar **ambos** archivos (`src/environments/environment.ts` y `environment.development.ts`) por:
+`src/config/env.ts`:
 
 ```ts
-export const environment = {
-  production: false,
-  apiUrl: 'http://localhost:3000/api/v1',
-  socketUrl: 'http://localhost:3000',
-};
+// Unico lugar que lee import.meta.env. Vite solo expone variables con prefijo VITE_.
+// Falla al arrancar si falta alguna: mejor un error claro que un fetch a "undefined/leagues".
+function required(name: 'VITE_API_URL' | 'VITE_SOCKET_URL'): string {
+  const value = import.meta.env[name];
+  if (!value) throw new Error(`Falta la variable de entorno ${name} (ver frontend/.env.example)`);
+  return value;
+}
+
+export const env = {
+  apiUrl: required('VITE_API_URL'),
+  socketUrl: required('VITE_SOCKET_URL'),
+} as const;
 ```
 
-(En `environment.ts` — el de producción — `production: true`; las URLs se cambian cuando haya deploy.)
-
-- [ ] **Step 6: ESLint**
+- [ ] **Step 6: Dependencias del proyecto**
 
 ```bash
-npx ng add angular-eslint --skip-confirmation
-npm run lint
+npm install react-router-dom @tanstack/react-query axios zustand react-hook-form zod @hookform/resolvers
+npm install -D vitest jsdom @testing-library/react @testing-library/dom @testing-library/jest-dom @testing-library/user-event
 ```
 
-Expected: "All files pass linting."
+- [ ] **Step 7: Vitest — setup, tipos, scripts, primer test**
 
-- [ ] **Step 7: Arreglar el spec default y correr Vitest**
-
-Reemplazar `frontend/src/app/app.spec.ts` por:
+`src/test/setup.ts`:
 
 ```ts
-import { TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
-import { App } from './app';
+import '@testing-library/jest-dom/vitest';
+```
+
+En `tsconfig.app.json`, dentro de `compilerOptions`, agregar:
+
+```json
+"types": ["vitest/globals", "@testing-library/jest-dom"]
+```
+
+En `package.json`, scripts: `"test": "vitest run"`, `"test:watch": "vitest"`.
+
+`src/App.test.tsx`:
+
+```tsx
+import { render, screen } from '@testing-library/react';
+import App from './App';
 
 describe('App', () => {
-  it('renderiza el shell con el router-outlet', async () => {
-    await TestBed.configureTestingModule({
-      imports: [App],
-      providers: [provideRouter([])],
-    }).compileComponents();
-
-    const fixture = TestBed.createComponent(App);
-    await fixture.whenStable();
-
-    expect(fixture.nativeElement.querySelector('router-outlet')).not.toBeNull();
+  it('renderiza el titulo', () => {
+    render(<App />);
+    expect(screen.getByRole('heading', { name: 'BoxBox' })).toBeInTheDocument();
   });
 });
 ```
 
-Run: `npm test -- --watch=false` → Expected: 1 passed (Vitest).
+Run: `npm test` → 1 passed. `npm run lint` → limpio. `npm run build` → sin errores.
 
-- [ ] **Step 8: Commit**
+- [ ] **Step 8: Commit** (al confirmar)
 
 ```bash
 cd ..
 git add frontend
-git commit -m "feat(frontend): scaffold Angular 21 + Tailwind v4 + environments + eslint (Slice 13a)"
+git commit -m "feat(frontend): scaffold Vite + React 19 + TS, Tailwind v4, env, react-query/zustand/RHF, Vitest (Slice 13a)"
 ```
-
-(`frontend/node_modules` queda afuera por el `.gitignore` que genera el CLI.)
 
 ---
 
@@ -280,43 +231,51 @@ git commit -m "feat(frontend): scaffold Angular 21 + Tailwind v4 + environments 
 
 **Files:**
 
-- Create: `frontend/src/app/models/api.ts`
-- Create: `frontend/src/app/models/user.ts`
-- Create: `frontend/src/app/models/league.ts`
-- Create: `frontend/src/app/models/league-member.ts`
-- Create: `frontend/src/app/core/api-error.ts`
-- Test: `frontend/src/app/core/api-error.spec.ts`
+- Create: `frontend/src/models/api.ts`, `user.ts`, `league.ts`, `league-member.ts`
+- Create: `frontend/src/services/api-error.ts`
+- Test: `frontend/src/services/api-error.test.ts`
 
 **Interfaces:**
 
-- Produces: `ApiEnvelope<T>`, `User`, `League`, `DraftStatus`, `LeagueStatus`, `LeagueMember`, `FantasyTeam`, `class ApiError(code, status, message)`, `toApiError(err: unknown): ApiError`.
+- Produces: `ApiEnvelope<T>`, `ApiErrorBody`, `User`, `League`, `DraftStatus`, `LeagueStatus`, `LeagueMember`, `FantasyTeam`, `class ApiError(code, status, message)`, `toApiError(err: unknown): ApiError`.
 
-- [ ] **Step 1: Test rojo de `toApiError`**
+- [ ] **Step 1: Test rojo**
 
-`frontend/src/app/core/api-error.spec.ts`:
+`src/services/api-error.test.ts`:
 
 ```ts
-import { HttpErrorResponse } from '@angular/common/http';
+import { AxiosError, AxiosHeaders } from 'axios';
 import { ApiError, toApiError } from './api-error';
+
+function axiosErrorWith(status: number, data?: unknown): AxiosError {
+  const err = new AxiosError('Request failed', 'ERR_BAD_REQUEST');
+  err.response = {
+    status,
+    data,
+    statusText: '',
+    headers: {},
+    config: { headers: new AxiosHeaders() },
+  };
+  return err;
+}
 
 describe('toApiError', () => {
   it('convierte el envelope { error } del backend en ApiError', () => {
-    const http = new HttpErrorResponse({
-      status: 409,
-      error: { error: { code: 'LEAGUE_FULL', message: 'League is at capacity', status: 409 } },
-    });
-
-    const err = toApiError(http);
-
+    const err = toApiError(
+      axiosErrorWith(409, {
+        error: { code: 'LEAGUE_FULL', message: 'League is at capacity', status: 409 },
+      }),
+    );
     expect(err).toBeInstanceOf(ApiError);
     expect(err.code).toBe('LEAGUE_FULL');
     expect(err.status).toBe(409);
     expect(err.message).toBe('League is at capacity');
   });
 
-  it('sin respuesta del server (status 0) es NETWORK_ERROR', () => {
-    const err = toApiError(new HttpErrorResponse({ status: 0 }));
+  it('sin respuesta del server es NETWORK_ERROR', () => {
+    const err = toApiError(new AxiosError('Network Error', 'ERR_NETWORK'));
     expect(err.code).toBe('NETWORK_ERROR');
+    expect(err.status).toBe(0);
   });
 
   it('un ApiError se devuelve tal cual', () => {
@@ -326,13 +285,11 @@ describe('toApiError', () => {
 });
 ```
 
-- [ ] **Step 2: Correr y ver rojo**
-
-Run: `npm test -- --watch=false` → Expected: FAIL, "Cannot find module './api-error'".
+- [ ] **Step 2: Rojo** — `npm test` → "Failed to resolve import './api-error'".
 
 - [ ] **Step 3: Modelos**
 
-`frontend/src/app/models/api.ts`:
+`src/models/api.ts`:
 
 ```ts
 // Envelope de la API: exito { data }, error { error: { code, message, status } }.
@@ -350,7 +307,7 @@ export interface ApiErrorBody {
 }
 ```
 
-`frontend/src/app/models/user.ts`:
+`src/models/user.ts`:
 
 ```ts
 export type UserRole = 'USER' | 'ADMIN';
@@ -363,7 +320,7 @@ export interface User {
 }
 ```
 
-`frontend/src/app/models/league.ts`:
+`src/models/league.ts`:
 
 ```ts
 export type DraftStatus = 'PENDING' | 'LIVE' | 'COMPLETED';
@@ -383,7 +340,7 @@ export interface League {
 }
 ```
 
-`frontend/src/app/models/league-member.ts`:
+`src/models/league-member.ts`:
 
 ```ts
 export type MemberStatus = 'ACTIVE' | 'LEFT' | 'KICKED';
@@ -408,15 +365,15 @@ export interface FantasyTeam {
 
 - [ ] **Step 4: `ApiError`**
 
-`frontend/src/app/core/api-error.ts`:
+`src/services/api-error.ts`:
 
 ```ts
-import { HttpErrorResponse } from '@angular/common/http';
+import axios from 'axios';
 import type { ApiErrorBody } from '../models/api';
 
-// ApiError: el error tipado que ve el resto de la app. `code` es el SCREAMING_SNAKE del
-// backend (docs/error-codes.md); `status` el HTTP. Clase (no interface) para que `instanceof`
-// funcione en catch y para cumplir "modelos con clases" de la rubrica.
+// ApiError: el error tipado que ve el resto de la app. `code` es el SCREAMING_SNAKE del backend
+// (docs/error-codes.md); `status` el HTTP. Clase (no interface) para que `instanceof` funcione
+// en catch y para cumplir "modelos con clases" de la rubrica.
 export class ApiError extends Error {
   constructor(
     public readonly code: string,
@@ -432,191 +389,431 @@ function isApiErrorBody(body: unknown): body is ApiErrorBody {
   return typeof body === 'object' && body !== null && 'error' in body;
 }
 
-// toApiError: normaliza cualquier cosa que tire HttpClient a un ApiError.
+// toApiError: normaliza cualquier cosa que tire axios a un ApiError.
 export function toApiError(err: unknown): ApiError {
   if (err instanceof ApiError) return err;
-  if (err instanceof HttpErrorResponse) {
-    if (isApiErrorBody(err.error)) {
-      const { code, message, status } = err.error.error;
+  if (axios.isAxiosError(err)) {
+    const body: unknown = err.response?.data;
+    if (isApiErrorBody(body)) {
+      const { code, message, status } = body.error;
       return new ApiError(code, status, message);
     }
-    if (err.status === 0) {
+    if (!err.response) {
       return new ApiError('NETWORK_ERROR', 0, 'No se pudo conectar con el servidor');
     }
-    return new ApiError('UNKNOWN_ERROR', err.status, err.message);
+    return new ApiError('UNKNOWN_ERROR', err.response.status, err.message);
   }
   return new ApiError('UNKNOWN_ERROR', 0, String(err));
 }
 ```
 
-- [ ] **Step 5: Verde + lint**
+- [ ] **Step 5: Verde + lint** — `npm test` → 4 passed. `npm run lint` → limpio.
 
-Run: `npm test -- --watch=false` → 4 passed. `npm run lint` → limpio.
-
-- [ ] **Step 6: Commit**
+- [ ] **Step 6: Commit** (al confirmar)
 
 ```bash
-git add frontend/src/app/models frontend/src/app/core/api-error.ts frontend/src/app/core/api-error.spec.ts
+git add frontend/src/models frontend/src/services/api-error.ts frontend/src/services/api-error.test.ts
 git commit -m "feat(frontend): modelos (User, League, LeagueMember) + ApiError tipado (Slice 13a)"
 ```
 
 ---
 
-### Task 3: `shared/ui` — 6 componentes sin dominio (`button` lo tipeás vos)
+### Task 3: Store de auth (zustand), `ApiClient` (axios) y `auth.service`
 
 **Files:**
 
-- Create: `frontend/src/app/shared/ui/button.component.ts`
-- Create: `frontend/src/app/shared/ui/field.component.ts`
-- Create: `frontend/src/app/shared/ui/card.component.ts`
-- Create: `frontend/src/app/shared/ui/badge.component.ts`
-- Create: `frontend/src/app/shared/ui/alert.component.ts`
-- Create: `frontend/src/app/shared/ui/page-shell.component.ts`
-- Create: `frontend/src/app/shared/ui/index.ts`
-- Test: `frontend/src/app/shared/ui/alert.component.spec.ts`
+- Create: `frontend/src/store/auth.store.ts`
+- Test: `frontend/src/store/auth.store.test.ts`
+- Create: `frontend/src/services/api-client.ts`
+- Create: `frontend/src/services/auth.service.ts`
 
 **Interfaces:**
 
-- Produces: `<ui-button [variant]="'primary'|'secondary'|'danger'" [disabled] type="button|submit">`, `<ui-field label error>` (proyecta el `<input>`), `<ui-card>`, `<ui-badge [tone]="'neutral'|'info'|'success'|'warning'">`, `<ui-alert [code] [message]>`, `<ui-page-shell title>`. `errorMessageFor(code, fallback)` exportada desde `alert.component.ts`.
+- Consumes: `env.apiUrl` (Task 1), `ApiEnvelope`, `User`, `toApiError` (Task 2).
+- Produces: `useAuthStore` (`accessToken`, `user`, `sessionReady`, `isLoggedIn()`, `setSession(user, token)`, `clear()`, `markReady()`); `apiClient.get<T>(url)`, `.post<T>(url, body?)`, `.delete<T>(url)`, `.refreshOnce()` — devuelven `T` ya desenvuelto de `{ data }`; `authService.login(email, password): Promise<User>`, `.register(email, password, name)`, `.restoreSession(): Promise<void>`, `.logout(): Promise<void>`.
 
-- [ ] **Step 1: `button` (tipealo vos — es el primer componente Angular del proyecto)**
+- [ ] **Step 1: Test rojo del store**
 
-`frontend/src/app/shared/ui/button.component.ts`:
+`src/store/auth.store.test.ts`:
 
 ```ts
-import { Component, input } from '@angular/core';
+import { useAuthStore } from './auth.store';
+
+const user = { id: 1, email: 'a@b.c', name: 'Ana', role: 'USER' as const };
+
+describe('useAuthStore', () => {
+  beforeEach(() => useAuthStore.getState().clear());
+
+  it('arranca sin sesion', () => {
+    const s = useAuthStore.getState();
+    expect(s.accessToken).toBeNull();
+    expect(s.user).toBeNull();
+    expect(s.isLoggedIn()).toBe(false);
+  });
+
+  it('setSession guarda token y user; clear los borra', () => {
+    useAuthStore.getState().setSession(user, 'tok');
+    expect(useAuthStore.getState().isLoggedIn()).toBe(true);
+    expect(useAuthStore.getState().user?.name).toBe('Ana');
+
+    useAuthStore.getState().clear();
+    expect(useAuthStore.getState().accessToken).toBeNull();
+  });
+
+  it('nunca toca localStorage', () => {
+    useAuthStore.getState().setSession(user, 'tok');
+    expect(localStorage.length).toBe(0);
+  });
+});
+```
+
+- [ ] **Step 2: Rojo** — `npm test` → "Failed to resolve import './auth.store'".
+
+- [ ] **Step 3: Store**
+
+`src/store/auth.store.ts`:
+
+```ts
+import { create } from 'zustand';
+import type { User } from '../models/user';
+
+interface AuthState {
+  accessToken: string | null;
+  user: User | null;
+  // false hasta que el refresh inicial termino (con o sin sesion). SessionGate lo espera.
+  sessionReady: boolean;
+  isLoggedIn: () => boolean;
+  setSession: (user: User, accessToken: string) => void;
+  clear: () => void;
+  markReady: () => void;
+}
+
+// El token vive ACA, en memoria. Sin middleware `persist` a proposito: la persistencia entre
+// recargas la da la cookie httpOnly de refresh, no localStorage (spec §3, D3).
+export const useAuthStore = create<AuthState>((set, get) => ({
+  accessToken: null,
+  user: null,
+  sessionReady: false,
+  isLoggedIn: () => get().accessToken !== null,
+  setSession: (user, accessToken) => set({ user, accessToken }),
+  clear: () => set({ user: null, accessToken: null }),
+  markReady: () => set({ sessionReady: true }),
+}));
+```
+
+- [ ] **Step 4: Verde** — `npm test` → 7 passed.
+
+- [ ] **Step 5: `ApiClient`**
+
+`src/services/api-client.ts`:
+
+```ts
+import axios, { AxiosError, type AxiosInstance, type InternalAxiosRequestConfig } from 'axios';
+import { env } from '../config/env';
+import type { ApiEnvelope } from '../models/api';
+import type { User } from '../models/user';
+import { useAuthStore } from '../store/auth.store';
+import { toApiError } from './api-error';
+
+type RetriableConfig = InternalAxiosRequestConfig & { _retried?: boolean };
+
+interface AuthPayload {
+  user: User;
+  accessToken: string;
+}
+
+// ApiClient: la unica puerta hacia el backend (patron fachada). Una clase, una instancia.
+//   - request: Authorization: Bearer <token del store>; withCredentials para la cookie.
+//   - response 401 fuera de /auth/*: UN refresh (deduplicado si hay varios 401 a la vez),
+//     reintenta el request original; si el refresh falla, cierra la sesion.
+//   - cualquier error sale como ApiError. Los componentes nunca ven un AxiosError.
+export class ApiClient {
+  private readonly http: AxiosInstance;
+  private refreshing: Promise<string> | null = null;
+
+  constructor(baseURL: string) {
+    this.http = axios.create({ baseURL, withCredentials: true });
+
+    this.http.interceptors.request.use((config) => {
+      const token = useAuthStore.getState().accessToken;
+      if (token) config.headers.Authorization = `Bearer ${token}`;
+      return config;
+    });
+
+    this.http.interceptors.response.use(
+      (response) => response,
+      async (error: AxiosError) => {
+        const config = error.config as RetriableConfig | undefined;
+        const isAuthRoute = config?.url?.includes('/auth/') ?? false;
+        const canRetry =
+          error.response?.status === 401 &&
+          config !== undefined &&
+          !config._retried &&
+          !isAuthRoute &&
+          useAuthStore.getState().isLoggedIn();
+
+        if (!canRetry) throw toApiError(error);
+
+        try {
+          await this.refreshOnce();
+        } catch (refreshErr) {
+          useAuthStore.getState().clear();
+          throw toApiError(refreshErr);
+        }
+        config._retried = true;
+        return this.http.request(config);
+      },
+    );
+  }
+
+  // refreshOnce: si ya hay un refresh en vuelo, todos esperan el mismo (evita N refresh
+  // cuando N requests fallan juntos con 401). El backend devuelve { user, accessToken }.
+  refreshOnce(): Promise<string> {
+    if (!this.refreshing) {
+      this.refreshing = this.post<AuthPayload>('/auth/refresh')
+        .then((payload) => {
+          useAuthStore.getState().setSession(payload.user, payload.accessToken);
+          return payload.accessToken;
+        })
+        .finally(() => {
+          this.refreshing = null;
+        });
+    }
+    return this.refreshing;
+  }
+
+  async get<T>(url: string): Promise<T> {
+    const res = await this.http.get<ApiEnvelope<T>>(url);
+    return res.data.data;
+  }
+
+  async post<T>(url: string, body?: unknown): Promise<T> {
+    const res = await this.http.post<ApiEnvelope<T>>(url, body ?? {});
+    return res.data.data;
+  }
+
+  async delete<T = void>(url: string): Promise<T> {
+    const res = await this.http.delete<ApiEnvelope<T>>(url);
+    return res.data?.data;
+  }
+}
+
+export const apiClient = new ApiClient(env.apiUrl);
+```
+
+- [ ] **Step 6: `auth.service`**
+
+`src/services/auth.service.ts`:
+
+```ts
+import type { User } from '../models/user';
+import { useAuthStore } from '../store/auth.store';
+import { apiClient } from './api-client';
+
+interface AuthPayload {
+  user: User;
+  accessToken: string;
+}
+
+// El "servicio" de auth (rubrica): funciones sobre apiClient + el store. Sin React.
+export const authService = {
+  async login(email: string, password: string): Promise<User> {
+    const { user, accessToken } = await apiClient.post<AuthPayload>('/auth/login', {
+      email,
+      password,
+    });
+    useAuthStore.getState().setSession(user, accessToken);
+    return user;
+  },
+
+  async register(email: string, password: string, name: string): Promise<User> {
+    const { user, accessToken } = await apiClient.post<AuthPayload>('/auth/register', {
+      email,
+      password,
+      name,
+    });
+    useAuthStore.getState().setSession(user, accessToken);
+    return user;
+  },
+
+  // Al arrancar la app: intenta restaurar la sesion con la cookie. Nunca tira: sin cookie o
+  // vencida, simplemente quedamos deslogueados.
+  async restoreSession(): Promise<void> {
+    try {
+      await apiClient.refreshOnce();
+    } catch {
+      useAuthStore.getState().clear();
+    } finally {
+      useAuthStore.getState().markReady();
+    }
+  },
+
+  async logout(): Promise<void> {
+    try {
+      await apiClient.post('/auth/logout');
+    } finally {
+      useAuthStore.getState().clear();
+    }
+  },
+};
+```
+
+- [ ] **Step 7: Lint + test + commit** (al confirmar)
+
+`npm run lint` limpio, `npm test` → 7 passed, `npm run build` sin errores.
+
+```bash
+git add frontend/src/store frontend/src/services/api-client.ts frontend/src/services/auth.service.ts
+git commit -m "feat(frontend): auth store en memoria + ApiClient con refresh en 401 + auth.service (Slice 13a)"
+```
+
+---
+
+### Task 4: `components/ui` — 6 componentes sin dominio (`Button` lo tipeás vos)
+
+**Files:**
+
+- Create: `frontend/src/components/ui/Button.tsx`, `Field.tsx`, `Card.tsx`, `Badge.tsx`, `Alert.tsx`, `PageShell.tsx`, `index.ts`
+- Test: `frontend/src/components/ui/Alert.test.tsx`
+
+**Interfaces:**
+
+- Produces: `<Button variant="primary|secondary|danger" type disabled onClick>`, `<Field label error>{input}</Field>` + `inputClass`, `<Card>`, `<Badge tone="neutral|info|success|warning">`, `<Alert code message>`, `<PageShell title actions>`, `errorMessageFor(code, fallback)`.
+
+- [ ] **Step 1: `Button` (tipealo vos — primer componente React del proyecto)**
+
+`src/components/ui/Button.tsx`:
+
+```tsx
+import type { ButtonHTMLAttributes } from 'react';
 
 type Variant = 'primary' | 'secondary' | 'danger';
 
-// ui-button: un <button> con las 3 variantes visuales del proyecto. No sabe de dominio.
-// `input()` = propiedad de entrada (rubrica: "propiedades input"). El (click) nativo del
-// <button> hace de output: el padre escribe <ui-button (click)="...">.
-@Component({
-  selector: 'ui-button',
-  template: `
+// Button: un <button> con las 3 variantes visuales del proyecto. No sabe de dominio.
+// Las props son las "propiedades de entrada" (rubrica); onClick es la "salida".
+interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: Variant;
+}
+
+const variantClasses: Record<Variant, string> = {
+  primary: 'bg-red-600 text-white hover:bg-red-700',
+  secondary: 'bg-white text-slate-900 ring-1 ring-slate-300 hover:bg-slate-50',
+  danger: 'bg-slate-900 text-white hover:bg-black',
+};
+
+export function Button({
+  variant = 'primary',
+  type = 'button',
+  className = '',
+  ...rest
+}: ButtonProps) {
+  return (
     <button
-      [type]="type()"
-      [disabled]="disabled()"
-      class="inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-semibold
-             transition disabled:cursor-not-allowed disabled:opacity-50"
-      [class]="variantClasses[variant()]"
-    >
-      <ng-content />
-    </button>
-  `,
-})
-export class ButtonComponent {
-  readonly variant = input<Variant>('primary');
-  readonly type = input<'button' | 'submit'>('button');
-  readonly disabled = input(false);
-
-  protected readonly variantClasses: Record<Variant, string> = {
-    primary: 'bg-red-600 text-white hover:bg-red-700',
-    secondary: 'bg-white text-slate-900 ring-1 ring-slate-300 hover:bg-slate-50',
-    danger: 'bg-slate-900 text-white hover:bg-black',
-  };
+      type={type}
+      className={`inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${variantClasses[variant]} ${className}`}
+      {...rest}
+    />
+  );
 }
 ```
 
-- [ ] **Step 2: `field`, `card`, `badge`, `page-shell`**
+- [ ] **Step 2: `Field`, `Card`, `Badge`, `PageShell`**
 
-`field.component.ts` — envuelve un `<input>` que le pasa el padre (evita implementar `ControlValueAccessor`):
+`Field.tsx` — envuelve el `<input>` que le pasa el padre (asi funciona con `register()` de react-hook-form sin acoplarse):
 
-```ts
-import { Component, input } from '@angular/core';
+```tsx
+import type { ReactNode } from 'react';
 
-@Component({
-  selector: 'ui-field',
-  template: `
-    <label class="block">
-      <span class="mb-1 block text-sm font-medium text-slate-700">{{ label() }}</span>
-      <ng-content />
-      @if (error()) {
-        <span class="mt-1 block text-sm text-red-600">{{ error() }}</span>
-      }
+interface FieldProps {
+  label: string;
+  error?: string | null;
+  children: ReactNode;
+}
+
+export function Field({ label, error, children }: FieldProps) {
+  return (
+    <label className="block">
+      <span className="mb-1 block text-sm font-medium text-slate-700">{label}</span>
+      {children}
+      {error && <span className="mt-1 block text-sm text-red-600">{error}</span>}
     </label>
-  `,
-})
-export class FieldComponent {
-  readonly label = input.required<string>();
-  readonly error = input<string | null>(null);
+  );
 }
+
+// Clases compartidas para los <input> nativos, asi las paginas no las repiten.
+export const inputClass = 'w-full rounded-md border border-slate-300 px-3 py-2';
 ```
 
-`card.component.ts`:
+`Card.tsx`:
 
-```ts
-import { Component } from '@angular/core';
+```tsx
+import type { ReactNode } from 'react';
 
-@Component({
-  selector: 'ui-card',
-  template: `
-    <section class="rounded-lg bg-white p-4 shadow-sm ring-1 ring-slate-200 md:p-6">
-      <ng-content />
+export function Card({ children }: { children: ReactNode }) {
+  return (
+    <section className="rounded-lg bg-white p-4 shadow-sm ring-1 ring-slate-200 md:p-6">
+      {children}
     </section>
-  `,
-})
-export class CardComponent {}
+  );
+}
 ```
 
-`badge.component.ts`:
+`Badge.tsx`:
 
-```ts
-import { Component, input } from '@angular/core';
+```tsx
+import type { ReactNode } from 'react';
 
-type Tone = 'neutral' | 'info' | 'success' | 'warning';
+export type BadgeTone = 'neutral' | 'info' | 'success' | 'warning';
 
-@Component({
-  selector: 'ui-badge',
-  template: `
+const tones: Record<BadgeTone, string> = {
+  neutral: 'bg-slate-100 text-slate-700',
+  info: 'bg-blue-100 text-blue-800',
+  success: 'bg-green-100 text-green-800',
+  warning: 'bg-amber-100 text-amber-800',
+};
+
+export function Badge({ tone = 'neutral', children }: { tone?: BadgeTone; children: ReactNode }) {
+  return (
     <span
-      class="inline-block rounded-full px-2 py-0.5 text-xs font-semibold uppercase tracking-wide"
-      [class]="tones[tone()]"
+      className={`inline-block rounded-full px-2 py-0.5 text-xs font-semibold uppercase tracking-wide ${tones[tone]}`}
     >
-      <ng-content />
+      {children}
     </span>
-  `,
-})
-export class BadgeComponent {
-  readonly tone = input<Tone>('neutral');
-  protected readonly tones: Record<Tone, string> = {
-    neutral: 'bg-slate-100 text-slate-700',
-    info: 'bg-blue-100 text-blue-800',
-    success: 'bg-green-100 text-green-800',
-    warning: 'bg-amber-100 text-amber-800',
-  };
+  );
 }
 ```
 
-`page-shell.component.ts` — cabecera + contenedor responsive:
+`PageShell.tsx`:
 
-```ts
-import { Component, input } from '@angular/core';
+```tsx
+import type { ReactNode } from 'react';
 
-@Component({
-  selector: 'ui-page-shell',
-  template: `
-    <div class="mx-auto w-full max-w-5xl px-4 py-6 md:px-6 lg:py-10">
-      <header class="mb-6 flex items-center justify-between">
-        <h1 class="text-2xl font-bold text-slate-900 md:text-3xl">{{ title() }}</h1>
-        <ng-content select="[actions]" />
+interface PageShellProps {
+  title: string;
+  actions?: ReactNode;
+  children: ReactNode;
+}
+
+export function PageShell({ title, actions, children }: PageShellProps) {
+  return (
+    <div className="mx-auto w-full max-w-5xl px-4 py-6 md:px-6 lg:py-10">
+      <header className="mb-6 flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-slate-900 md:text-3xl">{title}</h1>
+        {actions}
       </header>
-      <ng-content />
+      {children}
     </div>
-  `,
-})
-export class PageShellComponent {
-  readonly title = input.required<string>();
+  );
 }
 ```
 
-- [ ] **Step 3: Test rojo del `alert` (mapa código → mensaje)**
+- [ ] **Step 3: Test rojo del `Alert`**
 
-`alert.component.spec.ts`:
+`Alert.test.tsx`:
 
-```ts
-import { TestBed } from '@angular/core/testing';
-import { AlertComponent, errorMessageFor } from './alert.component';
+```tsx
+import { render, screen } from '@testing-library/react';
+import { Alert, errorMessageFor } from './Alert';
 
 describe('errorMessageFor', () => {
   it('traduce codigos conocidos a espanol', () => {
@@ -631,32 +828,23 @@ describe('errorMessageFor', () => {
   });
 });
 
-describe('AlertComponent', () => {
-  it('renderiza el mensaje traducido', async () => {
-    await TestBed.configureTestingModule({ imports: [AlertComponent] }).compileComponents();
-    const fixture = TestBed.createComponent(AlertComponent);
-    fixture.componentRef.setInput('code', 'LEAGUE_FULL');
-    fixture.componentRef.setInput('message', 'League is at capacity');
-    await fixture.whenStable();
-
-    expect(fixture.nativeElement.textContent).toContain('La liga está llena');
+describe('Alert', () => {
+  it('renderiza el mensaje traducido con role=alert', () => {
+    render(<Alert code="LEAGUE_FULL" message="League is at capacity" />);
+    expect(screen.getByRole('alert')).toHaveTextContent('La liga está llena');
   });
 });
 ```
 
-- [ ] **Step 4: Correr y ver rojo**
+- [ ] **Step 4: Rojo** — `npm test` → "Failed to resolve import './Alert'".
 
-Run: `npm test -- --watch=false` → FAIL, "Cannot find module './alert.component'".
+- [ ] **Step 5: `Alert` + `index.ts`**
 
-- [ ] **Step 5: `alert`**
+`Alert.tsx`:
 
-`alert.component.ts`:
-
-```ts
-import { Component, computed, input } from '@angular/core';
-
-// Mapa codigo del backend -> mensaje para el usuario. Los codigos son los de
-// docs/error-codes.md. Un codigo que no esta aca muestra el `message` del backend.
+```tsx
+// Mapa codigo del backend -> mensaje para el usuario (docs/error-codes.md). Un codigo que no
+// esta aca muestra el `message` del backend.
 const MESSAGES: Record<string, string> = {
   INVALID_CREDENTIALS: 'Email o contraseña incorrectos',
   EMAIL_ALREADY_EXISTS: 'Ya hay una cuenta con ese email',
@@ -680,591 +868,431 @@ export function errorMessageFor(code: string, fallback: string): string {
   return MESSAGES[code] ?? fallback;
 }
 
-@Component({
-  selector: 'ui-alert',
-  template: `
-    <p role="alert" class="rounded-md bg-red-50 px-3 py-2 text-sm text-red-800 ring-1 ring-red-200">
-      {{ text() }}
+export function Alert({ code, message = '' }: { code: string; message?: string }) {
+  return (
+    <p
+      role="alert"
+      className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-800 ring-1 ring-red-200"
+    >
+      {errorMessageFor(code, message)}
     </p>
-  `,
-})
-export class AlertComponent {
-  readonly code = input.required<string>();
-  readonly message = input<string>('');
-  protected readonly text = computed(() => errorMessageFor(this.code(), this.message()));
+  );
 }
 ```
 
-`index.ts` (para importar todo junto):
+`index.ts`:
 
 ```ts
-export { ButtonComponent } from './button.component';
-export { FieldComponent } from './field.component';
-export { CardComponent } from './card.component';
-export { BadgeComponent } from './badge.component';
-export { AlertComponent, errorMessageFor } from './alert.component';
-export { PageShellComponent } from './page-shell.component';
+export { Button } from './Button';
+export { Field, inputClass } from './Field';
+export { Card } from './Card';
+export { Badge, type BadgeTone } from './Badge';
+export { Alert, errorMessageFor } from './Alert';
+export { PageShell } from './PageShell';
 ```
 
-- [ ] **Step 6: Verde + lint + commit**
+- [ ] **Step 6: Verde + lint + commit** (al confirmar)
 
-Run: `npm test -- --watch=false` → 7 passed. `npm run lint` → limpio.
+`npm test` → 10 passed. `npm run lint` → limpio.
 
 ```bash
-git add frontend/src/app/shared
-git commit -m "feat(frontend): shared/ui — button, field, card, badge, alert, page-shell (Slice 13a)"
+git add frontend/src/components
+git commit -m "feat(frontend): components/ui — Button, Field, Card, Badge, Alert, PageShell (Slice 13a)"
 ```
 
 ---
 
-### Task 4: `AuthService`, interceptor, guards, `app.config`
+### Task 5: Guards, `SessionGate`, router, páginas de login y registro
 
 **Files:**
 
-- Create: `frontend/src/app/core/auth.service.ts`
-- Create: `frontend/src/app/core/auth.interceptor.ts`
-- Create: `frontend/src/app/core/auth.guard.ts`
-- Test: `frontend/src/app/core/auth.guard.spec.ts`
-- Modify: `frontend/src/app/app.config.ts`
+- Create: `frontend/src/features/auth/RequireAuth.tsx`, `GuestOnly.tsx`
+- Test: `frontend/src/features/auth/RequireAuth.test.tsx`
+- Create: `frontend/src/features/auth/LoginPage.tsx`, `RegisterPage.tsx`
+- Create: `frontend/src/app/providers.tsx`, `SessionGate.tsx`, `router.tsx`, `App.tsx`
+- Modify: `frontend/src/main.tsx`; borrar `src/App.tsx` y `src/App.test.tsx`
 
 **Interfaces:**
 
-- Consumes: `ApiEnvelope`, `User`, `toApiError` (Task 2); `environment.apiUrl` (Task 1).
-- Produces: `AuthService { accessToken: Signal<string|null>; user: Signal<User|null>; isLoggedIn: Signal<boolean>; sessionReady: Signal<boolean>; login(email, password): Observable<User>; register(email, password, name): Observable<User>; refresh(): Observable<string>; restoreSession(): Promise<void>; logout(): void; clearSession(): void }`, `authInterceptor: HttpInterceptorFn`, `authGuard`, `guestGuard: CanActivateFn`.
+- Consumes: `useAuthStore`, `authService`, `ui`.
+- Produces: rutas `/login`, `/register`, `/leagues` (placeholder), `''` → `/leagues`. `<RequireAuth />` y `<GuestOnly />` como layout routes con `<Outlet />`.
 
 - [ ] **Step 1: Test rojo del guard**
 
-`auth.guard.spec.ts`:
+`RequireAuth.test.tsx`:
 
-```ts
-import { TestBed } from '@angular/core/testing';
-import { provideHttpClient } from '@angular/common/http';
-import {
-  ActivatedRouteSnapshot,
-  RouterStateSnapshot,
-  UrlTree,
-  provideRouter,
-} from '@angular/router';
-import { authGuard, guestGuard } from './auth.guard';
-import { AuthService } from './auth.service';
+```tsx
+import { render, screen } from '@testing-library/react';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { useAuthStore } from '../../store/auth.store';
+import { RequireAuth } from './RequireAuth';
 
-const fakeRoute = {} as ActivatedRouteSnapshot;
-const fakeState = {} as RouterStateSnapshot;
+function renderAt(path: string) {
+  return render(
+    <MemoryRouter initialEntries={[path]}>
+      <Routes>
+        <Route path="/login" element={<p>pagina de login</p>} />
+        <Route element={<RequireAuth />}>
+          <Route path="/leagues" element={<p>mis ligas</p>} />
+        </Route>
+      </Routes>
+    </MemoryRouter>,
+  );
+}
 
-describe('authGuard', () => {
-  beforeEach(() => {
-    TestBed.configureTestingModule({ providers: [provideRouter([]), provideHttpClient()] });
-  });
+describe('RequireAuth', () => {
+  beforeEach(() => useAuthStore.getState().clear());
 
   it('sin token redirige a /login', () => {
-    const result = TestBed.runInInjectionContext(() => authGuard(fakeRoute, fakeState));
-    expect(result).toBeInstanceOf(UrlTree);
-    expect((result as UrlTree).toString()).toBe('/login');
+    renderAt('/leagues');
+    expect(screen.getByText('pagina de login')).toBeInTheDocument();
   });
 
-  it('con token deja pasar', () => {
-    TestBed.inject(AuthService).accessToken.set('token-de-prueba');
-    const result = TestBed.runInInjectionContext(() => authGuard(fakeRoute, fakeState));
-    expect(result).toBe(true);
-  });
-
-  it('guestGuard: logueado redirige a /leagues', () => {
-    TestBed.inject(AuthService).accessToken.set('token-de-prueba');
-    const result = TestBed.runInInjectionContext(() => guestGuard(fakeRoute, fakeState));
-    expect((result as UrlTree).toString()).toBe('/leagues');
+  it('con token renderiza la ruta protegida', () => {
+    useAuthStore.getState().setSession({ id: 1, email: 'a@b.c', name: 'Ana', role: 'USER' }, 'tok');
+    renderAt('/leagues');
+    expect(screen.getByText('mis ligas')).toBeInTheDocument();
   });
 });
 ```
 
-- [ ] **Step 2: Correr y ver rojo**
+- [ ] **Step 2: Rojo** — `npm test` → "Failed to resolve import './RequireAuth'".
 
-Run: `npm test -- --watch=false` → FAIL, "Cannot find module './auth.guard'".
+- [ ] **Step 3: Guards**
 
-- [ ] **Step 3: `AuthService`**
+`RequireAuth.tsx`:
 
-`auth.service.ts`:
+```tsx
+import { Navigate, Outlet } from 'react-router-dom';
+import { useAuthStore } from '../../store/auth.store';
 
-```ts
-import { Injectable, computed, inject, signal } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { Router } from '@angular/router';
-import { Observable, firstValueFrom, map } from 'rxjs';
-import { environment } from '../../environments/environment';
-import type { ApiEnvelope } from '../models/api';
-import type { User } from '../models/user';
-
-interface AuthPayload {
-  user: User;
-  accessToken: string;
+// RequireAuth: layout route. Sin sesion -> /login. Es la "proteccion de rutas por nivel de
+// acceso" de la rubrica. `replace` para que el back del browser no vuelva a la ruta prohibida.
+export function RequireAuth() {
+  const loggedIn = useAuthStore((s) => s.accessToken !== null);
+  return loggedIn ? <Outlet /> : <Navigate to="/login" replace />;
 }
+```
 
-// AuthService: el unico lugar que conoce el token. Vive en memoria (signal) — nunca en
-// localStorage. La persistencia entre recargas la da la cookie httpOnly de refresh que el
-// backend setea en login/register; restoreSession() la usa al arrancar la app.
-@Injectable({ providedIn: 'root' })
-export class AuthService {
-  private readonly http = inject(HttpClient);
-  private readonly router = inject(Router);
-  private readonly base = `${environment.apiUrl}/auth`;
+`GuestOnly.tsx`:
 
-  readonly accessToken = signal<string | null>(null);
-  readonly user = signal<User | null>(null);
-  readonly isLoggedIn = computed(() => this.accessToken() !== null);
-  // false hasta que restoreSession() termino (con o sin sesion). El shell muestra un spinner.
-  readonly sessionReady = signal(false);
+```tsx
+import { Navigate, Outlet } from 'react-router-dom';
+import { useAuthStore } from '../../store/auth.store';
 
-  login(email: string, password: string): Observable<User> {
-    return this.http
-      .post<ApiEnvelope<AuthPayload>>(`${this.base}/login`, { email, password })
-      .pipe(map((res) => this.setSession(res.data).user));
-  }
+// GuestOnly: lo inverso, para /login y /register — un usuario logueado va a /leagues.
+export function GuestOnly() {
+  const loggedIn = useAuthStore((s) => s.accessToken !== null);
+  return loggedIn ? <Navigate to="/leagues" replace /> : <Outlet />;
+}
+```
 
-  register(email: string, password: string, name: string): Observable<User> {
-    return this.http
-      .post<ApiEnvelope<AuthPayload>>(`${this.base}/register`, { email, password, name })
-      .pipe(map((res) => this.setSession(res.data).user));
-  }
+- [ ] **Step 4: Verde** — `npm test` → 12 passed.
 
-  // refresh: pide un access token nuevo con la cookie. Lo usa el interceptor ante un 401 y
-  // restoreSession() al arrancar.
-  refresh(): Observable<string> {
-    return this.http
-      .post<ApiEnvelope<AuthPayload>>(`${this.base}/refresh`, {})
-      .pipe(map((res) => this.setSession(res.data).accessToken));
-  }
+- [ ] **Step 5: `LoginPage`**
 
-  async restoreSession(): Promise<void> {
+`LoginPage.tsx`:
+
+```tsx
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { Link, useNavigate } from 'react-router-dom';
+import { z } from 'zod';
+import { Alert, Button, Card, Field, inputClass } from '../../components/ui';
+import { ApiError, toApiError } from '../../services/api-error';
+import { authService } from '../../services/auth.service';
+
+// Mismas reglas que loginSchema del backend: email valido, password >= 8.
+const schema = z.object({
+  email: z.string().email('No parece un email'),
+  password: z.string().min(8, 'Mínimo 8 caracteres'),
+});
+type LoginForm = z.infer<typeof schema>;
+
+export function LoginPage() {
+  const navigate = useNavigate();
+  const [error, setError] = useState<ApiError | null>(null);
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<LoginForm>({ resolver: zodResolver(schema) });
+
+  async function onSubmit(values: LoginForm) {
+    setError(null);
     try {
-      await firstValueFrom(this.refresh());
-    } catch {
-      // Sin cookie o cookie vencida: arrancamos deslogueados, sin mostrar error.
-      this.clearSession();
-    } finally {
-      this.sessionReady.set(true);
+      await authService.login(values.email, values.password);
+      navigate('/leagues');
+    } catch (err) {
+      setError(toApiError(err));
     }
   }
 
-  logout(): void {
-    this.http.post(`${this.base}/logout`, {}).subscribe({
-      complete: () => this.finishLogout(),
-      error: () => this.finishLogout(), // aunque falle el backend, localmente cerramos sesion
-    });
-  }
-
-  clearSession(): void {
-    this.accessToken.set(null);
-    this.user.set(null);
-  }
-
-  private setSession(payload: AuthPayload): AuthPayload {
-    this.accessToken.set(payload.accessToken);
-    this.user.set(payload.user);
-    return payload;
-  }
-
-  private finishLogout(): void {
-    this.clearSession();
-    void this.router.navigate(['/login']);
-  }
-}
-```
-
-- [ ] **Step 4: Interceptor**
-
-`auth.interceptor.ts`:
-
-```ts
-import { HttpErrorResponse, HttpInterceptorFn, HttpRequest } from '@angular/common/http';
-import { inject } from '@angular/core';
-import { catchError, switchMap, throwError } from 'rxjs';
-import { environment } from '../../environments/environment';
-import { toApiError } from './api-error';
-import { AuthService } from './auth.service';
-
-// authInterceptor: para todo request a nuestra API, (1) manda la cookie (withCredentials),
-// (2) agrega Authorization: Bearer si hay token, (3) ante un 401 en una ruta que no es de
-// auth, intenta UN refresh y reintenta; si el refresh tambien falla, cierra la sesion.
-// Cualquier error sale como ApiError (los componentes no ven HttpErrorResponse).
-export const authInterceptor: HttpInterceptorFn = (req, next) => {
-  if (!req.url.startsWith(environment.apiUrl)) {
-    return next(req);
-  }
-  const auth = inject(AuthService);
-
-  const withAuth = (r: HttpRequest<unknown>): HttpRequest<unknown> => {
-    const token = auth.accessToken();
-    return r.clone({
-      withCredentials: true,
-      setHeaders: token ? { Authorization: `Bearer ${token}` } : {},
-    });
-  };
-
-  const isAuthRoute = req.url.includes('/auth/');
-
-  return next(withAuth(req)).pipe(
-    catchError((err: unknown) => {
-      const expired =
-        err instanceof HttpErrorResponse && err.status === 401 && !isAuthRoute && auth.isLoggedIn();
-      if (!expired) {
-        return throwError(() => toApiError(err));
-      }
-      return auth.refresh().pipe(
-        switchMap(() => next(withAuth(req))),
-        catchError((refreshErr: unknown) => {
-          auth.clearSession();
-          return throwError(() => toApiError(refreshErr));
-        }),
-      );
-    }),
+  return (
+    <div className="mx-auto mt-10 w-full max-w-sm px-4">
+      <Card>
+        <h1 className="mb-4 text-2xl font-bold">Entrar a BoxBox</h1>
+        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
+          <Field label="Email" error={errors.email?.message}>
+            <input
+              type="email"
+              autoComplete="email"
+              className={inputClass}
+              {...register('email')}
+            />
+          </Field>
+          <Field label="Contraseña" error={errors.password?.message}>
+            <input
+              type="password"
+              autoComplete="current-password"
+              className={inputClass}
+              {...register('password')}
+            />
+          </Field>
+          {error && <Alert code={error.code} message={error.message} />}
+          <Button type="submit" disabled={isSubmitting}>
+            {isSubmitting ? 'Entrando…' : 'Entrar'}
+          </Button>
+        </form>
+        <p className="mt-4 text-sm text-slate-600">
+          ¿No tenés cuenta?{' '}
+          <Link to="/register" className="font-semibold text-red-600">
+            Registrate
+          </Link>
+        </p>
+      </Card>
+    </div>
   );
-};
-```
-
-- [ ] **Step 5: Guards**
-
-`auth.guard.ts`:
-
-```ts
-import { inject } from '@angular/core';
-import { CanActivateFn, Router } from '@angular/router';
-import { AuthService } from './auth.service';
-
-// authGuard: sin sesion -> /login. Es la "proteccion de rutas por nivel de acceso" de la
-// rubrica. UrlTree (no navigate()) para que el router haga la redireccion limpia.
-export const authGuard: CanActivateFn = () => {
-  const auth = inject(AuthService);
-  const router = inject(Router);
-  return auth.isLoggedIn() ? true : router.createUrlTree(['/login']);
-};
-
-// guestGuard: lo inverso, para /login y /register — un usuario logueado va a /leagues.
-export const guestGuard: CanActivateFn = () => {
-  const auth = inject(AuthService);
-  const router = inject(Router);
-  return auth.isLoggedIn() ? router.createUrlTree(['/leagues']) : true;
-};
-```
-
-- [ ] **Step 6: `app.config.ts`**
-
-Dejar lo que genero el CLI y asegurarse de que queden estos tres providers (reemplazar el `provideHttpClient`/`provideRouter` que existan):
-
-```ts
-import { ApplicationConfig, inject, provideAppInitializer } from '@angular/core';
-import { provideHttpClient, withInterceptors } from '@angular/common/http';
-import { provideRouter } from '@angular/router';
-import { routes } from './app.routes';
-import { authInterceptor } from './core/auth.interceptor';
-import { AuthService } from './core/auth.service';
-
-export const appConfig: ApplicationConfig = {
-  providers: [
-    // ...los providers que ya genero `ng new` (zoneless, error listeners) quedan arriba de estos.
-    provideRouter(routes),
-    provideHttpClient(withInterceptors([authInterceptor])),
-    // Antes de renderizar nada: intenta restaurar la sesion con la cookie de refresh.
-    provideAppInitializer(() => inject(AuthService).restoreSession()),
-  ],
-};
-```
-
-- [ ] **Step 7: Verde + lint + commit**
-
-Run: `npm test -- --watch=false` → 10 passed. `npm run lint` → limpio.
-
-```bash
-git add frontend/src/app/core frontend/src/app/app.config.ts
-git commit -m "feat(frontend): AuthService con token en memoria + interceptor + guards (Slice 13a)"
-```
-
----
-
-### Task 5: Páginas de login y registro + rutas
-
-**Files:**
-
-- Create: `frontend/src/app/features/auth/login.page.ts`
-- Create: `frontend/src/app/features/auth/register.page.ts`
-- Modify: `frontend/src/app/app.routes.ts`
-- Modify: `frontend/src/app/app.html`, `frontend/src/app/app.ts`
-
-**Interfaces:**
-
-- Consumes: `AuthService.login/register`, `guestGuard`, `ui-*`.
-- Produces: rutas `/login`, `/register`, `''` → redirect `/leagues`. `/leagues` se agrega en Task 6.
-
-- [ ] **Step 1: `login.page.ts`**
-
-```ts
-import { Component, inject, signal } from '@angular/core';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
-import { ApiError } from '../../core/api-error';
-import { AuthService } from '../../core/auth.service';
-import { AlertComponent, ButtonComponent, CardComponent, FieldComponent } from '../../shared/ui';
-
-@Component({
-  selector: 'app-login-page',
-  imports: [
-    ReactiveFormsModule,
-    RouterLink,
-    AlertComponent,
-    ButtonComponent,
-    CardComponent,
-    FieldComponent,
-  ],
-  template: `
-    <div class="mx-auto mt-10 w-full max-w-sm px-4">
-      <ui-card>
-        <h1 class="mb-4 text-2xl font-bold">Entrar a BoxBox</h1>
-        <form [formGroup]="form" (ngSubmit)="submit()" class="flex flex-col gap-4">
-          <ui-field label="Email" [error]="errorFor('email')">
-            <input
-              formControlName="email"
-              type="email"
-              autocomplete="email"
-              class="w-full rounded-md border border-slate-300 px-3 py-2"
-            />
-          </ui-field>
-          <ui-field label="Contraseña" [error]="errorFor('password')">
-            <input
-              formControlName="password"
-              type="password"
-              autocomplete="current-password"
-              class="w-full rounded-md border border-slate-300 px-3 py-2"
-            />
-          </ui-field>
-          @if (error(); as e) {
-            <ui-alert [code]="e.code" [message]="e.message" />
-          }
-          <ui-button type="submit" [disabled]="form.invalid || loading()">
-            {{ loading() ? 'Entrando…' : 'Entrar' }}
-          </ui-button>
-        </form>
-        <p class="mt-4 text-sm text-slate-600">
-          ¿No tenés cuenta?
-          <a routerLink="/register" class="font-semibold text-red-600">Registrate</a>
-        </p>
-      </ui-card>
-    </div>
-  `,
-})
-export class LoginPage {
-  private readonly fb = inject(FormBuilder);
-  private readonly auth = inject(AuthService);
-  private readonly router = inject(Router);
-
-  // Validators espejan el schema Zod del backend (email valido, password >= 8).
-  protected readonly form = this.fb.nonNullable.group({
-    email: ['', [Validators.required, Validators.email]],
-    password: ['', [Validators.required, Validators.minLength(8)]],
-  });
-  protected readonly loading = signal(false);
-  protected readonly error = signal<ApiError | null>(null);
-
-  protected errorFor(field: 'email' | 'password'): string | null {
-    const control = this.form.controls[field];
-    if (!control.touched || control.valid) return null;
-    if (control.hasError('required')) return 'Obligatorio';
-    if (control.hasError('email')) return 'No parece un email';
-    if (control.hasError('minlength')) return 'Mínimo 8 caracteres';
-    return 'Inválido';
-  }
-
-  protected submit(): void {
-    if (this.form.invalid) return;
-    this.loading.set(true);
-    this.error.set(null);
-    const { email, password } = this.form.getRawValue();
-    this.auth.login(email, password).subscribe({
-      next: () => void this.router.navigate(['/leagues']),
-      error: (err: ApiError) => {
-        this.error.set(err);
-        this.loading.set(false);
-      },
-    });
-  }
 }
 ```
 
-- [ ] **Step 2: `register.page.ts`** (misma estructura, un campo mas)
+- [ ] **Step 6: `RegisterPage`**
 
-```ts
-import { Component, inject, signal } from '@angular/core';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
-import { ApiError } from '../../core/api-error';
-import { AuthService } from '../../core/auth.service';
-import { AlertComponent, ButtonComponent, CardComponent, FieldComponent } from '../../shared/ui';
+`RegisterPage.tsx`:
 
-@Component({
-  selector: 'app-register-page',
-  imports: [
-    ReactiveFormsModule,
-    RouterLink,
-    AlertComponent,
-    ButtonComponent,
-    CardComponent,
-    FieldComponent,
-  ],
-  template: `
-    <div class="mx-auto mt-10 w-full max-w-sm px-4">
-      <ui-card>
-        <h1 class="mb-4 text-2xl font-bold">Crear cuenta</h1>
-        <form [formGroup]="form" (ngSubmit)="submit()" class="flex flex-col gap-4">
-          <ui-field label="Nombre" [error]="errorFor('name')">
+```tsx
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { Link, useNavigate } from 'react-router-dom';
+import { z } from 'zod';
+import { Alert, Button, Card, Field, inputClass } from '../../components/ui';
+import { ApiError, toApiError } from '../../services/api-error';
+import { authService } from '../../services/auth.service';
+
+const schema = z.object({
+  name: z.string().min(2, 'Mínimo 2 caracteres'),
+  email: z.string().email('No parece un email'),
+  password: z.string().min(8, 'Mínimo 8 caracteres'),
+});
+type RegisterForm = z.infer<typeof schema>;
+
+export function RegisterPage() {
+  const navigate = useNavigate();
+  const [error, setError] = useState<ApiError | null>(null);
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<RegisterForm>({ resolver: zodResolver(schema) });
+
+  async function onSubmit(values: RegisterForm) {
+    setError(null);
+    try {
+      await authService.register(values.email, values.password, values.name);
+      navigate('/leagues');
+    } catch (err) {
+      setError(toApiError(err));
+    }
+  }
+
+  return (
+    <div className="mx-auto mt-10 w-full max-w-sm px-4">
+      <Card>
+        <h1 className="mb-4 text-2xl font-bold">Crear cuenta</h1>
+        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
+          <Field label="Nombre" error={errors.name?.message}>
+            <input type="text" autoComplete="name" className={inputClass} {...register('name')} />
+          </Field>
+          <Field label="Email" error={errors.email?.message}>
             <input
-              formControlName="name"
-              type="text"
-              autocomplete="name"
-              class="w-full rounded-md border border-slate-300 px-3 py-2"
-            />
-          </ui-field>
-          <ui-field label="Email" [error]="errorFor('email')">
-            <input
-              formControlName="email"
               type="email"
-              autocomplete="email"
-              class="w-full rounded-md border border-slate-300 px-3 py-2"
+              autoComplete="email"
+              className={inputClass}
+              {...register('email')}
             />
-          </ui-field>
-          <ui-field label="Contraseña" [error]="errorFor('password')">
+          </Field>
+          <Field label="Contraseña" error={errors.password?.message}>
             <input
-              formControlName="password"
               type="password"
-              autocomplete="new-password"
-              class="w-full rounded-md border border-slate-300 px-3 py-2"
+              autoComplete="new-password"
+              className={inputClass}
+              {...register('password')}
             />
-          </ui-field>
-          @if (error(); as e) {
-            <ui-alert [code]="e.code" [message]="e.message" />
-          }
-          <ui-button type="submit" [disabled]="form.invalid || loading()">
-            {{ loading() ? 'Creando…' : 'Crear cuenta' }}
-          </ui-button>
+          </Field>
+          {error && <Alert code={error.code} message={error.message} />}
+          <Button type="submit" disabled={isSubmitting}>
+            {isSubmitting ? 'Creando…' : 'Crear cuenta'}
+          </Button>
         </form>
-        <p class="mt-4 text-sm text-slate-600">
-          ¿Ya tenés cuenta? <a routerLink="/login" class="font-semibold text-red-600">Entrá</a>
+        <p className="mt-4 text-sm text-slate-600">
+          ¿Ya tenés cuenta?{' '}
+          <Link to="/login" className="font-semibold text-red-600">
+            Entrá
+          </Link>
         </p>
-      </ui-card>
+      </Card>
     </div>
-  `,
-})
-export class RegisterPage {
-  private readonly fb = inject(FormBuilder);
-  private readonly auth = inject(AuthService);
-  private readonly router = inject(Router);
-
-  protected readonly form = this.fb.nonNullable.group({
-    name: ['', [Validators.required, Validators.minLength(2)]],
-    email: ['', [Validators.required, Validators.email]],
-    password: ['', [Validators.required, Validators.minLength(8)]],
-  });
-  protected readonly loading = signal(false);
-  protected readonly error = signal<ApiError | null>(null);
-
-  protected errorFor(field: 'name' | 'email' | 'password'): string | null {
-    const control = this.form.controls[field];
-    if (!control.touched || control.valid) return null;
-    if (control.hasError('required')) return 'Obligatorio';
-    if (control.hasError('email')) return 'No parece un email';
-    if (control.hasError('minlength'))
-      return field === 'name' ? 'Mínimo 2 caracteres' : 'Mínimo 8 caracteres';
-    return 'Inválido';
-  }
-
-  protected submit(): void {
-    if (this.form.invalid) return;
-    this.loading.set(true);
-    this.error.set(null);
-    const { email, password, name } = this.form.getRawValue();
-    this.auth.register(email, password, name).subscribe({
-      next: () => void this.router.navigate(['/leagues']),
-      error: (err: ApiError) => {
-        this.error.set(err);
-        this.loading.set(false);
-      },
-    });
-  }
+  );
 }
 ```
 
-- [ ] **Step 3: Rutas y shell**
+- [ ] **Step 7: `app/` — providers, SessionGate, router, App, main**
 
-`app.routes.ts`:
+`app/providers.tsx`:
 
-```ts
-import { Routes } from '@angular/router';
-import { authGuard, guestGuard } from './core/auth.guard';
-import { LoginPage } from './features/auth/login.page';
-import { RegisterPage } from './features/auth/register.page';
+```tsx
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import type { ReactNode } from 'react';
 
-export const routes: Routes = [
-  { path: '', pathMatch: 'full', redirectTo: 'leagues' },
-  { path: 'login', component: LoginPage, canActivate: [guestGuard] },
-  { path: 'register', component: RegisterPage, canActivate: [guestGuard] },
-  // Placeholder hasta Task 6: cualquier ruta protegida cae en /login si no hay sesion.
+// Un QueryClient para toda la app. retry: 1 — un 4xx no se arregla reintentando 3 veces.
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } },
+});
+
+export function Providers({ children }: { children: ReactNode }) {
+  return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+}
+```
+
+`app/SessionGate.tsx`:
+
+```tsx
+import { useEffect, type ReactNode } from 'react';
+import { authService } from '../services/auth.service';
+import { useAuthStore } from '../store/auth.store';
+
+// SessionGate: antes de renderizar el router, intenta restaurar la sesion con la cookie de
+// refresh (una sola vez). Asi un F5 no desloguea y los guards ven el estado real.
+export function SessionGate({ children }: { children: ReactNode }) {
+  const ready = useAuthStore((s) => s.sessionReady);
+
+  useEffect(() => {
+    if (!ready) void authService.restoreSession();
+  }, [ready]);
+
+  if (!ready) return <p className="p-6 text-slate-500">Cargando sesión…</p>;
+  return <>{children}</>;
+}
+```
+
+`app/router.tsx`:
+
+```tsx
+import { createBrowserRouter, Navigate } from 'react-router-dom';
+import { GuestOnly } from '../features/auth/GuestOnly';
+import { LoginPage } from '../features/auth/LoginPage';
+import { RegisterPage } from '../features/auth/RegisterPage';
+import { RequireAuth } from '../features/auth/RequireAuth';
+
+export const router = createBrowserRouter([
+  { path: '/', element: <Navigate to="/leagues" replace /> },
   {
-    path: 'leagues',
-    canActivate: [authGuard],
-    loadComponent: () => import('./features/auth/login.page').then((m) => m.LoginPage),
+    element: <GuestOnly />,
+    children: [
+      { path: '/login', element: <LoginPage /> },
+      { path: '/register', element: <RegisterPage /> },
+    ],
   },
-  { path: '**', redirectTo: 'leagues' },
-];
+  {
+    element: <RequireAuth />,
+    children: [
+      // Placeholder hasta Task 6.
+      { path: '/leagues', element: <p className="p-6">Mis ligas (Task 6)</p> },
+    ],
+  },
+  { path: '*', element: <Navigate to="/leagues" replace /> },
+]);
 ```
 
-`app.html`:
+`app/App.tsx`:
 
-```html
-<main class="min-h-screen bg-slate-50 text-slate-900">
-  @if (auth.sessionReady()) {
-  <router-outlet />
-  } @else {
-  <p class="p-6 text-slate-500">Cargando sesión…</p>
-  }
-</main>
+```tsx
+import { RouterProvider } from 'react-router-dom';
+import { Providers } from './providers';
+import { router } from './router';
+import { SessionGate } from './SessionGate';
+
+export function App() {
+  return (
+    <Providers>
+      <main className="min-h-screen bg-slate-50 text-slate-900">
+        <SessionGate>
+          <RouterProvider router={router} />
+        </SessionGate>
+      </main>
+    </Providers>
+  );
+}
 ```
 
-`app.ts` — agregar `protected readonly auth = inject(AuthService);` (import `inject` de `@angular/core` y `AuthService` de `./core/auth.service`), y mantener `RouterOutlet` en `imports`.
+`src/main.tsx` (reemplazar entero):
 
-- [ ] **Step 4: Probar a mano** (backend corriendo con `npm run dev` y `FRONTEND_URL=http://localhost:4200`)
+```tsx
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
+import './index.css';
+import { App } from './app/App';
 
-`npm start` → `http://localhost:4200` → redirige a `/login`. Registrarse con un email nuevo → cae en `/leagues` (por ahora muestra el login placeholder). **F5** → sigue en `/leagues` (la sesión se restauró por cookie). Abrir DevTools → Application → Local Storage: **vacío**. Login con contraseña incorrecta → alerta "Email o contraseña incorrectos".
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <App />
+  </StrictMode>,
+);
+```
 
-- [ ] **Step 5: Lint + test + commit**
+Borrar `src/App.tsx` y `src/App.test.tsx` (el shell ahora es `app/App.tsx`; el smoke test lo reemplazan los de Task 2–5).
 
-`npm run lint` limpio, `npm test -- --watch=false` verde.
+- [ ] **Step 8: Probar a mano** (backend con `npm run dev`, `FRONTEND_URL=http://localhost:5173`)
+
+`npm run dev` → `http://localhost:5173` → redirige a `/login`. Registrarse con un email nuevo → cae en `/leagues` (placeholder). **F5** → sigue en `/leagues` (sesión restaurada por cookie). DevTools → Application → Local Storage: **vacío**. Login con contraseña incorrecta → "Email o contraseña incorrectos".
+
+- [ ] **Step 9: Lint + test + commit** (al confirmar)
+
+`npm run lint` limpio, `npm test` → 12 passed, `npm run build` sin errores.
 
 ```bash
-git add frontend/src/app
-git commit -m "feat(frontend): login y registro con reactive forms + rutas con guards (Slice 13a)"
+git add frontend/src
+git commit -m "feat(frontend): login y registro (RHF + zod), guards, SessionGate, router (Slice 13a)"
 ```
 
 ---
 
-### Task 6: `LeaguesService`, tarjeta de liga (TDD) y página "Mis ligas"
+### Task 6: `leagues.service`, hooks de react-query, `LeagueCard` (TDD) y página "Mis ligas"
 
 **Files:**
 
-- Create: `frontend/src/app/features/leagues/leagues.service.ts`
-- Create: `frontend/src/app/features/leagues/league-card.component.ts`
-- Test: `frontend/src/app/features/leagues/league-card.component.spec.ts`
-- Create: `frontend/src/app/features/leagues/leagues.page.ts`
-- Modify: `frontend/src/app/app.routes.ts`
+- Create: `frontend/src/services/leagues.service.ts`
+- Create: `frontend/src/features/leagues/leagues.queries.ts`
+- Create: `frontend/src/features/leagues/LeagueCard.tsx`
+- Test: `frontend/src/features/leagues/LeagueCard.test.tsx`
+- Create: `frontend/src/features/leagues/LeaguesPage.tsx`
+- Modify: `frontend/src/app/router.tsx`
 
 **Interfaces:**
 
-- Consumes: `League`, `LeagueMember`, `ApiEnvelope`, `ui-*`, `AuthService.user`.
-- Produces: `LeaguesService { list(): Observable<League[]>; create(input: { name; inviteCode; seasonId }): Observable<League>; join(inviteCode): Observable<LeagueMember>; get(id): Observable<League>; members(id): Observable<LeagueMember[]>; leave(id): Observable<void>; kick(id, userId): Observable<void>; startDraft(id): Observable<{ draftStatus; totalPicks }>; activeSeasonId(): Observable<number> }`; `<app-league-card [league] (open)>`.
+- Produces: `leaguesService.{list, create, join, get, members, leave, kick, startDraft, activeSeasonId}`; hooks `useLeagues()`, `useLeague(id)`, `useMembers(id)`, `useCreateLeague()`, `useJoinLeague()`, `useStartDraft(id)`, `useLeave(id)`, `useKick(id)`; `<LeagueCard league onOpen>`; `DRAFT_LABEL`.
 
-- [ ] **Step 1: Test rojo de `league-card`**
+- [ ] **Step 1: Test rojo de `LeagueCard`**
 
-`league-card.component.spec.ts`:
+`LeagueCard.test.tsx`:
 
-```ts
-import { TestBed } from '@angular/core/testing';
-import { LeagueCardComponent } from './league-card.component';
+```tsx
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import type { League } from '../../models/league';
+import { LeagueCard } from './LeagueCard';
 
 const league: League = {
   id: 7,
@@ -1279,94 +1307,76 @@ const league: League = {
   updatedAt: '2026-08-27T00:00:00Z',
 };
 
-describe('LeagueCardComponent', () => {
-  it('muestra nombre, codigo y estado del draft', async () => {
-    await TestBed.configureTestingModule({ imports: [LeagueCardComponent] }).compileComponents();
-    const fixture = TestBed.createComponent(LeagueCardComponent);
-    fixture.componentRef.setInput('league', league);
-    await fixture.whenStable();
-
-    const text = fixture.nativeElement.textContent;
-    expect(text).toContain('Liga UTN');
-    expect(text).toContain('utn-2026');
-    expect(text).toContain('Draft pendiente');
+describe('LeagueCard', () => {
+  it('muestra nombre, codigo y estado del draft', () => {
+    render(<LeagueCard league={league} onOpen={() => {}} />);
+    expect(screen.getByText('Liga UTN')).toBeInTheDocument();
+    expect(screen.getByText('utn-2026')).toBeInTheDocument();
+    expect(screen.getByText('Draft pendiente')).toBeInTheDocument();
   });
 
-  it('emite open con el id al hacer click', async () => {
-    await TestBed.configureTestingModule({ imports: [LeagueCardComponent] }).compileComponents();
-    const fixture = TestBed.createComponent(LeagueCardComponent);
-    fixture.componentRef.setInput('league', league);
-    await fixture.whenStable();
-
-    const opened: number[] = [];
-    fixture.componentInstance.open.subscribe((id) => opened.push(id));
-    (fixture.nativeElement.querySelector('button') as HTMLButtonElement).click();
-
-    expect(opened).toEqual([7]);
+  it('llama onOpen con el id al hacer click', async () => {
+    const onOpen = vi.fn();
+    render(<LeagueCard league={league} onOpen={onOpen} />);
+    await userEvent.click(screen.getByRole('button', { name: /ver liga/i }));
+    expect(onOpen).toHaveBeenCalledWith(7);
   });
 });
 ```
 
-- [ ] **Step 2: Correr y ver rojo** — `npm test -- --watch=false` → "Cannot find module './league-card.component'".
+- [ ] **Step 2: Rojo** — `npm test` → "Failed to resolve import './LeagueCard'".
 
-- [ ] **Step 3: `league-card.component.ts`**
+- [ ] **Step 3: `LeagueCard`**
 
-```ts
-import { Component, computed, input, output } from '@angular/core';
+`LeagueCard.tsx`:
+
+```tsx
+import { Badge, Card, type BadgeTone } from '../../components/ui';
 import type { DraftStatus, League } from '../../models/league';
-import { BadgeComponent, CardComponent } from '../../shared/ui';
 
-const DRAFT_LABEL: Record<DraftStatus, { text: string; tone: 'neutral' | 'info' | 'success' }> = {
+export const DRAFT_LABEL: Record<DraftStatus, { text: string; tone: BadgeTone }> = {
   PENDING: { text: 'Draft pendiente', tone: 'neutral' },
   LIVE: { text: 'Draft en vivo', tone: 'info' },
   COMPLETED: { text: 'Draft completo', tone: 'success' },
 };
 
-// app-league-card: una liga en la lista. input: la liga. output: `open` con el id cuando el
-// usuario quiere entrar. No llama a ningun servicio — eso es de la pagina.
-@Component({
-  selector: 'app-league-card',
-  imports: [CardComponent, BadgeComponent],
-  template: `
-    <ui-card>
-      <div class="flex items-start justify-between gap-3">
+// LeagueCard: una liga en la lista. Entrada: la liga. Salida: onOpen(id). No llama a ningun
+// servicio — eso es de la pagina.
+export function LeagueCard({ league, onOpen }: { league: League; onOpen: (id: number) => void }) {
+  const draft = DRAFT_LABEL[league.draftStatus];
+  return (
+    <Card>
+      <div className="flex items-start justify-between gap-3">
         <div>
-          <h2 class="text-lg font-semibold">{{ league().name }}</h2>
-          <p class="text-sm text-slate-500">
-            Código: <span class="font-mono">{{ league().inviteCode }}</span>
+          <h2 className="text-lg font-semibold">{league.name}</h2>
+          <p className="text-sm text-slate-500">
+            Código: <span className="font-mono">{league.inviteCode}</span>
           </p>
         </div>
-        <ui-badge [tone]="draft().tone">{{ draft().text }}</ui-badge>
+        <Badge tone={draft.tone}>{draft.text}</Badge>
       </div>
       <button
         type="button"
-        class="mt-4 text-sm font-semibold text-red-600 hover:underline"
-        (click)="open.emit(league().id)"
+        className="mt-4 text-sm font-semibold text-red-600 hover:underline"
+        onClick={() => onOpen(league.id)}
       >
         Ver liga →
       </button>
-    </ui-card>
-  `,
-})
-export class LeagueCardComponent {
-  readonly league = input.required<League>();
-  readonly open = output<number>();
-  protected readonly draft = computed(() => DRAFT_LABEL[this.league().draftStatus]);
+    </Card>
+  );
 }
 ```
 
-- [ ] **Step 4: Verde** — `npm test -- --watch=false` → 12 passed.
+- [ ] **Step 4: Verde** — `npm test` → 14 passed.
 
-- [ ] **Step 5: `leagues.service.ts`**
+- [ ] **Step 5: `leagues.service`**
+
+`src/services/leagues.service.ts`:
 
 ```ts
-import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { Observable, map } from 'rxjs';
-import { environment } from '../../../environments/environment';
-import type { ApiEnvelope } from '../../models/api';
-import type { DraftStatus, League } from '../../models/league';
-import type { LeagueMember } from '../../models/league-member';
+import type { DraftStatus, League } from '../models/league';
+import type { LeagueMember } from '../models/league-member';
+import { apiClient } from './api-client';
 
 export interface CreateLeagueInput {
   name: string;
@@ -1374,259 +1384,239 @@ export interface CreateLeagueInput {
   seasonId: number;
 }
 
-// LeaguesService: todo lo que habla con /leagues. Los componentes no conocen URLs.
-// El interceptor agrega el token y la cookie; aca solo van paths y tipos.
-@Injectable({ providedIn: 'root' })
-export class LeaguesService {
-  private readonly http = inject(HttpClient);
-  private readonly base = `${environment.apiUrl}/leagues`;
-
-  list(): Observable<League[]> {
-    return this.http.get<ApiEnvelope<League[]>>(this.base).pipe(map((r) => r.data));
-  }
-
-  create(input: CreateLeagueInput): Observable<League> {
-    return this.http.post<ApiEnvelope<League>>(this.base, input).pipe(map((r) => r.data));
-  }
-
-  join(inviteCode: string): Observable<LeagueMember> {
-    return this.http
-      .post<ApiEnvelope<LeagueMember>>(`${this.base}/join`, { inviteCode })
-      .pipe(map((r) => r.data));
-  }
-
-  get(id: number): Observable<League> {
-    return this.http.get<ApiEnvelope<League>>(`${this.base}/${id}`).pipe(map((r) => r.data));
-  }
-
-  members(id: number): Observable<LeagueMember[]> {
-    return this.http
-      .get<ApiEnvelope<LeagueMember[]>>(`${this.base}/${id}/members`)
-      .pipe(map((r) => r.data));
-  }
-
-  leave(id: number): Observable<void> {
-    return this.http.post<unknown>(`${this.base}/${id}/leave`, {}).pipe(map(() => undefined));
-  }
-
-  kick(id: number, userId: number): Observable<void> {
-    return this.http
-      .delete<unknown>(`${this.base}/${id}/members/${userId}`)
-      .pipe(map(() => undefined));
-  }
-
-  startDraft(id: number): Observable<{ draftStatus: DraftStatus; totalPicks: number }> {
-    return this.http
-      .post<ApiEnvelope<{ draftStatus: DraftStatus; totalPicks: number }>>(
-        `${this.base}/${id}/draft/start`,
-        {},
-      )
-      .pipe(map((r) => r.data));
-  }
-
-  // La temporada activa la expone /seasons/active (publico). Vive aca porque el unico que la
-  // necesita es el form de crear liga.
-  activeSeasonId(): Observable<number> {
-    return this.http
-      .get<ApiEnvelope<{ id: number }>>(`${environment.apiUrl}/seasons/active`)
-      .pipe(map((r) => r.data.id));
-  }
-}
+// El "servicio" de ligas (rubrica): todo lo que habla con /leagues. Sin React, sin URLs en
+// los componentes.
+export const leaguesService = {
+  list: () => apiClient.get<League[]>('/leagues'),
+  create: (input: CreateLeagueInput) => apiClient.post<League>('/leagues', input),
+  join: (inviteCode: string) => apiClient.post<LeagueMember>('/leagues/join', { inviteCode }),
+  get: (id: number) => apiClient.get<League>(`/leagues/${id}`),
+  members: (id: number) => apiClient.get<LeagueMember[]>(`/leagues/${id}/members`),
+  leave: (id: number) => apiClient.post<LeagueMember>(`/leagues/${id}/leave`),
+  kick: (id: number, userId: number) => apiClient.delete(`/leagues/${id}/members/${userId}`),
+  startDraft: (id: number) =>
+    apiClient.post<{ draftStatus: DraftStatus; totalPicks: number }>(`/leagues/${id}/draft/start`),
+  // /seasons/active es publico; vive aca porque el unico que lo usa es "crear liga".
+  activeSeasonId: () => apiClient.get<{ id: number }>('/seasons/active').then((s) => s.id),
+};
 ```
 
-- [ ] **Step 6: `leagues.page.ts`**
+- [ ] **Step 6: Hooks de react-query**
+
+`features/leagues/leagues.queries.ts`:
 
 ```ts
-import { Component, WritableSignal, inject, signal } from '@angular/core';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router } from '@angular/router';
-import { ApiError } from '../../core/api-error';
-import { AuthService } from '../../core/auth.service';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { League } from '../../models/league';
-import {
-  AlertComponent,
-  ButtonComponent,
-  CardComponent,
-  FieldComponent,
-  PageShellComponent,
-} from '../../shared/ui';
-import { LeagueCardComponent } from './league-card.component';
-import { LeaguesService } from './leagues.service';
+import type { LeagueMember } from '../../models/league-member';
+import { ApiError } from '../../services/api-error';
+import { leaguesService, type CreateLeagueInput } from '../../services/leagues.service';
 
-@Component({
-  selector: 'app-leagues-page',
-  imports: [
-    ReactiveFormsModule,
-    AlertComponent,
-    ButtonComponent,
-    CardComponent,
-    FieldComponent,
-    PageShellComponent,
-    LeagueCardComponent,
-  ],
-  template: `
-    <ui-page-shell title="Mis ligas">
-      <div actions class="flex items-center gap-3 text-sm text-slate-600">
-        <span>{{ auth.user()?.name }}</span>
-        <ui-button variant="secondary" (click)="auth.logout()">Salir</ui-button>
-      </div>
+// Un hook por lectura, un hook por escritura. Las escrituras invalidan lo que cambian, y
+// react-query vuelve a pedirlo — sin useEffect/useState a mano para datos del server.
+const keys = {
+  all: ['leagues'] as const,
+  one: (id: number) => ['leagues', id] as const,
+  members: (id: number) => ['leagues', id, 'members'] as const,
+};
 
-      <div class="grid gap-6 lg:grid-cols-[2fr_1fr]">
-        <section class="flex flex-col gap-4">
-          @if (loadError(); as e) {
-            <ui-alert [code]="e.code" [message]="e.message" />
-          }
-          @if (leagues().length === 0 && !loadError()) {
-            <p class="text-slate-500">
+export function useLeagues() {
+  return useQuery<League[], ApiError>({ queryKey: keys.all, queryFn: leaguesService.list });
+}
+
+export function useLeague(id: number) {
+  return useQuery<League, ApiError>({
+    queryKey: keys.one(id),
+    queryFn: () => leaguesService.get(id),
+  });
+}
+
+export function useMembers(id: number) {
+  return useQuery<LeagueMember[], ApiError>({
+    queryKey: keys.members(id),
+    queryFn: () => leaguesService.members(id),
+  });
+}
+
+export function useCreateLeague() {
+  const qc = useQueryClient();
+  return useMutation<League, ApiError, Omit<CreateLeagueInput, 'seasonId'>>({
+    mutationFn: async (input) => {
+      const seasonId = await leaguesService.activeSeasonId();
+      return leaguesService.create({ ...input, seasonId });
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.all }),
+  });
+}
+
+export function useJoinLeague() {
+  const qc = useQueryClient();
+  return useMutation<LeagueMember, ApiError, string>({
+    mutationFn: (inviteCode) => leaguesService.join(inviteCode),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.all }),
+  });
+}
+
+function useLeagueAction<TVars = void>(id: number, fn: (vars: TVars) => Promise<unknown>) {
+  const qc = useQueryClient();
+  return useMutation<unknown, ApiError, TVars>({
+    mutationFn: fn,
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: keys.one(id) });
+      void qc.invalidateQueries({ queryKey: keys.members(id) });
+      void qc.invalidateQueries({ queryKey: keys.all });
+    },
+  });
+}
+
+export const useStartDraft = (id: number) =>
+  useLeagueAction(id, () => leaguesService.startDraft(id));
+export const useLeave = (id: number) => useLeagueAction(id, () => leaguesService.leave(id));
+export const useKick = (id: number) =>
+  useLeagueAction<number>(id, (userId) => leaguesService.kick(id, userId));
+```
+
+- [ ] **Step 7: `LeaguesPage`**
+
+`LeaguesPage.tsx`:
+
+```tsx
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useForm } from 'react-hook-form';
+import { useNavigate } from 'react-router-dom';
+import { z } from 'zod';
+import { Alert, Button, Card, Field, PageShell, inputClass } from '../../components/ui';
+import { authService } from '../../services/auth.service';
+import { useAuthStore } from '../../store/auth.store';
+import { LeagueCard } from './LeagueCard';
+import { useCreateLeague, useJoinLeague, useLeagues } from './leagues.queries';
+
+// Mismas reglas que createLeagueSchema del backend: 4-20 chars, minusculas/numeros/guiones.
+const createSchema = z.object({
+  name: z.string().min(1, 'Obligatorio'),
+  inviteCode: z
+    .string()
+    .regex(/^[a-z0-9-]{4,20}$/, '4 a 20 caracteres: minúsculas, números o guiones'),
+});
+const joinSchema = z.object({ inviteCode: z.string().min(4, 'Mínimo 4 caracteres') });
+
+export function LeaguesPage() {
+  const navigate = useNavigate();
+  const user = useAuthStore((s) => s.user);
+  const leagues = useLeagues();
+  const createLeague = useCreateLeague();
+  const joinLeague = useJoinLeague();
+
+  const createForm = useForm<z.infer<typeof createSchema>>({ resolver: zodResolver(createSchema) });
+  const joinForm = useForm<z.infer<typeof joinSchema>>({ resolver: zodResolver(joinSchema) });
+
+  async function logout() {
+    await authService.logout();
+    navigate('/login');
+  }
+
+  return (
+    <PageShell
+      title="Mis ligas"
+      actions={
+        <div className="flex items-center gap-3 text-sm text-slate-600">
+          <span>{user?.name}</span>
+          <Button variant="secondary" onClick={logout}>
+            Salir
+          </Button>
+        </div>
+      }
+    >
+      <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
+        <section className="flex flex-col gap-4">
+          {leagues.error && <Alert code={leagues.error.code} message={leagues.error.message} />}
+          {leagues.data?.length === 0 && (
+            <p className="text-slate-500">
               Todavía no estás en ninguna liga. Creá una o unite con un código.
             </p>
-          }
-          <div class="grid gap-4 md:grid-cols-2">
-            @for (league of leagues(); track league.id) {
-              <app-league-card [league]="league" (open)="openLeague($event)" />
-            }
+          )}
+          <div className="grid gap-4 md:grid-cols-2">
+            {leagues.data?.map((league) => (
+              <LeagueCard
+                key={league.id}
+                league={league}
+                onOpen={(id) => navigate(`/leagues/${id}`)}
+              />
+            ))}
           </div>
         </section>
 
-        <aside class="flex flex-col gap-6">
-          <ui-card>
-            <h2 class="mb-3 text-lg font-semibold">Crear liga</h2>
-            <form [formGroup]="createForm" (ngSubmit)="create()" class="flex flex-col gap-3">
-              <ui-field label="Nombre">
-                <input
-                  formControlName="name"
-                  class="w-full rounded-md border border-slate-300 px-3 py-2"
-                />
-              </ui-field>
-              <ui-field label="Código de invitación (4-20, minúsculas)">
-                <input
-                  formControlName="inviteCode"
-                  class="w-full rounded-md border border-slate-300 px-3 py-2 font-mono"
-                />
-              </ui-field>
-              @if (createError(); as e) {
-                <ui-alert [code]="e.code" [message]="e.message" />
-              }
-              <ui-button type="submit" [disabled]="createForm.invalid || busy()">Crear</ui-button>
-            </form>
-          </ui-card>
-
-          <ui-card>
-            <h2 class="mb-3 text-lg font-semibold">Unirme con código</h2>
-            <form [formGroup]="joinForm" (ngSubmit)="join()" class="flex flex-col gap-3">
-              <ui-field label="Código">
-                <input
-                  formControlName="inviteCode"
-                  class="w-full rounded-md border border-slate-300 px-3 py-2 font-mono"
-                />
-              </ui-field>
-              @if (joinError(); as e) {
-                <ui-alert [code]="e.code" [message]="e.message" />
-              }
-              <ui-button type="submit" variant="secondary" [disabled]="joinForm.invalid || busy()"
-                >Unirme</ui-button
+        <aside className="flex flex-col gap-6">
+          <Card>
+            <h2 className="mb-3 text-lg font-semibold">Crear liga</h2>
+            <form
+              onSubmit={createForm.handleSubmit((values) =>
+                createLeague.mutate(values, {
+                  onSuccess: (league) => navigate(`/leagues/${league.id}`),
+                }),
+              )}
+              className="flex flex-col gap-3"
+            >
+              <Field label="Nombre" error={createForm.formState.errors.name?.message}>
+                <input className={inputClass} {...createForm.register('name')} />
+              </Field>
+              <Field
+                label="Código de invitación"
+                error={createForm.formState.errors.inviteCode?.message}
               >
+                <input
+                  className={`${inputClass} font-mono`}
+                  {...createForm.register('inviteCode')}
+                />
+              </Field>
+              {createLeague.error && (
+                <Alert code={createLeague.error.code} message={createLeague.error.message} />
+              )}
+              <Button type="submit" disabled={createLeague.isPending}>
+                Crear
+              </Button>
             </form>
-          </ui-card>
+          </Card>
+
+          <Card>
+            <h2 className="mb-3 text-lg font-semibold">Unirme con código</h2>
+            <form
+              onSubmit={joinForm.handleSubmit((values) =>
+                joinLeague.mutate(values.inviteCode, { onSuccess: () => joinForm.reset() }),
+              )}
+              className="flex flex-col gap-3"
+            >
+              <Field label="Código" error={joinForm.formState.errors.inviteCode?.message}>
+                <input className={`${inputClass} font-mono`} {...joinForm.register('inviteCode')} />
+              </Field>
+              {joinLeague.error && (
+                <Alert code={joinLeague.error.code} message={joinLeague.error.message} />
+              )}
+              <Button type="submit" variant="secondary" disabled={joinLeague.isPending}>
+                Unirme
+              </Button>
+            </form>
+          </Card>
         </aside>
       </div>
-    </ui-page-shell>
-  `,
-})
-export class LeaguesPage {
-  private readonly fb = inject(FormBuilder);
-  private readonly leaguesApi = inject(LeaguesService);
-  private readonly router = inject(Router);
-  protected readonly auth = inject(AuthService);
-
-  protected readonly leagues = signal<League[]>([]);
-  protected readonly loadError = signal<ApiError | null>(null);
-  protected readonly createError = signal<ApiError | null>(null);
-  protected readonly joinError = signal<ApiError | null>(null);
-  protected readonly busy = signal(false);
-
-  // Mismas reglas que createLeagueSchema del backend: 4-20 chars, minusculas/numeros/guiones.
-  protected readonly createForm = this.fb.nonNullable.group({
-    name: ['', [Validators.required, Validators.minLength(1)]],
-    inviteCode: ['', [Validators.required, Validators.pattern(/^[a-z0-9-]{4,20}$/)]],
-  });
-  protected readonly joinForm = this.fb.nonNullable.group({
-    inviteCode: ['', [Validators.required, Validators.minLength(4)]],
-  });
-
-  constructor() {
-    this.reload();
-  }
-
-  protected openLeague(id: number): void {
-    void this.router.navigate(['/leagues', id]);
-  }
-
-  protected create(): void {
-    if (this.createForm.invalid) return;
-    this.busy.set(true);
-    this.createError.set(null);
-    const { name, inviteCode } = this.createForm.getRawValue();
-    this.leaguesApi.activeSeasonId().subscribe({
-      next: (seasonId) =>
-        this.leaguesApi.create({ name, inviteCode, seasonId }).subscribe({
-          next: (league) => {
-            this.busy.set(false);
-            void this.router.navigate(['/leagues', league.id]);
-          },
-          error: (err: ApiError) => this.fail(this.createError, err),
-        }),
-      error: (err: ApiError) => this.fail(this.createError, err),
-    });
-  }
-
-  protected join(): void {
-    if (this.joinForm.invalid) return;
-    this.busy.set(true);
-    this.joinError.set(null);
-    this.leaguesApi.join(this.joinForm.getRawValue().inviteCode).subscribe({
-      next: () => {
-        this.busy.set(false);
-        this.joinForm.reset();
-        this.reload();
-      },
-      error: (err: ApiError) => this.fail(this.joinError, err),
-    });
-  }
-
-  private reload(): void {
-    this.leaguesApi.list().subscribe({
-      next: (leagues) => this.leagues.set(leagues),
-      error: (err: ApiError) => this.loadError.set(err),
-    });
-  }
-
-  private fail(target: WritableSignal<ApiError | null>, err: ApiError): void {
-    target.set(err);
-    this.busy.set(false);
-  }
+    </PageShell>
+  );
 }
 ```
 
-- [ ] **Step 7: Ruta real de `/leagues`**
+- [ ] **Step 8: Ruta real de `/leagues`**
 
-En `app.routes.ts`, reemplazar el placeholder:
+En `app/router.tsx`, reemplazar el placeholder por `{ path: '/leagues', element: <LeaguesPage /> }` con `import { LeaguesPage } from '../features/leagues/LeaguesPage';`.
 
-```ts
-  { path: 'leagues', component: LeaguesPage, canActivate: [authGuard] },
-```
+- [ ] **Step 9: Probar a mano**
 
-con `import { LeaguesPage } from './features/leagues/leagues.page';`.
+Backend con seed (`npx prisma db seed` — hace falta una temporada activa). Login → "Mis ligas" vacío → crear "Liga UTN" con código `utn-2026` → navega al detalle (404 del router hasta Task 7: volver con el botón atrás). En una ventana de incógnito, registrar otro usuario → "Unirme" con `utn-2026` → aparece la tarjeta. Código inexistente → "Ese código no existe".
 
-- [ ] **Step 8: Probar a mano**
-
-Backend con seed (`npx prisma db seed` — necesita una temporada activa). Login → "Mis ligas" vacío → crear "Liga UTN" con código `utn-2026` → navega al detalle (404 por ahora, Task 7 — volver con el botón atrás). En otra ventana de incógnito registrar otro usuario → "Unirme" con `utn-2026` → aparece la tarjeta. Código inexistente → "Ese código no existe".
-
-- [ ] **Step 9: Lint + test + commit**
+- [ ] **Step 10: Lint + test + commit** (al confirmar)
 
 ```bash
-git add frontend/src/app
-git commit -m "feat(frontend): mis ligas — lista, crear, unirme + LeaguesService (Slice 13a)"
+git add frontend/src
+git commit -m "feat(frontend): mis ligas — lista, crear, unirme; leagues.service + hooks de react-query (Slice 13a)"
 ```
 
 ---
@@ -1635,280 +1625,191 @@ git commit -m "feat(frontend): mis ligas — lista, crear, unirme + LeaguesServi
 
 **Files:**
 
-- Create: `frontend/src/app/features/leagues/members-table.component.ts`
-- Create: `frontend/src/app/features/leagues/league-detail.page.ts`
-- Modify: `frontend/src/app/app.routes.ts`
+- Create: `frontend/src/features/leagues/MembersTable.tsx`, `LeagueDetailPage.tsx`
+- Modify: `frontend/src/app/router.tsx`
 
 **Interfaces:**
 
-- Consumes: `LeaguesService.get/members/leave/kick/startDraft`, `AuthService.user`, `LeagueMember`, `ui-*`.
-- Produces: ruta `/leagues/:id`. `<app-members-table [members] [isOwner] [canKick] (kick)>`.
+- Consumes: `useLeague`, `useMembers`, `useStartDraft`, `useLeave`, `useKick`, `useAuthStore`, `DRAFT_LABEL`, `ui`.
+- Produces: ruta `/leagues/:id`. `<MembersTable members canKick onKick>`.
 
-- [ ] **Step 1: `members-table.component.ts`**
+- [ ] **Step 1: `MembersTable`**
 
-```ts
-import { Component, input, output } from '@angular/core';
-import { DatePipe } from '@angular/common';
+```tsx
+import { Badge } from '../../components/ui';
 import type { LeagueMember } from '../../models/league-member';
-import { BadgeComponent } from '../../shared/ui';
 
-// app-members-table: lista de miembros. En SM se apila (cada miembro es una fila de 2
-// lineas); desde md: tabla. `kick` solo se muestra si el que mira es owner y el roster esta
-// abierto (canKick) — la regla la decide la pagina, no la tabla.
-@Component({
-  selector: 'app-members-table',
-  imports: [DatePipe, BadgeComponent],
-  template: `
-    <ul class="divide-y divide-slate-200">
-      @for (m of members(); track m.id) {
-        <li class="flex flex-col gap-1 py-3 md:flex-row md:items-center md:justify-between">
-          <div class="flex items-center gap-2">
-            <span class="font-medium">{{ m.user.name }}</span>
-            @if (m.isOwner) {
-              <ui-badge tone="warning">owner</ui-badge>
-            }
+// MembersTable: lista de miembros. En SM se apila (cada miembro = 2 lineas); desde md: fila.
+// `canKick` lo decide la pagina (owner + roster abierto); la tabla solo muestra el boton.
+export function MembersTable({
+  members,
+  canKick,
+  onKick,
+}: {
+  members: LeagueMember[];
+  canKick: boolean;
+  onKick: (userId: number) => void;
+}) {
+  return (
+    <ul className="divide-y divide-slate-200">
+      {members.map((m) => (
+        <li
+          key={m.id}
+          className="flex flex-col gap-1 py-3 md:flex-row md:items-center md:justify-between"
+        >
+          <div className="flex items-center gap-2">
+            <span className="font-medium">{m.user.name}</span>
+            {m.isOwner && <Badge tone="warning">owner</Badge>}
           </div>
-          <div class="flex items-center gap-4 text-sm text-slate-500">
-            <span>desde {{ m.joinedAt | date: 'dd/MM/yyyy' }}</span>
-            @if (canKick() && !m.isOwner) {
+          <div className="flex items-center gap-4 text-sm text-slate-500">
+            <span>desde {new Date(m.joinedAt).toLocaleDateString('es-AR')}</span>
+            {canKick && !m.isOwner && (
               <button
                 type="button"
-                class="font-semibold text-red-600 hover:underline"
-                (click)="kick.emit(m.userId)"
+                className="font-semibold text-red-600 hover:underline"
+                onClick={() => onKick(m.userId)}
               >
                 Echar
               </button>
-            }
+            )}
           </div>
         </li>
-      }
+      ))}
     </ul>
-  `,
-})
-export class MembersTableComponent {
-  readonly members = input.required<LeagueMember[]>();
-  readonly canKick = input(false);
-  readonly kick = output<number>();
+  );
 }
 ```
 
-- [ ] **Step 2: `league-detail.page.ts`**
+- [ ] **Step 2: `LeagueDetailPage`**
 
-```ts
-import { Component, OnInit, computed, inject, input, signal } from '@angular/core';
-import { Router, RouterLink } from '@angular/router';
-import { Observable } from 'rxjs';
-import { ApiError } from '../../core/api-error';
-import { AuthService } from '../../core/auth.service';
-import type { League } from '../../models/league';
-import type { LeagueMember } from '../../models/league-member';
-import {
-  AlertComponent,
-  BadgeComponent,
-  ButtonComponent,
-  CardComponent,
-  PageShellComponent,
-} from '../../shared/ui';
-import { LeaguesService } from './leagues.service';
-import { MembersTableComponent } from './members-table.component';
+```tsx
+import { useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Alert, Badge, Button, Card, PageShell } from '../../components/ui';
+import { useAuthStore } from '../../store/auth.store';
+import { DRAFT_LABEL } from './LeagueCard';
+import { MembersTable } from './MembersTable';
+import { useKick, useLeague, useLeave, useMembers, useStartDraft } from './leagues.queries';
 
-@Component({
-  selector: 'app-league-detail-page',
-  imports: [
-    RouterLink,
-    AlertComponent,
-    BadgeComponent,
-    ButtonComponent,
-    CardComponent,
-    PageShellComponent,
-    MembersTableComponent,
-  ],
-  template: `
-    @if (league(); as l) {
-      <ui-page-shell [title]="l.name">
-        <div actions>
-          <a routerLink="/leagues" class="text-sm font-semibold text-slate-600 hover:underline"
-            >← Mis ligas</a
-          >
-        </div>
+export function LeagueDetailPage() {
+  const id = Number(useParams().id);
+  const navigate = useNavigate();
+  const me = useAuthStore((s) => s.user);
+  const league = useLeague(id);
+  const members = useMembers(id);
+  const startDraft = useStartDraft(id);
+  const leave = useLeave(id);
+  const kick = useKick(id);
+  const [copied, setCopied] = useState(false);
 
-        <div class="grid gap-6 lg:grid-cols-[2fr_1fr]">
-          <ui-card>
-            <div class="mb-4 flex items-center justify-between">
-              <h2 class="text-lg font-semibold">
-                Miembros ({{ members().length }}/{{ l.maxMembers }})
-              </h2>
-              <ui-badge [tone]="draftTone()">{{ draftLabel() }}</ui-badge>
+  if (league.error) {
+    return (
+      <PageShell title="Liga">
+        <Alert code={league.error.code} message={league.error.message} />
+      </PageShell>
+    );
+  }
+  if (!league.data) return <p className="p-6 text-slate-500">Cargando…</p>;
+
+  const l = league.data;
+  const isOwner = l.createdById === me?.id;
+  const rosterOpen = l.draftStatus === 'PENDING';
+  const draft = DRAFT_LABEL[l.draftStatus];
+  const busy = startDraft.isPending || leave.isPending || kick.isPending;
+  const actionError = startDraft.error ?? leave.error ?? kick.error ?? members.error;
+
+  async function copyCode() {
+    await navigator.clipboard.writeText(l.inviteCode);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  }
+
+  return (
+    <PageShell
+      title={l.name}
+      actions={
+        <Link to="/leagues" className="text-sm font-semibold text-slate-600 hover:underline">
+          ← Mis ligas
+        </Link>
+      }
+    >
+      <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
+        <Card>
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-lg font-semibold">
+              Miembros ({members.data?.length ?? 0}/{l.maxMembers})
+            </h2>
+            <Badge tone={draft.tone}>{draft.text}</Badge>
+          </div>
+          {actionError && (
+            <div className="mb-3">
+              <Alert code={actionError.code} message={actionError.message} />
             </div>
-            @if (actionError(); as e) {
-              <div class="mb-3"><ui-alert [code]="e.code" [message]="e.message" /></div>
-            }
-            <app-members-table
-              [members]="members()"
-              [canKick]="isOwner() && rosterOpen()"
-              (kick)="kick($event)"
-            />
-          </ui-card>
+          )}
+          <MembersTable
+            members={members.data ?? []}
+            canKick={isOwner && rosterOpen}
+            onKick={(userId) => kick.mutate(userId)}
+          />
+        </Card>
 
-          <aside class="flex flex-col gap-4">
-            <ui-card>
-              <h2 class="mb-2 text-lg font-semibold">Invitar</h2>
-              <p class="text-sm text-slate-600">Compartí este código:</p>
-              <div class="mt-2 flex items-center gap-2">
-                <code class="rounded bg-slate-100 px-2 py-1 font-mono">{{ l.inviteCode }}</code>
-                <ui-button variant="secondary" (click)="copyCode(l.inviteCode)">{{
-                  copied() ? 'Copiado' : 'Copiar'
-                }}</ui-button>
-              </div>
-            </ui-card>
+        <aside className="flex flex-col gap-4">
+          <Card>
+            <h2 className="mb-2 text-lg font-semibold">Invitar</h2>
+            <p className="text-sm text-slate-600">Compartí este código:</p>
+            <div className="mt-2 flex items-center gap-2">
+              <code className="rounded bg-slate-100 px-2 py-1 font-mono">{l.inviteCode}</code>
+              <Button variant="secondary" onClick={copyCode}>
+                {copied ? 'Copiado' : 'Copiar'}
+              </Button>
+            </div>
+          </Card>
 
-            <ui-card>
-              <h2 class="mb-2 text-lg font-semibold">Draft</h2>
-              @if (isOwner()) {
-                <p class="mb-3 text-sm text-slate-600">
+          <Card>
+            <h2 className="mb-2 text-lg font-semibold">Draft</h2>
+            {isOwner ? (
+              <>
+                <p className="mb-3 text-sm text-slate-600">
                   Cuando estén todos, arrancá el draft. Después no entra ni sale nadie.
                 </p>
-                <ui-button [disabled]="!rosterOpen() || busy()" (click)="startDraft()">
-                  {{ rosterOpen() ? 'Iniciar draft' : draftLabel() }}
-                </ui-button>
-              } @else {
-                <p class="mb-3 text-sm text-slate-600">Solo el owner puede arrancar el draft.</p>
-                <ui-button variant="danger" [disabled]="!rosterOpen() || busy()" (click)="leave()"
-                  >Salir de la liga</ui-button
+                <Button disabled={!rosterOpen || busy} onClick={() => startDraft.mutate()}>
+                  {rosterOpen ? 'Iniciar draft' : draft.text}
+                </Button>
+              </>
+            ) : (
+              <>
+                <p className="mb-3 text-sm text-slate-600">
+                  Solo el owner puede arrancar el draft.
+                </p>
+                <Button
+                  variant="danger"
+                  disabled={!rosterOpen || busy}
+                  onClick={() => leave.mutate(undefined, { onSuccess: () => navigate('/leagues') })}
                 >
-              }
-            </ui-card>
-          </aside>
-        </div>
-      </ui-page-shell>
-    } @else if (loadError(); as e) {
-      <ui-page-shell title="Liga">
-        <ui-alert [code]="e.code" [message]="e.message" />
-      </ui-page-shell>
-    }
-  `,
-})
-export class LeagueDetailPage implements OnInit {
-  // withComponentInputBinding() (app.config) mapea el :id de la ruta a este input. Los inputs
-  // recien tienen valor en ngOnInit — por eso la carga inicial va ahi y no en el constructor.
-  readonly id = input.required<string>();
-
-  private readonly leaguesApi = inject(LeaguesService);
-  private readonly auth = inject(AuthService);
-  private readonly router = inject(Router);
-
-  protected readonly league = signal<League | null>(null);
-  protected readonly members = signal<LeagueMember[]>([]);
-  protected readonly loadError = signal<ApiError | null>(null);
-  protected readonly actionError = signal<ApiError | null>(null);
-  protected readonly busy = signal(false);
-  protected readonly copied = signal(false);
-
-  protected readonly isOwner = computed(() => this.league()?.createdById === this.auth.user()?.id);
-  protected readonly rosterOpen = computed(() => this.league()?.draftStatus === 'PENDING');
-  protected readonly draftLabel = computed(() => {
-    switch (this.league()?.draftStatus) {
-      case 'LIVE':
-        return 'Draft en vivo';
-      case 'COMPLETED':
-        return 'Draft completo';
-      default:
-        return 'Draft pendiente';
-    }
-  });
-  protected readonly draftTone = computed<'neutral' | 'info' | 'success'>(() => {
-    switch (this.league()?.draftStatus) {
-      case 'LIVE':
-        return 'info';
-      case 'COMPLETED':
-        return 'success';
-      default:
-        return 'neutral';
-    }
-  });
-
-  ngOnInit(): void {
-    this.reload();
-  }
-
-  protected startDraft(): void {
-    this.run(this.leaguesApi.startDraft(this.leagueId()));
-  }
-
-  protected leave(): void {
-    this.busy.set(true);
-    this.leaguesApi.leave(this.leagueId()).subscribe({
-      next: () => void this.router.navigate(['/leagues']),
-      error: (err: ApiError) => this.fail(err),
-    });
-  }
-
-  protected kick(userId: number): void {
-    this.run(this.leaguesApi.kick(this.leagueId(), userId));
-  }
-
-  protected async copyCode(code: string): Promise<void> {
-    await navigator.clipboard.writeText(code);
-    this.copied.set(true);
-    setTimeout(() => this.copied.set(false), 1500);
-  }
-
-  private leagueId(): number {
-    return Number(this.id());
-  }
-
-  // run: patron comun de las acciones del detalle — bloquear botones, ejecutar, recargar.
-  private run(action: Observable<unknown>): void {
-    this.busy.set(true);
-    this.actionError.set(null);
-    action.subscribe({
-      next: () => {
-        this.busy.set(false);
-        this.reload();
-      },
-      error: (err: ApiError) => this.fail(err),
-    });
-  }
-
-  private reload(): void {
-    const id = this.leagueId();
-    this.leaguesApi.get(id).subscribe({
-      next: (league) => this.league.set(league),
-      error: (err: ApiError) => this.loadError.set(err),
-    });
-    this.leaguesApi.members(id).subscribe({
-      next: (members) => this.members.set(members),
-      error: (err: ApiError) => this.actionError.set(err),
-    });
-  }
-
-  private fail(err: ApiError): void {
-    this.actionError.set(err);
-    this.busy.set(false);
-  }
+                  Salir de la liga
+                </Button>
+              </>
+            )}
+          </Card>
+        </aside>
+      </div>
+    </PageShell>
+  );
 }
 ```
-
-Y en `app.config.ts`, `provideRouter(routes)` pasa a `provideRouter(routes, withComponentInputBinding())` (import `withComponentInputBinding` de `@angular/router`) para que `:id` llegue como `input`.
 
 - [ ] **Step 3: Ruta**
 
-En `app.routes.ts`, antes del `'**'`:
+En `app/router.tsx`, dentro de los `children` de `<RequireAuth />`: `{ path: '/leagues/:id', element: <LeagueDetailPage /> }` con su import.
 
-```ts
-  { path: 'leagues/:id', component: LeagueDetailPage, canActivate: [authGuard] },
-```
+- [ ] **Step 4: Probar a mano — "done when" del spec, puntos 2 y 3**
 
-con `import { LeagueDetailPage } from './features/leagues/league-detail.page';`.
+Dos ventanas (normal + incógnito), dos usuarios. Owner crea la liga → detalle muestra 1/11 y "Draft pendiente". Segundo usuario se une → el owner vuelve a `/leagues/:id` → 2/11. Owner "Iniciar draft" → badge "Draft en vivo", botón deshabilitado. Tercer usuario intenta unirse → "El draft ya empezó: no se puede cambiar el roster". Segundo usuario ve "Salir de la liga" deshabilitado.
 
-- [ ] **Step 4: Probar a mano — el "done when" del spec, puntos 2 y 3**
-
-Dos ventanas (normal + incógnito), dos usuarios. Owner crea la liga → detalle muestra 1/11 y "Draft pendiente". Segundo usuario se une → F5 en el owner → 2/11. Owner "Iniciar draft" → badge "Draft en vivo", botón deshabilitado. Tercer usuario intenta unirse con el código → "El draft ya empezó: no se puede cambiar el roster". Segundo usuario ve "Salir de la liga" deshabilitado.
-
-- [ ] **Step 5: Lint + test + commit**
+- [ ] **Step 5: Lint + test + commit** (al confirmar)
 
 ```bash
-git add frontend/src/app
+git add frontend/src
 git commit -m "feat(frontend): detalle de liga — miembros, invitar, iniciar draft, salir/echar (Slice 13a)"
 ```
 
@@ -1918,23 +1819,19 @@ git commit -m "feat(frontend): detalle de liga — miembros, invitar, iniciar dr
 
 **Files:**
 
-- Create: `frontend/playwright.config.ts`
-- Create: `frontend/e2e/leagues.spec.ts`
-- Modify: `frontend/package.json` (script `e2e`)
-- Create: `docs/test-evidence/slice-13a-e2e.txt`
-
-**Interfaces:**
-
-- Consumes: la app completa en `http://localhost:4200` + backend en 3000 con seed.
+- Create: `frontend/playwright.config.ts`, `frontend/e2e/leagues.spec.ts`
+- Modify: `frontend/package.json` (script `e2e`), `frontend/.gitignore`, `frontend/tsconfig.app.json` (excluir `e2e`)
+- Create: `docs/test-evidence/slice-13a-e2e.txt`, `slice-13a-unit.txt`
 
 - [ ] **Step 1: Instalar Playwright**
 
 ```bash
 cd frontend
-npm init playwright@latest -- --quiet --browser=chromium --no-examples
+npm install -D @playwright/test
+npx playwright install chromium
 ```
 
-(Si pregunta: TypeScript, carpeta `e2e`, no GitHub Actions.) Reemplazar `playwright.config.ts` por:
+`playwright.config.ts`:
 
 ```ts
 import { defineConfig } from '@playwright/test';
@@ -1942,39 +1839,35 @@ import { defineConfig } from '@playwright/test';
 export default defineConfig({
   testDir: './e2e',
   timeout: 30_000,
-  use: {
-    baseURL: 'http://localhost:4200',
-    trace: 'retain-on-failure',
-  },
+  use: { baseURL: 'http://localhost:5173', trace: 'retain-on-failure' },
   // Levanta el frontend solo; el backend tiene que estar corriendo (npm run dev en backend/).
   webServer: {
-    command: 'npm start',
-    url: 'http://localhost:4200',
+    command: 'npm run dev',
+    url: 'http://localhost:5173',
     reuseExistingServer: true,
-    timeout: 120_000,
+    timeout: 60_000,
   },
 });
 ```
 
-En `package.json`, scripts: `"e2e": "playwright test --reporter=list"`.
+`package.json` scripts: `"e2e": "playwright test --reporter=list"`. En `.gitignore` agregar `test-results/` y `playwright-report/`. En `tsconfig.app.json`, `"exclude": ["e2e", "playwright.config.ts"]` (para que el `tsc -b` del build no compile los tests e2e). Vitest ya los excluye (`test.exclude` en `vite.config.ts`, Task 1).
 
 - [ ] **Step 2: El test**
 
-`frontend/e2e/leagues.spec.ts`:
+`e2e/leagues.spec.ts`:
 
 ```ts
 import { expect, test } from '@playwright/test';
 
-// Flujo completo contra el backend real (seed cargado): registro -> crear liga -> verla en la
-// lista -> abrir el detalle -> soy owner. Email unico por corrida para no chocar con la DB.
+// Flujo completo contra el backend real (seed cargado): registro -> crear liga -> verla ->
+// abrir el detalle -> soy owner. Email unico por corrida para no chocar con la DB.
 test('registrarse, crear una liga y verla como owner', async ({ page }) => {
   const stamp = Date.now();
-  const email = `e2e-${stamp}@boxbox.test`;
   const code = `e2e-${stamp}`.slice(0, 20);
 
   await page.goto('/register');
   await page.getByLabel('Nombre').fill('E2E Tester');
-  await page.getByLabel('Email').fill(email);
+  await page.getByLabel('Email').fill(`e2e-${stamp}@boxbox.test`);
   await page.getByLabel('Contraseña').fill('hunter22test');
   await page.getByRole('button', { name: 'Crear cuenta' }).click();
 
@@ -1982,7 +1875,7 @@ test('registrarse, crear una liga y verla como owner', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Mis ligas' })).toBeVisible();
 
   await page.getByLabel('Nombre').fill('Liga E2E');
-  await page.getByLabel(/Código de invitación/).fill(code);
+  await page.getByLabel('Código de invitación').fill(code);
   await page.getByRole('button', { name: 'Crear', exact: true }).click();
 
   await expect(page).toHaveURL(/\/leagues\/\d+$/);
@@ -1998,55 +1891,42 @@ test('sin sesion, /leagues redirige a /login', async ({ page }) => {
 });
 ```
 
-- [ ] **Step 3: Correr** (backend corriendo, DB seedeada)
+- [ ] **Step 3: Correr** (backend corriendo, DB seedeada) — `npm run e2e` → 2 passed.
+
+- [ ] **Step 4: Evidencia + commit** (al confirmar)
 
 ```bash
-npm run e2e
-```
-
-Expected: 2 passed. Si el primero falla en "Crear": revisar que `GET /seasons/active` devuelva una temporada (seed).
-
-- [ ] **Step 4: Evidencia + commit**
-
-```bash
+mkdir -p ../docs/test-evidence
 npm run e2e > ../docs/test-evidence/slice-13a-e2e.txt 2>&1
-npm test -- --watch=false > ../docs/test-evidence/slice-13a-unit.txt 2>&1
+npm test > ../docs/test-evidence/slice-13a-unit.txt 2>&1
 cd ..
-git add frontend/playwright.config.ts frontend/e2e frontend/package.json frontend/package-lock.json docs/test-evidence
+git add frontend/playwright.config.ts frontend/e2e frontend/package.json frontend/package-lock.json frontend/.gitignore frontend/tsconfig.app.json docs/test-evidence
 git commit -m "test(frontend): e2e con Playwright (registro -> liga -> detalle) + evidencia (Slice 13a)"
 ```
-
-(`frontend/.gitignore` del CLI ya ignora `test-results/` y `playwright-report/`; si no, agregarlos.)
 
 ---
 
 ### Task 9: Responsive, docs y PR
 
-**Files:**
+**Files:** `README.md`, `docs/roadmap.md`, `CLAUDE.md`, `docs/tutorial.md`
 
-- Modify: `README.md`, `docs/roadmap.md`, `CLAUDE.md`, `docs/tutorial.md`
-
-- [ ] **Step 1: Pasada responsive**
-
-`npm start`, DevTools → device toolbar, 375 / 768 / 1024 px, en `/leagues` y `/leagues/:id`. Checklist: nada se sale del ancho; la lista es 1 col en 375, 2 en 768; el detalle apila la tabla en 375. Ajustar clases `md:`/`lg:` si algo se rompe.
+- [ ] **Step 1: Pasada responsive** — `npm run dev`, DevTools → device toolbar, 375 / 768 / 1024 px, en `/leagues` y `/leagues/:id`. Nada se sale del ancho; lista 1 col en 375, 2 en 768; detalle apila la tabla en 375.
 
 - [ ] **Step 2: Docs**
 
-- `README.md`: fila Frontend → `Angular + TypeScript + Tailwind CSS`; sección "Setup" → subsección `frontend/`: `cd frontend && npm install && npm start` (4200), backend con `FRONTEND_URL=http://localhost:4200`.
-- `docs/roadmap.md`: reemplazar el bloque de Slice 13 por "13a — bootstrap (Angular): ✅ este PR — ver `docs/specs/2026-08-27-slice-13a-frontend-bootstrap.md`" y "13b — draft en vivo (Socket.io): pendiente"; mover 13a a Completados con Status done y un párrafo de Shipped.
-- `CLAUDE.md`: layout `frontend/ Angular 21 SPA`; "Development Commands" → bloque frontend (`npm start`, `npm test -- --watch=false`, `npm run e2e`, `npm run lint`); nueva sección **Frontend conventions** (5 líneas: estructura de carpetas, reglas de import, sufijos de archivo, token en memoria, cómo agregar una pantalla).
+- `README.md`: fila Frontend confirmada (React + TypeScript + Tailwind); sección setup → `cd frontend && npm install && cp .env.example .env && npm run dev` (5173).
+- `docs/roadmap.md`: Slice 13 → "13a — bootstrap (React + Vite): ✅ este PR — ver `docs/specs/2026-08-27-slice-13a-frontend-bootstrap.md`" y "13b — draft en vivo (BOX-26): pendiente"; mover 13a a Completados con Status done y un párrafo de Shipped (incluir la historia Angular → React, spec §2).
+- `CLAUDE.md`: layout `frontend/ Vite + React 19 + TS SPA`; "Development Commands" → bloque frontend (`npm run dev`, `npm test`, `npm run e2e`, `npm run lint`, `npm run build`); nueva sección **Frontend conventions** (estructura, reglas de import, `ApiClient` única puerta, token en memoria, un hook de react-query por lectura/escritura, cómo agregar una pantalla).
 - `docs/tutorial.md`: "7. Levantar el frontend" (3 líneas + credenciales del seed).
 
-- [ ] **Step 3: Verificación final del "done when"**
+- [ ] **Step 3: Verificación final del "done when"** — los 7 puntos de la sección 12 del spec. `cd frontend && npm run lint && npm test && npm run build` — todo verde.
 
-Recorrer los 7 puntos de la sección 11 del spec. `cd frontend && npm run lint && npm test -- --watch=false && npx ng build` — todo verde.
-
-- [ ] **Step 4: Commit + PR**
+- [ ] **Step 4: Commit + PR** (al confirmar)
 
 ```bash
 git add README.md docs/roadmap.md CLAUDE.md docs/tutorial.md
-git commit -m "docs: frontend Angular en README, roadmap (13a/13b), CLAUDE.md y tutorial (Slice 13a)"
+git commit -m "docs: frontend React en README, roadmap (13a/13b), CLAUDE.md y tutorial (Slice 13a)"
 git push -u origin slice-13a-frontend-bootstrap
 ```
 
-PR con la plantilla del repo, base `dev`, título "Slice 13a — Frontend bootstrap en Angular: login, mis ligas, detalle de liga". Smoke test del PR = los 7 puntos del "done when" + `npm run e2e`.
+PR con la plantilla del repo, base `dev`, título "Slice 13a — Frontend bootstrap en React: login, mis ligas, detalle de liga". Smoke test del PR = los 7 puntos del "done when" + `npm run e2e`.
