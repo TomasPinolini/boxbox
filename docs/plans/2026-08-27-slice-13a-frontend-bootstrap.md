@@ -62,7 +62,7 @@ README.md, docs/roadmap.md, CLAUDE.md, docs/tutorial.md                         
 **Interfaces:** Produces `GET /leagues/:id/members` → `{ data: Array<{ id, userId, isOwner, status, joinedAt, user: { name } }> }`.
 
 - [x] Test rojo → verde (50/50), `tsc` limpio, eslint limpio.
-- [ ] **Commit** (al confirmar):
+- [x] **Commit** (al confirmar):
 
 ```bash
 git add backend/src/modules/leagues/leagues.service.ts backend/src/modules/leagues/leagues.test.ts docs/api-endpoints.md
@@ -85,7 +85,7 @@ git commit -m "feat(leagues): user.name en GET /members para la tabla del fronte
 
 - Produces: `env.apiUrl`, `env.socketUrl` desde `src/config/env.ts`. `npm test` corre Vitest con jsdom + jest-dom.
 
-- [ ] **Step 1: Crear el proyecto** (desde la raíz del repo)
+- [x] **Step 1: Crear el proyecto** (desde la raíz del repo)
 
 ```bash
 npm create vite@latest frontend -- --template react-ts
@@ -94,7 +94,7 @@ cd frontend && npm install
 
 Verify: existen `frontend/vite.config.ts`, `frontend/src/App.tsx`, `frontend/eslint.config.js`.
 
-- [ ] **Step 2: Levantar y ver la página default**
+- [x] **Step 2: Levantar y ver la página default**
 
 ```bash
 npm run dev
@@ -102,7 +102,7 @@ npm run dev
 
 `http://localhost:5173` muestra el contador de Vite + React. `Ctrl+C`.
 
-- [ ] **Step 3: Tailwind v4**
+- [x] **Step 3: Tailwind v4**
 
 ```bash
 npm install tailwindcss @tailwindcss/vite
@@ -136,7 +136,7 @@ export default defineConfig({
 
 Borrar `src/App.css` y `src/assets/react.svg` (no se usan más).
 
-- [ ] **Step 4: Probar que Tailwind aplica**
+- [x] **Step 4: Probar que Tailwind aplica**
 
 `src/App.tsx` (reemplazar entero):
 
@@ -152,7 +152,7 @@ export default function App() {
 
 `npm run dev` → "BoxBox" en rojo, grande, fondo gris claro. Si se ve negro y chico, revisar el plugin en `vite.config.ts` y el `@import` en `index.css`. `Ctrl+C`.
 
-- [ ] **Step 5: Ambientes**
+- [x] **Step 5: Ambientes**
 
 `frontend/.env.example` y `frontend/.env` (mismo contenido; `.env` ya está en el `.gitignore` de Vite):
 
@@ -178,14 +178,14 @@ export const env = {
 } as const;
 ```
 
-- [ ] **Step 6: Dependencias del proyecto**
+- [x] **Step 6: Dependencias del proyecto**
 
 ```bash
 npm install react-router-dom @tanstack/react-query axios zustand react-hook-form zod @hookform/resolvers
 npm install -D vitest jsdom @testing-library/react @testing-library/dom @testing-library/jest-dom @testing-library/user-event
 ```
 
-- [ ] **Step 7: Vitest — setup, tipos, scripts, primer test**
+- [x] **Step 7: Vitest — setup, tipos, scripts, primer test**
 
 `src/test/setup.ts`:
 
@@ -217,7 +217,7 @@ describe('App', () => {
 
 Run: `npm test` → 1 passed. `npm run lint` → limpio. `npm run build` → sin errores.
 
-- [ ] **Step 8: Commit** (al confirmar)
+- [x] **Step 8: Commit** (al confirmar)
 
 ```bash
 cd ..
@@ -239,7 +239,7 @@ git commit -m "feat(frontend): scaffold Vite + React 19 + TS, Tailwind v4, env, 
 
 - Produces: `ApiEnvelope<T>`, `ApiErrorBody`, `User`, `League`, `DraftStatus`, `LeagueStatus`, `LeagueMember`, `FantasyTeam`, `class ApiError(code, status, message)`, `toApiError(err: unknown): ApiError`.
 
-- [ ] **Step 1: Test rojo**
+- [x] **Step 1: Test rojo**
 
 `src/services/api-error.test.ts`:
 
@@ -285,9 +285,9 @@ describe('toApiError', () => {
 });
 ```
 
-- [ ] **Step 2: Rojo** — `npm test` → "Failed to resolve import './api-error'".
+- [x] **Step 2: Rojo** — `npm test` → "Failed to resolve import './api-error'".
 
-- [ ] **Step 3: Modelos**
+- [x] **Step 3: Modelos**
 
 `src/models/api.ts`:
 
@@ -363,7 +363,7 @@ export interface FantasyTeam {
 }
 ```
 
-- [ ] **Step 4: `ApiError`**
+- [x] **Step 4: `ApiError`**
 
 `src/services/api-error.ts`:
 
@@ -407,9 +407,9 @@ export function toApiError(err: unknown): ApiError {
 }
 ```
 
-- [ ] **Step 5: Verde + lint** — `npm test` → 4 passed. `npm run lint` → limpio.
+- [x] **Step 5: Verde + lint** — `npm test` → 4 passed. `npm run lint` → limpio.
 
-- [ ] **Step 6: Commit** (al confirmar)
+- [x] **Step 6: Commit** (al confirmar)
 
 ```bash
 git add frontend/src/models frontend/src/services/api-error.ts frontend/src/services/api-error.test.ts
@@ -432,7 +432,7 @@ git commit -m "feat(frontend): modelos (User, League, LeagueMember) + ApiError t
 - Consumes: `env.apiUrl` (Task 1), `ApiEnvelope`, `User`, `toApiError` (Task 2).
 - Produces: `useAuthStore` (`accessToken`, `user`, `sessionReady`, `isLoggedIn()`, `setSession(user, token)`, `clear()`, `markReady()`); `apiClient.get<T>(url)`, `.post<T>(url, body?)`, `.delete<T>(url)`, `.refreshOnce()` — devuelven `T` ya desenvuelto de `{ data }`; `authService.login(email, password): Promise<User>`, `.register(email, password, name)`, `.restoreSession(): Promise<void>`, `.logout(): Promise<void>`.
 
-- [ ] **Step 1: Test rojo del store**
+- [x] **Step 1: Test rojo del store**
 
 `src/store/auth.store.test.ts`:
 
@@ -467,9 +467,9 @@ describe('useAuthStore', () => {
 });
 ```
 
-- [ ] **Step 2: Rojo** — `npm test` → "Failed to resolve import './auth.store'".
+- [x] **Step 2: Rojo** — `npm test` → "Failed to resolve import './auth.store'".
 
-- [ ] **Step 3: Store**
+- [x] **Step 3: Store**
 
 `src/store/auth.store.ts`:
 
@@ -501,9 +501,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 }));
 ```
 
-- [ ] **Step 4: Verde** — `npm test` → 7 passed.
+- [x] **Step 4: Verde** — `npm test` → 7 passed.
 
-- [ ] **Step 5: `ApiClient`**
+- [x] **Step 5: `ApiClient`**
 
 `src/services/api-client.ts`:
 
@@ -601,7 +601,7 @@ export class ApiClient {
 export const apiClient = new ApiClient(env.apiUrl);
 ```
 
-- [ ] **Step 6: `auth.service`**
+- [x] **Step 6: `auth.service`**
 
 `src/services/auth.service.ts`:
 
@@ -658,7 +658,7 @@ export const authService = {
 };
 ```
 
-- [ ] **Step 7: Lint + test + commit** (al confirmar)
+- [x] **Step 7: Lint + test + commit** (al confirmar)
 
 `npm run lint` limpio, `npm test` → 7 passed, `npm run build` sin errores.
 
@@ -680,7 +680,7 @@ git commit -m "feat(frontend): auth store en memoria + ApiClient con refresh en 
 
 - Produces: `<Button variant="primary|secondary|danger" type disabled onClick>`, `<Field label error>{input}</Field>` + `inputClass`, `<Card>`, `<Badge tone="neutral|info|success|warning">`, `<Alert code message>`, `<PageShell title actions>`, `errorMessageFor(code, fallback)`.
 
-- [ ] **Step 1: `Button` (tipealo vos — primer componente React del proyecto)**
+- [x] **Step 1: `Button` (tipealo vos — primer componente React del proyecto)**
 
 `src/components/ui/Button.tsx`:
 
@@ -717,7 +717,7 @@ export function Button({
 }
 ```
 
-- [ ] **Step 2: `Field`, `Card`, `Badge`, `PageShell`**
+- [x] **Step 2: `Field`, `Card`, `Badge`, `PageShell`**
 
 `Field.tsx` — envuelve el `<input>` que le pasa el padre (asi funciona con `register()` de react-hook-form sin acoplarse):
 
@@ -807,7 +807,7 @@ export function PageShell({ title, actions, children }: PageShellProps) {
 }
 ```
 
-- [ ] **Step 3: Test rojo del `Alert`**
+- [x] **Step 3: Test rojo del `Alert`**
 
 `Alert.test.tsx`:
 
@@ -836,9 +836,9 @@ describe('Alert', () => {
 });
 ```
 
-- [ ] **Step 4: Rojo** — `npm test` → "Failed to resolve import './Alert'".
+- [x] **Step 4: Rojo** — `npm test` → "Failed to resolve import './Alert'".
 
-- [ ] **Step 5: `Alert` + `index.ts`**
+- [x] **Step 5: `Alert` + `index.ts`**
 
 `Alert.tsx`:
 
@@ -891,7 +891,7 @@ export { Alert, errorMessageFor } from './Alert';
 export { PageShell } from './PageShell';
 ```
 
-- [ ] **Step 6: Verde + lint + commit** (al confirmar)
+- [x] **Step 6: Verde + lint + commit** (al confirmar)
 
 `npm test` → 10 passed. `npm run lint` → limpio.
 
