@@ -949,7 +949,7 @@ describe('RequireAuth', () => {
   });
 
   it('con token renderiza la ruta protegida', () => {
-    useAuthStore.getState().setSession({ id: 1, email: 'a@b.c', name: 'Ana', role: 'USER' }, 'tok');
+    useAuthStore.getState().setSession({ id: 1, email: 'a@b.c', name: 'Ana', avatarUrl: null, role: 'USER' }, 'tok');
     renderAt('/leagues');
     expect(screen.getByText('mis ligas')).toBeInTheDocument();
   });
