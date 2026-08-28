@@ -229,8 +229,17 @@ describe('DELETE /api/v1/races/:id', () => {
 // ─── Slice 7: RaceResult ingestion ───────────────────────────────
 // POST /api/v1/races/:id/results (admin) — carga manual de resultados de carrera.
 
-async function createDrivers(n: number) {
-  const drivers = [];
+// createDrivers: crea n drivers y, salvo que se pida lo contrario, los vincula a la temporada
+// del test de a pares por constructor via DriverSeason (drivers 1-2 -> constructor 1, 3-4 ->
+// constructor 2, ...). Slice 8 necesita ese vinculo para computar ConstructorResult; sin el,
+// loadResults rechaza con 409 DRIVER_NOT_IN_SEASON.
+type SeededDriver = { id: number; constructorId: number | null };
+
+async function createDrivers(
+  n: number,
+  opts: { linkToSeason: boolean } = { linkToSeason: true },
+): Promise<SeededDriver[]> {
+  const drivers: SeededDriver[] = [];
   for (let i = 1; i <= n; i++) {
     const num = i.toString().padStart(2, '0');
     const res = await request(app)
@@ -243,7 +252,22 @@ async function createDrivers(n: number) {
         code: `T${num}`,
         externalId: `test-driver-${num}`,
       });
-    drivers.push(res.body.data);
+    drivers.push({ id: res.body.data.id, constructorId: null });
+  }
+
+  if (opts.linkToSeason) {
+    for (let i = 0; i < drivers.length; i += 2) {
+      const k = i / 2 + 1;
+      const constructor = await prisma.constructor.create({
+        data: { name: `Team ${k}`, color: '#000000', externalId: `test-team-${k}` },
+      });
+      for (const driver of drivers.slice(i, i + 2)) {
+        driver.constructorId = constructor.id;
+        await prisma.driverSeason.create({
+          data: { driverId: driver.id, seasonId, constructorId: constructor.id },
+        });
+      }
+    }
   }
   return drivers;
 }
@@ -542,6 +566,90 @@ describe('POST /api/v1/races/:id/results', () => {
 
     expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+});
+
+// ─── Slice 8: ConstructorResult derivado de RaceResult ─────────────
+// Al cargar results, loadResults agrupa los puntos por constructor (via DriverSeason de la
+// temporada de la Race) y crea un ConstructorResult por constructor, en la misma transaccion.
+
+describe('POST /api/v1/races/:id/results — ConstructorResult (Slice 8)', () => {
+  async function createRace() {
+    const raceRes = await request(app)
+      .post('/api/v1/races')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send(validRace());
+    return raceRes.body.data.id as number;
+  }
+
+  async function load(raceId: number, results: ReturnType<typeof buildResults>) {
+    return request(app)
+      .post(`/api/v1/races/${raceId}/results`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ results });
+  }
+
+  it('20 pilotos en 10 escuderias -> 10 ConstructorResult con la suma correcta', async () => {
+    const raceId = await createRace();
+    const drivers = await createDrivers(20);
+
+    const res = await load(raceId, buildResults(drivers));
+    expect(res.status).toBe(201);
+
+    const rows = await prisma.constructorResult.findMany({ where: { raceId } });
+    expect(rows).toHaveLength(10);
+    for (const row of rows) {
+      expect(row.totalPoints).toBe(row.driver1Points + row.driver2Points);
+    }
+
+    // Drivers 1 y 2 (25 y 18 puntos) comparten constructor: driver1Points es el mayor.
+    const top = rows.find((r) => r.constructorId === drivers[0].constructorId);
+    expect(top).toMatchObject({ driver1Points: 25, driver2Points: 18, totalPoints: 43 });
+
+    // Drivers 19 y 20 no puntuan (fuera del top 10): fila con ceros, no ausente.
+    const bottom = rows.find((r) => r.constructorId === drivers[18].constructorId);
+    expect(bottom).toMatchObject({ driver1Points: 0, driver2Points: 0, totalPoints: 0 });
+  });
+
+  it('escuderia con un solo piloto en los results -> driver2Points = 0', async () => {
+    const raceId = await createRace();
+    const drivers = await createDrivers(2); // ambos en Team 1
+
+    const res = await load(raceId, buildResults([drivers[0]])); // solo el primero
+    expect(res.status).toBe(201);
+
+    const rows = await prisma.constructorResult.findMany({ where: { raceId } });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ driver1Points: 25, driver2Points: 0, totalPoints: 25 });
+  });
+
+  it('piloto sin DriverSeason en la temporada -> 409 DRIVER_NOT_IN_SEASON y rollback total', async () => {
+    const raceId = await createRace();
+    const drivers = await createDrivers(2, { linkToSeason: false });
+
+    const res = await load(raceId, buildResults(drivers));
+
+    expect(res.status).toBe(409);
+    expect(res.body.error.code).toBe('DRIVER_NOT_IN_SEASON');
+    expect(await prisma.raceResult.count({ where: { raceId } })).toBe(0);
+    expect(await prisma.constructorResult.count({ where: { raceId } })).toBe(0);
+    const race = await prisma.race.findUnique({ where: { id: raceId } });
+    expect(race?.status).toBe('UPCOMING');
+  });
+
+  it('tres pilotos de la misma escuderia en una carrera -> 409 CONSTRUCTOR_TOO_MANY_DRIVERS', async () => {
+    const raceId = await createRace();
+    const drivers = await createDrivers(3); // 1-2 en Team 1, 3 en Team 2
+    await prisma.driverSeason.updateMany({
+      where: { driverId: drivers[2].id },
+      data: { constructorId: drivers[0].constructorId! },
+    });
+
+    const res = await load(raceId, buildResults(drivers));
+
+    expect(res.status).toBe(409);
+    expect(res.body.error.code).toBe('CONSTRUCTOR_TOO_MANY_DRIVERS');
+    expect(await prisma.raceResult.count({ where: { raceId } })).toBe(0);
   });
 });
 
