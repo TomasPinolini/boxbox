@@ -39,12 +39,14 @@ const leagueSelect = {
 } as const;
 
 // memberSelect — shape de LeagueMember en responses publicas (GET /:id/members).
+// user.name: la tabla de miembros del frontend (Slice 13a) muestra nombres, no ids.
 const memberSelect = {
   id: true,
   userId: true,
   isOwner: true,
   status: true,
   joinedAt: true,
+  user: { select: { name: true } },
 } as const;
 
 // fantasyTeamSelect — shape de FantasyTeam en responses publicas (GET /:id/teams/me).
