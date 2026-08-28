@@ -71,6 +71,8 @@ Códigos de error tipados que la API puede devolver en el envelope `{ error: { c
 | `RACE_NOT_LOADABLE`            | 409  | `races.service.ts` (loadResults)                       | Slice 7. `POST /races/:id/results` cuando `race.status ∈ {CANCELLED, POSTPONED}` — la carrera no ocurrió, no aplica cargar results. |
 | `RACE_RESULT_DUPLICATE_DRIVER` | 409  | `races.service.ts` (loadResults)                       | Slice 7. El array de results contiene el mismo `driverId` más de una vez. El pre-check falla antes de la transacción.               |
 | `DRIVER_NOT_FOUND`             | 404  | `races.service.ts` (loadResults)                       | Slice 7. Algún `driverId` del array no existe o está soft-deleted. Rollback garantizado (nada se inserta).                          |
+| `DRIVER_NOT_IN_SEASON`         | 409  | `races.service.ts` (loadResults)                       | Slice 8. Algún `driverId` del array no tiene `DriverSeason` en la temporada de la Race — sin eso no se sabe a qué escudería sumarle los puntos. Cargar el DriverSeason primero. Rollback total. |
+| `CONSTRUCTOR_TOO_MANY_DRIVERS` | 409  | `races.service.ts` (buildConstructorResults)           | Slice 8. Tres o más pilotos del payload pertenecen a la misma escudería en esa temporada — en F1 corren 2 por equipo; es un DriverSeason mal cargado. Rollback total. |
 
 > Nota: los endpoints de Races que validan la existencia de `Season` o `Circuit` referenciados también pueden lanzar `SEASON_NOT_FOUND` o `CIRCUIT_NOT_FOUND` (create/update).
 

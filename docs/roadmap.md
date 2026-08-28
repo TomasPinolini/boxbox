@@ -21,20 +21,13 @@ Stack overview rápido (ver [`../CLAUDE.md`](../CLAUDE.md) para detalle): Expres
 
 ## Now — bloqueantes para todo lo demás
 
-_(Slices 1, 2, 3, 4, 5, 6, 7 completos. Próximo: Slice 8.)_
+_(Slices 1 a 8 completos. Próximo: Slice 9.)_
 
 ---
 
 ## Later — scoring + sync + frontend
 
 _(El carril Draft — Slices 4, 5, 6 — está completo. Lo que sigue es el carril Scoring, que converge con Draft en Slice 9.)_
-
-### Slice 8 — ConstructorResult (derivado de RaceResult)
-
-- **Goal**: al cargar RaceResults, se computan automáticamente los ConstructorResult sumando puntos por equipo.
-- **Touches**: tabla `ConstructorResult` con `driver1Points` y `driver2Points`; lógica en el service de races que, post-carga de RaceResult, agrupa por constructor y crea las filas.
-- **Done when**: para una Race con resultados completos de los 20 pilotos, hay 10 ConstructorResults con la suma correcta. Tests cubren el cálculo + edge cases (constructor con solo 1 piloto clasificado).
-- **Blocked by**: Slice 7.
 
 ### Slice 9 — LeagueStanding (snapshot por carrera)
 
@@ -93,6 +86,16 @@ Si alguno de estos se vuelve demasiado grande, partir así:
 ---
 
 ## Completados
+
+### Slice 8 — ConstructorResult (derivado de RaceResult)
+
+- **Status**: done (branch `slice-8-constructor-result`).
+- **Goal**: al cargar RaceResults, se computan automáticamente los ConstructorResult sumando puntos por equipo.
+- **Shipped**: `loadResults` (`races.service.ts`) resuelve el constructor de cada piloto vía `DriverSeason` de la temporada de la Race, agrupa los puntos por constructor (`buildConstructorResults`, función pura: `Map<constructorId, puntos[]>` → una fila por entrada) y crea los `ConstructorResult` en la **misma transacción** que los RaceResults y el pase a `COMPLETED`. `driver1Points` = el mayor de los dos; con un solo piloto, `driver2Points = 0`; constructor sin pilotos en el payload no genera fila. Sin endpoint nuevo: Slice 9 lee la tabla directo. Sin migration (`constructor_results` existía desde `init`).
+- **Reglas nuevas**: 409 `DRIVER_NOT_IN_SEASON` si un piloto del payload no tiene DriverSeason en esa temporada (error de datos, no se ignora en silencio); 409 `CONSTRUCTOR_TOO_MANY_DRIVERS` si tres o más pilotos comparten escudería.
+- **C6 / BOX-24 cerrado**: los chequeos de estado de la Race y de existencia de drivers pasaron **adentro** de la `$transaction` (`tx.race`, `tx.driver`) — misma foto de la DB para decidir e insertar.
+- **Gotcha de tipos**: un `select: { driverId, constructorId }` sobre `driverSeason` choca con la colisión `constructor` de Slice 5 — se trae la fila entera en vez de usar `as Prisma.DriverSeasonSelect`.
+- **Tests**: 4 nuevos en `races.test.ts` (20 pilotos / 10 escuderías con sumas; escudería de un solo piloto; piloto sin DriverSeason → 409 + rollback; tres pilotos en una escudería → 409). `createDrivers()` ahora vincula de a pares via DriverSeason. 205 total.
 
 ### Slice 6 — Draft realtime (Socket.io overlay)
 

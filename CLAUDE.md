@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 BoxBox is a Formula 1 Fantasy League web app — a university project (TP) for Desarrollo de Software at UTN FRRO. Users create/join private leagues, participate in a live snake draft to build a team (2 drivers, 1 constructor — no reserve driver, see ADR-0006), and compete across the F1 season with real race results.
 
-The project is backend-only so far (Slices 1–7 shipped: auth, leagues, membership, fantasy teams, snake draft over REST + Socket.io, race-result ingestion). Scoring, predictions, sync and the frontend are still **planned, not built**. When in doubt about what is actually implemented, trust the source, not the docs.
+The project is backend-only so far (Slices 1–8 shipped: auth, leagues, membership, fantasy teams, snake draft over REST + Socket.io, race-result ingestion with per-constructor totals). Scoring, predictions, sync and the frontend are still **planned, not built**. When in doubt about what is actually implemented, trust the source, not the docs.
 
 ## Repository Layout
 
@@ -29,10 +29,11 @@ Built (one slice = one PR; full log in `docs/roadmap.md` → "Completados"):
 - **Draft REST (Slice 5)**: `modules/draft/` mounted as a sub-router from `leagues.routes.ts`: `router.use('/:id/draft', requireAuth, validateParams, requireLeagueMember, draftRoutes)`. `POST start|reset` (owner), `GET state|available`, `POST pick`. 3 fixed rounds (driver1, driver2, constructor — ADR-0006 removed the reserve round); `startDraft` re-checks the season cap (409 `TOO_MANY_MEMBERS_FOR_DRAFT`); snake order materialized up-front as placeholder `DraftPick` rows; "current pick" = lowest unfilled `pickNumber`. `submitPick` uses `updateMany` + row-count check to survive concurrent writes.
 - **Draft realtime (Slice 6)**: Socket.io namespace `/draft` in `modules/draft/draft.gateway.ts`, attached in `server.ts` (not `app.ts`). Handshake `auth: { token, leagueId }`; rejected unless ACTIVE member. Rooms `league:<id>`. Events out: `draft:state|update|timer|complete|error`; in: `draft:pick`. 60s `setTimeout` auto-pick (in-memory, lost on restart). REST controllers broadcast the same events through the `shared/socket.ts` singleton (`getIo()` is `null` in supertest tests → no-op). Gateway tests bind a real port and override `pickTimeoutMs` to 300ms.
 - **RaceResult ingestion (Slice 7)**: `GET /races/:id/results` (public), `POST /races/:id/results` (`requireAuth → requireAdmin`), transitions the race to `COMPLETED`. `middleware/admin.ts` reads `role` from the JWT — no DB hit, stale until token expiry.
+- **ConstructorResult (Slice 8)**: `loadResults` also derives one `ConstructorResult` per constructor (driver → constructor via `DriverSeason` of the race's season; `buildConstructorResults` is a pure grouping function) inside the same `$transaction` — every pre-check now runs on `tx`. 409 `DRIVER_NOT_IN_SEASON` / `CONSTRUCTOR_TOO_MANY_DRIVERS`. No endpoint; Slice 9 reads the table.
 
 Not yet built — **intentionally deferred**. Do not suggest implementing any of these without an explicit ask from the user; ordering and blockers live in `docs/roadmap.md`:
 
-- Slice 8 ConstructorResult, Slice 9 LeagueStanding (scoring), Slice 10 Predictions. Slice 11 DriverSwap was **dropped** (ADR-0006) — do not reintroduce a reserve driver or swaps.
+- Slice 9 LeagueStanding (scoring), Slice 10 Predictions. Slice 11 DriverSwap was **dropped** (ADR-0006) — do not reintroduce a reserve driver or swaps.
 - Slice 12 external API sync (Jolpica, OpenF1)
 - Slice 13 Frontend (no directory exists yet)
 - Transfer ownership of leagues — owner trying to leave gets 409 `OWNER_CANNOT_LEAVE`
