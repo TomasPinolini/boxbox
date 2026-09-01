@@ -727,6 +727,22 @@ describe('GET /api/v1/leagues/:id/members', () => {
     expect(res.status).toBe(404);
     expect(res.body.error.code).toBe('LEAGUE_NOT_FOUND');
   });
+
+  it('cada miembro incluye user.name (Slice 13a: la tabla del frontend muestra nombres)', async () => {
+    const alice = await authedUser('a');
+    const season = await seedSeason();
+    const created = await request(app)
+      .post('/api/v1/leagues')
+      .set('Authorization', `Bearer ${alice.token}`)
+      .send({ name: 'Con nombres', inviteCode: 'con-nombres', seasonId: season.id });
+
+    const res = await request(app)
+      .get(`/api/v1/leagues/${created.body.data.id}/members`)
+      .set('Authorization', `Bearer ${alice.token}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data[0].user).toEqual({ name: 'User a' });
+  });
 });
 
 // ─── DELETE /leagues/:id/members/:userId (Slice 3) ────────────────────

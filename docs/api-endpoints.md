@@ -137,7 +137,7 @@ Cada sección está taggeada con su estado actual:
 | PATCH  | `/leagues/:id`                 | League owner  | Partial: `name`/`maxMembers`/`status`/`inviteCode`. 403 NOT_LEAGUE_OWNER si soy member sin ser owner. Body `{}` → 400                         |
 | POST   | `/leagues/join`                | User          | Rate limit 10/min/user. Body: `{inviteCode}`. 404 INVITE_CODE_NOT_FOUND si inválido o archived. Soporta rejoin desde LEFT/KICKED              |
 | POST   | `/leagues/:id/leave`           | League member | 409 OWNER_CANNOT_LEAVE si soy owner (debe transferir primero — fuera de scope hoy)                                                            |
-| GET    | `/leagues/:id/members`         | League member | Devuelve solo ACTIVE members (LEFT/KICKED no aparecen)                                                                                        |
+| GET    | `/leagues/:id/members`         | League member | Devuelve solo ACTIVE members (LEFT/KICKED no aparecen). Cada miembro incluye `user: { name }` (Slice 13a)                                    |
 | DELETE | `/leagues/:id/members/:userId` | League owner  | Kick (soft → KICKED). 409 OWNER_CANNOT_LEAVE si owner intenta kickearse a sí mismo                                                            |
 
 > **Archivado**: NO hay `DELETE /leagues/:id`. Para archivar una liga: `PATCH /leagues/:id { "status": "ARCHIVED" }`.
