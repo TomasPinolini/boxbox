@@ -3,6 +3,7 @@ import { GuestOnly } from '../features/auth/GuestOnly';
 import { LoginPage } from '../features/auth/LoginPage';
 import { RegisterPage } from '../features/auth/RegisterPage';
 import { RequireAuth } from '../features/auth/RequireAuth';
+import { LeaguesPage } from '../features/leagues/LeaguesPage';
 
 export const router = createBrowserRouter([
   { path: '/', element: <Navigate to="/leagues" replace /> },
@@ -15,10 +16,7 @@ export const router = createBrowserRouter([
   },
   {
     element: <RequireAuth />,
-    children: [
-      // Placeholder hasta Task 6.
-      { path: '/leagues', element: <p className="p-6">Mis ligas (Task 6)</p> },
-    ],
+    children: [{ path: '/leagues', element: <LeaguesPage /> }],
   },
   { path: '*', element: <Navigate to="/leagues" replace /> },
 ]);
