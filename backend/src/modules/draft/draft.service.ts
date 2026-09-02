@@ -1,12 +1,14 @@
 // SERVICE — toda la logica del snake draft vive aca. No sabe que existe HTTP.
 //
-// Diseno de rondas (decision Slice 5, confirmada con el equipo antes de codear):
-// FantasyTeam tiene 4 slots (driver1, driver2, reserveDriver, constructor), asi que el draft
-// son 4 rondas fijas — una por slot, en este orden:
-//   Ronda 1 -> driver1Id   (categoria DRIVER)
-//   Ronda 2 -> driver2Id   (categoria DRIVER)
-//   Ronda 3 -> reserveDriverId (categoria DRIVER)
-//   Ronda 4 -> constructorId   (categoria CONSTRUCTOR)
+// Diseno de rondas (ADR-0006 — reemplaza la decision original de Slice 5):
+// FantasyTeam tiene 3 slots (driver1, driver2, constructor), asi que el draft son 3 rondas
+// fijas — una por slot, en este orden:
+//   Ronda 1 -> driver1Id     (categoria DRIVER)
+//   Ronda 2 -> driver2Id     (categoria DRIVER)
+//   Ronda 3 -> constructorId (categoria CONSTRUCTOR)
+// No hay piloto reserva: con picks exclusivos por liga y 22 pilotos en la grilla, 2 por miembro
+// permite ligas de hasta 11 (22 / 2); con reserva el tope caia a 7 y el default de 11 no cerraba.
+// La reserva (y DriverSwap) se sacaron del juego — ver docs/adr/ADR-0006 antes de reintroducirla.
 //
 // Orden de picks: snake entre rondas (1->N, N->1, 1->N, N->1) sobre un orden base shuffleado
 // una sola vez en startDraft. En vez de guardar un "draftOrder" separado en LeagueMember,
@@ -18,9 +20,10 @@
 import { prisma } from '../../shared/prisma';
 import { Prisma } from '../../generated/prisma/client';
 import { NotFoundError, ConflictError } from '../../shared/errors';
+import { maxMembersForSeason } from '../leagues/leagues.service';
 import type { DraftPickInput } from './draft.schema';
 
-const TOTAL_ROUNDS = 4;
+const TOTAL_ROUNDS = 3;
 
 export type PickCategory = 'DRIVER' | 'CONSTRUCTOR';
 
@@ -30,14 +33,10 @@ export function categoryForRound(round: number): PickCategory {
   return round < TOTAL_ROUNDS ? 'DRIVER' : 'CONSTRUCTOR';
 }
 
-const SLOT_BY_ROUND: Record<
-  number,
-  'driver1Id' | 'driver2Id' | 'reserveDriverId' | 'constructorId'
-> = {
+const SLOT_BY_ROUND: Record<number, 'driver1Id' | 'driver2Id' | 'constructorId'> = {
   1: 'driver1Id',
   2: 'driver2Id',
-  3: 'reserveDriverId',
-  4: 'constructorId',
+  3: 'constructorId',
 };
 
 // `as Prisma.<Model>Select` (type assertion, NO anotacion `: Prisma.<Model>Select` ni
@@ -76,7 +75,10 @@ const constructorAvailableSelect = {
 // startDraft: genera el calendario completo de picks (M miembros x 4 rondas) de una sola vez
 // y transiciona League.draftStatus a LIVE. Owner-only (enforced en middleware).
 export async function startDraft(leagueId: number) {
-  const league = await prisma.league.findUnique({ where: { id: leagueId } });
+  const league = await prisma.league.findUnique({
+    where: { id: leagueId },
+    include: { season: true },
+  });
   if (!league) {
     throw new NotFoundError('League');
   }
@@ -88,6 +90,17 @@ export async function startDraft(leagueId: number) {
     where: { leagueId, status: 'ACTIVE' },
     orderBy: { id: 'asc' },
   });
+
+  // Red de seguridad (ADR-0006): createLeague ya valida maxMembers contra la temporada, pero
+  // una liga vieja o una temporada que cambio de driverCount podrian tener mas miembros que
+  // picks de piloto disponibles. Mejor 409 aca que un draft que nunca termina.
+  const cap = maxMembersForSeason(league.season.driverCount);
+  if (members.length > cap) {
+    throw new ConflictError(
+      `Draft needs ${members.length * 2} drivers but the season has ${league.season.driverCount} (max ${cap} members)`,
+      'TOO_MANY_MEMBERS_FOR_DRAFT',
+    );
+  }
 
   // Fisher-Yates — orden aleatorio (docs/api-endpoints.md: "Genera draft order aleatorio").
   const shuffled = [...members];
@@ -300,7 +313,7 @@ export async function resetDraft(leagueId: number) {
     prisma.draftPick.deleteMany({ where: { leagueId } }),
     prisma.fantasyTeam.updateMany({
       where: { leagueMember: { leagueId } },
-      data: { driver1Id: null, driver2Id: null, reserveDriverId: null, constructorId: null },
+      data: { driver1Id: null, driver2Id: null, constructorId: null },
     }),
     prisma.league.update({ where: { id: leagueId }, data: { draftStatus: 'PENDING' } }),
   ]);

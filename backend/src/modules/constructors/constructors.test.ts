@@ -1,6 +1,14 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import request from 'supertest';
 import app from '../../app';
+import { createTestAdmin, createTestUser } from '../../tests/setup';
+
+// adminToken: el CRUD de catalogo es admin-only (A5 / BOX-15); se recrea por test (truncate).
+let adminToken: string;
+
+beforeEach(async () => {
+  adminToken = (await createTestAdmin()).accessToken;
+});
 
 const validConstructor = {
   name: 'McLaren',
@@ -17,9 +25,13 @@ describe('GET /api/v1/constructors', () => {
   });
 
   it('returns all non-deleted constructors', async () => {
-    await request(app).post('/api/v1/constructors').send(validConstructor);
     await request(app)
       .post('/api/v1/constructors')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send(validConstructor);
+    await request(app)
+      .post('/api/v1/constructors')
+      .set('Authorization', `Bearer ${adminToken}`)
       .send({
         ...validConstructor,
         name: 'Ferrari',
@@ -36,7 +48,10 @@ describe('GET /api/v1/constructors', () => {
 
 describe('GET /api/v1/constructors/:id', () => {
   it('returns a constructor by id', async () => {
-    const created = await request(app).post('/api/v1/constructors').send(validConstructor);
+    const created = await request(app)
+      .post('/api/v1/constructors')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send(validConstructor);
     const id = created.body.data.id;
 
     const res = await request(app).get(`/api/v1/constructors/${id}`);
@@ -55,7 +70,10 @@ describe('GET /api/v1/constructors/:id', () => {
 
 describe('POST /api/v1/constructors', () => {
   it('creates a constructor with valid data', async () => {
-    const res = await request(app).post('/api/v1/constructors').send(validConstructor);
+    const res = await request(app)
+      .post('/api/v1/constructors')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send(validConstructor);
 
     expect(res.status).toBe(201);
     expect(res.body.data).toMatchObject({
@@ -66,7 +84,10 @@ describe('POST /api/v1/constructors', () => {
   });
 
   it('rejects request with missing required fields', async () => {
-    const res = await request(app).post('/api/v1/constructors').send({ name: 'McLaren' });
+    const res = await request(app)
+      .post('/api/v1/constructors')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ name: 'McLaren' });
 
     expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('VALIDATION_ERROR');
@@ -74,9 +95,15 @@ describe('POST /api/v1/constructors', () => {
   });
 
   it('rejects duplicate externalId', async () => {
-    await request(app).post('/api/v1/constructors').send(validConstructor);
+    await request(app)
+      .post('/api/v1/constructors')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send(validConstructor);
 
-    const res = await request(app).post('/api/v1/constructors').send(validConstructor);
+    const res = await request(app)
+      .post('/api/v1/constructors')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send(validConstructor);
 
     expect(res.status).toBe(409);
     expect(res.body.error.code).toBe('CONSTRUCTOR_ALREADY_EXISTS');
@@ -85,10 +112,16 @@ describe('POST /api/v1/constructors', () => {
 
 describe('PATCH /api/v1/constructors/:id', () => {
   it('updates a constructor partially', async () => {
-    const created = await request(app).post('/api/v1/constructors').send(validConstructor);
+    const created = await request(app)
+      .post('/api/v1/constructors')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send(validConstructor);
     const id = created.body.data.id;
 
-    const res = await request(app).patch(`/api/v1/constructors/${id}`).send({ color: '#FF9900' });
+    const res = await request(app)
+      .patch(`/api/v1/constructors/${id}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ color: '#FF9900' });
 
     expect(res.status).toBe(200);
     expect(res.body.data.color).toBe('#FF9900');
@@ -96,7 +129,10 @@ describe('PATCH /api/v1/constructors/:id', () => {
   });
 
   it('returns 404 when updating non-existent constructor', async () => {
-    const res = await request(app).patch('/api/v1/constructors/999').send({ color: '#FF9900' });
+    const res = await request(app)
+      .patch('/api/v1/constructors/999')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ color: '#FF9900' });
 
     expect(res.status).toBe(404);
   });
@@ -104,10 +140,15 @@ describe('PATCH /api/v1/constructors/:id', () => {
 
 describe('DELETE /api/v1/constructors/:id', () => {
   it('soft deletes a constructor (returns 204)', async () => {
-    const created = await request(app).post('/api/v1/constructors').send(validConstructor);
+    const created = await request(app)
+      .post('/api/v1/constructors')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send(validConstructor);
     const id = created.body.data.id;
 
-    const deleteRes = await request(app).delete(`/api/v1/constructors/${id}`);
+    const deleteRes = await request(app)
+      .delete(`/api/v1/constructors/${id}`)
+      .set('Authorization', `Bearer ${adminToken}`);
     expect(deleteRes.status).toBe(204);
 
     const listRes = await request(app).get('/api/v1/constructors');
@@ -118,7 +159,37 @@ describe('DELETE /api/v1/constructors/:id', () => {
   });
 
   it('returns 404 when deleting non-existent constructor', async () => {
-    const res = await request(app).delete('/api/v1/constructors/999');
+    const res = await request(app)
+      .delete('/api/v1/constructors/999')
+      .set('Authorization', `Bearer ${adminToken}`);
     expect(res.status).toBe(404);
+  });
+});
+
+// ─── Solo admin muta el catalogo (A5 / BOX-15) ─────────────────────────
+
+describe('constructors — solo admin puede mutar', () => {
+  it('rechaza POST sin token (401 TOKEN_MISSING)', async () => {
+    const res = await request(app).post('/api/v1/constructors').send({});
+    expect(res.status).toBe(401);
+    expect(res.body.error.code).toBe('TOKEN_MISSING');
+  });
+
+  it('rechaza DELETE con token de USER (403 ADMIN_REQUIRED)', async () => {
+    const { accessToken } = await createTestUser();
+    const res = await request(app)
+      .delete('/api/v1/constructors/1')
+      .set('Authorization', `Bearer ${accessToken}`);
+    expect(res.status).toBe(403);
+    expect(res.body.error.code).toBe('ADMIN_REQUIRED');
+  });
+});
+
+// A3 / BOX-13: un :id no numerico antes llegaba a Prisma como NaN y explotaba en 500.
+describe('constructors — :id no numerico', () => {
+  it('GET /constructors/abc responde 400 VALIDATION_ERROR, no 500', async () => {
+    const res = await request(app).get('/api/v1/constructors/abc');
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
   });
 });

@@ -69,7 +69,7 @@ export async function softDelete(id: number) {
   // No podemos borrar un piloto que está en uso en algún FantasyTeam activo
   const activeDependencies = await prisma.fantasyTeam.count({
     where: {
-      OR: [{ driver1Id: id }, { driver2Id: id }, { reserveDriverId: id }],
+      OR: [{ driver1Id: id }, { driver2Id: id }],
     },
   });
 

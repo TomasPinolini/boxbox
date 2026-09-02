@@ -39,12 +39,14 @@ const leagueSelect = {
 } as const;
 
 // memberSelect — shape de LeagueMember en responses publicas (GET /:id/members).
+// user.name: la tabla de miembros del frontend (Slice 13a) muestra nombres, no ids.
 const memberSelect = {
   id: true,
   userId: true,
   isOwner: true,
   status: true,
   joinedAt: true,
+  user: { select: { name: true } },
 } as const;
 
 // fantasyTeamSelect — shape de FantasyTeam en responses publicas (GET /:id/teams/me).
@@ -61,12 +63,45 @@ const fantasyTeamSelect = {
   leagueMemberId: true,
   driver1Id: true,
   driver2Id: true,
-  reserveDriverId: true,
   constructorId: true,
   createdAt: true,
 } as Prisma.FantasyTeamSelect;
 
+// maxMembersForSeason: cuantos miembros entran en una liga de esta temporada. Cada miembro
+// draftea 2 pilotos y los picks son exclusivos por liga (ADR-0006), asi que el tope es
+// floor(pilotos / 2): 11 para una grilla de 22. Unica fuente de la formula — draft.service.ts
+// la importa para el guard de startDraft.
+export function maxMembersForSeason(driverCount: number): number {
+  return Math.floor(driverCount / 2);
+}
+
+// assertRosterOpen: el roster de una liga solo cambia mientras el draft no arranco. startDraft
+// materializa el orden de picks para los miembros de ESE momento; un join posterior deja a
+// alguien sin picks ni turno, un leave/kick deja turnos que nadie puede jugar (B2 / BOX-17).
+// COMPLETED tambien bloquea: un miembro nuevo jugaria la temporada con el equipo vacio.
+// POST /draft/reset vuelve a PENDING y desbloquea.
+function assertRosterOpen(draftStatus: string): void {
+  if (draftStatus !== 'PENDING') {
+    throw new ConflictError(
+      'Members cannot join, leave or be kicked once the draft has started',
+      'ROSTER_LOCKED',
+    );
+  }
+}
+
 export async function createLeague(data: CreateLeagueInput, userId: number) {
+  const season = await prisma.season.findUnique({ where: { id: data.seasonId } });
+  if (!season) {
+    throw new NotFoundError('Season');
+  }
+  const cap = maxMembersForSeason(season.driverCount);
+  if (data.maxMembers !== undefined && data.maxMembers > cap) {
+    throw new ConflictError(
+      `maxMembers cannot exceed ${cap} for this season (${season.driverCount} drivers / 2)`,
+      'MAX_MEMBERS_EXCEEDS_SEASON',
+    );
+  }
+
   // Nested write atomico: Prisma crea League + LeagueMember en una sola transaccion.
   // Si la insert del member falla (raro — userId viene del JWT validado), la liga tampoco
   // se crea. Eso preserva la invariante de dominio "toda liga tiene exactamente 1 owner".
@@ -76,7 +111,7 @@ export async function createLeague(data: CreateLeagueInput, userId: number) {
         name: data.name,
         inviteCode: data.inviteCode,
         seasonId: data.seasonId,
-        maxMembers: data.maxMembers ?? 11,
+        maxMembers: data.maxMembers ?? cap,
         createdById: userId,
         members: {
           // Slice 4: nested create de dos niveles — League → LeagueMember → FantasyTeam,
@@ -136,6 +171,21 @@ export async function getLeagueById(id: number) {
 
 // updateLeague: ya NO chequea ownership. requireLeagueOwner (middleware) ya garantizo isOwner.
 export async function updateLeague(id: number, data: UpdateLeagueInput) {
+  // Mismo tope que en createLeague: maxMembers nunca puede superar lo que la temporada permite.
+  if (data.maxMembers !== undefined) {
+    const league = await prisma.league.findUnique({ where: { id }, include: { season: true } });
+    if (!league) {
+      throw new NotFoundError('League');
+    }
+    const cap = maxMembersForSeason(league.season.driverCount);
+    if (data.maxMembers > cap) {
+      throw new ConflictError(
+        `maxMembers cannot exceed ${cap} for this season (${league.season.driverCount} drivers / 2)`,
+        'MAX_MEMBERS_EXCEEDS_SEASON',
+      );
+    }
+  }
+
   try {
     return await prisma.league.update({ where: { id }, data, select: leagueSelect });
   } catch (err) {
@@ -166,6 +216,8 @@ export async function joinLeague(inviteCode: string, userId: number) {
 // (sin underscore producia 'INVITE CODE_NOT_FOUND' con espacio).
 throw new NotFoundError('Invite_code');
   }
+
+  assertRosterOpen(league.draftStatus);
 
   // Capacity check ANTES de upsert. Si maxMembers=11 y ya hay 11 ACTIVE, rechazar.
   const activeCount = await prisma.leagueMember.count({
@@ -216,6 +268,15 @@ export async function leaveLeague(leagueId: number, userId: number, isOwner: boo
       'OWNER_CANNOT_LEAVE',
     );
   }
+  const league = await prisma.league.findUnique({
+    where: { id: leagueId },
+    select: { draftStatus: true },
+  });
+  if (!league) {
+    throw new NotFoundError('League');
+  }
+  assertRosterOpen(league.draftStatus);
+
   // Update directo. requireLeagueMember ya garantizo que el row existe y esta ACTIVE.
   return prisma.leagueMember.update({
     where: { leagueId_userId: { leagueId, userId } },
@@ -245,6 +306,15 @@ export async function kickMember(leagueId: number, kickedUserId: number, ownerUs
       'OWNER_CANNOT_LEAVE',
     );
   }
+
+  const league = await prisma.league.findUnique({
+    where: { id: leagueId },
+    select: { draftStatus: true },
+  });
+  if (!league) {
+    throw new NotFoundError('League');
+  }
+  assertRosterOpen(league.draftStatus);
 
   const target = await prisma.leagueMember.findUnique({
     where: { leagueId_userId: { leagueId, userId: kickedUserId } },

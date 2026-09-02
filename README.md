@@ -9,11 +9,10 @@ BoxBox es una aplicación web de Fantasy League de Fórmula 1. Los usuarios crea
 ### Funcionalidades principales
 
 - **Ligas privadas**: creá una liga e invitá amigos con un código de invitación (máximo 11 jugadores)
-- **Snake Draft en vivo**: draft en tiempo real con timer por pick. Cada jugador arma su equipo: 2 pilotos titulares, 1 reserva y 1 escudería
+- **Snake Draft en vivo**: draft en tiempo real con timer por pick. Cada jugador arma su equipo: 2 pilotos y 1 escudería
 - **Scoring automático**: los resultados de cada carrera se procesan automáticamente usando datos reales de F1
 - **Predicciones**: antes de cada carrera, predecí el ganador, la pole y el equipo con más puntos para sumar bonus
 - **Recaps de carrera**: después de cada GP, revisá cómo rindió tu equipo con un desglose detallado
-- **Gestión de lineup**: intercambiá tu piloto reserva por un titular antes de la clasificación
 
 ## Stack Técnico
 
@@ -42,13 +41,21 @@ BoxBox es una aplicación web de Fantasy League de Fórmula 1. Los usuarios crea
 git clone https://github.com/TomasPinolini/boxbox.git
 cd boxbox
 
-# Backend (único stack ejecutable por ahora)
+# Backend
 cd backend
 cp .env.example .env       # configurar DATABASE_URL, JWT_SECRET, etc.
 npm install
 npx prisma migrate dev     # crear tablas en la DB
 npx prisma db seed         # poblar con data de F1 2026 (idempotente)
 npm run dev                # iniciar server en http://localhost:3000
+```
+
+```bash
+# Frontend (con el backend corriendo en otra terminal)
+cd frontend
+cp .env.example .env       # VITE_API_URL, VITE_SOCKET_URL apuntando al backend
+npm install
+npm run dev                # iniciar en http://localhost:5173
 ```
 
 Para una guía paso-a-paso (incluye instalación de Postgres, conexión con TablePlus y gotchas comunes), ver [`docs/tutorial.md`](./docs/tutorial.md).

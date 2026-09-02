@@ -86,8 +86,11 @@ Esto puebla la DB con datos de F1 2026:
 | `driver_seasons` | 22 (uniendo cada driver a su constructor para 2026) |
 | `circuits` | 8 |
 | `races` | 5 (primeras 5 fechas) |
+| `users` | 1 admin: `admin@boxbox.test` / `admin1234` (rol `ADMIN`) |
 
 El seed es **idempotente** — podés correrlo cuantas veces quieras, no duplica nada.
+
+**El admin importa**: crear, editar o borrar pilotos, escuderías, circuitos, temporadas y carreras (y cargar resultados) requiere un token de `ADMIN`. `POST /auth/register` siempre crea usuarios `USER`, así que la única forma de tener un admin en dev es este seed. Logueate con `POST /auth/login` usando esas credenciales y usá el `accessToken` en `Authorization: Bearer …`. Los `GET` del catálogo siguen siendo públicos.
 
 ### 7. Verificar
 
@@ -155,6 +158,38 @@ Si tu password tiene `@`, `#`, `:`, etc., en la `DATABASE_URL` van URL-encodeado
 
 **6. Agregaste una tabla y los tests filtran data entre archivos.**
 Si tu PR agrega una tabla nueva al schema, agregala también al `TRUNCATE ... CASCADE` en [`backend/src/tests/setup.ts`](../backend/src/tests/setup.ts), respetando el orden FK-safe (hijos primero, padres después). Sin esto, los tests filtran state y vas a ver fallos intermitentes random. Documentado en [`recipes/add-a-module.md`](./recipes/add-a-module.md).
+
+---
+
+## 8. Levantar el frontend
+
+El frontend (`frontend/`) es una SPA Vite + React + TypeScript + Tailwind. Necesita el backend corriendo (paso 7 arriba, o `npm run dev` en `backend/` en otra terminal).
+
+```bash
+cd ../frontend        # desde backend/, o cd boxbox/frontend desde la raíz
+cp .env.example .env
+npm install
+npm run dev
+```
+
+`.env` trae dos variables (ver `frontend/.env.example`):
+
+- **`VITE_API_URL`** — base de la API REST, por defecto `http://localhost:3000/api/v1`.
+- **`VITE_SOCKET_URL`** — base del servidor Socket.io (draft en vivo), por defecto `http://localhost:3000`.
+
+Con los defaults alcanza si el backend corre local en el puerto 3000. Abrí `http://localhost:5173` — deberías ver la pantalla de login. Registrate con `POST /auth/register` (desde la UI, en `/register`) y probá crear una liga.
+
+**Nota**: el draft en vivo (Socket.io) todavía no tiene pantalla propia en el frontend — eso es Slice 13b, pendiente. Lo que hoy funciona end-to-end desde la UI es: registro/login, crear/unirse a una liga por código de invitación, ver el detalle de la liga (miembros, invitar, iniciar el draft, salir/echar).
+
+Comandos útiles (todos desde `frontend/`):
+
+```bash
+npm run dev          # vite dev server (http://localhost:5173)
+npm run build         # tsc -b && vite build
+npm run lint          # eslint .
+npm test              # vitest run (un solo run, no watch)
+npm run test:watch    # vitest en watch mode
+```
 
 ---
 

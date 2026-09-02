@@ -22,6 +22,8 @@ Códigos de error tipados que la API puede devolver en el envelope `{ error: { c
 | Código             | HTTP | Origen                                                                      | Cuándo                                                                                                                                  |
 | ------------------ | ---- | --------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
 | `VALIDATION_ERROR` | 400  | [`middleware/validate.ts`](../backend/src/middleware/validate.ts)           | El body no matchea el Zod schema del endpoint. `error.details` lleva el detalle por campo.                                              |
+| `INVALID_JSON`     | 400  | [`middleware/error-handler.ts`](../backend/src/middleware/error-handler.ts) | Body que no es JSON válido (`express.json()` tira `entity.parse.failed`). A3 / BOX-13 — antes caía en 500.                            |
+| `ROUTE_NOT_FOUND`  | 404  | [`app.ts`](../backend/src/app.ts) (catch-all antes del errorHandler)       | Ninguna ruta matcheó el path. A3 / BOX-13 — antes Express respondía su página HTML `Cannot GET`.                                       |
 | `INTERNAL_ERROR`   | 500  | [`middleware/error-handler.ts`](../backend/src/middleware/error-handler.ts) | Cualquier excepción que no es `AppError`. Se loguea en server-side; al cliente solo le llega genérico (no leakeamos detalles internos). |
 
 ---
@@ -32,7 +34,7 @@ Códigos de error tipados que la API puede devolver en el envelope `{ error: { c
 | ------------------------- | ---- | -------------------------- | --------------------------------------------------------------------------------------- |
 | `DRIVER_NOT_FOUND`        | 404  | `drivers.service.ts:40`    | GET/PATCH/DELETE de un Driver inexistente o soft-deleted.                               |
 | `DRIVER_ALREADY_EXISTS`   | 409  | `drivers.service.ts:52-55` | POST con un `externalId` ya usado (incluso en filas soft-deleted).                      |
-| `DRIVER_HAS_DEPENDENCIES` | 409  | `drivers.service.ts:77-80` | DELETE de un Driver referenciado por un `FantasyTeam` activo (driver1/driver2/reserve). |
+| `DRIVER_HAS_DEPENDENCIES` | 409  | `drivers.service.ts:77-80` | DELETE de un Driver referenciado por un `FantasyTeam` activo (driver1/driver2). |
 
 ## Constructors
 
@@ -69,6 +71,8 @@ Códigos de error tipados que la API puede devolver en el envelope `{ error: { c
 | `RACE_NOT_LOADABLE`            | 409  | `races.service.ts` (loadResults)                       | Slice 7. `POST /races/:id/results` cuando `race.status ∈ {CANCELLED, POSTPONED}` — la carrera no ocurrió, no aplica cargar results. |
 | `RACE_RESULT_DUPLICATE_DRIVER` | 409  | `races.service.ts` (loadResults)                       | Slice 7. El array de results contiene el mismo `driverId` más de una vez. El pre-check falla antes de la transacción.               |
 | `DRIVER_NOT_FOUND`             | 404  | `races.service.ts` (loadResults)                       | Slice 7. Algún `driverId` del array no existe o está soft-deleted. Rollback garantizado (nada se inserta).                          |
+| `DRIVER_NOT_IN_SEASON`         | 409  | `races.service.ts` (loadResults)                       | Slice 8. Algún `driverId` del array no tiene `DriverSeason` en la temporada de la Race — sin eso no se sabe a qué escudería sumarle los puntos. Cargar el DriverSeason primero. Rollback total. |
+| `CONSTRUCTOR_TOO_MANY_DRIVERS` | 409  | `races.service.ts` (buildConstructorResults)           | Slice 8. Tres o más pilotos del payload pertenecen a la misma escudería en esa temporada — en F1 corren 2 por equipo; es un DriverSeason mal cargado. Rollback total. |
 
 > Nota: los endpoints de Races que validan la existencia de `Season` o `Circuit` referenciados también pueden lanzar `SEASON_NOT_FOUND` o `CIRCUIT_NOT_FOUND` (create/update).
 
@@ -83,7 +87,7 @@ Códigos de error tipados que la API puede devolver en el envelope `{ error: { c
 | `REFRESH_TOKEN_MISSING` | 401  | `auth.controller.ts` (refresh)                                   | `POST /refresh` sin cookie `refreshToken` (típicamente despues de logout o sin login previo).                                                                                 |
 | `REFRESH_TOKEN_INVALID` | 401  | `shared/jwt.ts:verifyRefreshToken` + `auth.service.ts` (refresh) | Cookie `refreshToken` con firma inválida, expirada, payload raro, o user borrado. Mismo código para todos los casos.                                                          |
 | `USER_NOT_FOUND`        | 404  | `auth.service.ts` (getMe)                                        | `GET /me` con token válido pero el `userId` ya no existe en DB (user eliminado entre login y este request).                                                                   |
-| `ADMIN_REQUIRED`        | 403  | `middleware/admin.ts` (requireAdmin)                             | Slice 7. Endpoint admin-only accedido con token válido pero `role !== 'ADMIN'`. Se lee del payload del JWT — no hace query a DB (staleness ~15min hasta que expire el token). |
+| `ADMIN_REQUIRED`        | 403  | `middleware/admin.ts` (requireAdmin)                             | Slice 7 (`POST /races/:id/results`) + A5/BOX-15 (todo `POST`/`PATCH`/`DELETE` del catálogo: drivers, constructors, circuits, seasons incl. `/activate`, races). Endpoint admin-only accedido con token válido pero `role !== 'ADMIN'`. Se lee del payload del JWT — no hace query a DB (staleness ~15min hasta que expire el token). |
 
 ## Leagues
 
@@ -96,6 +100,8 @@ Códigos de error tipados que la API puede devolver en el envelope `{ error: { c
 | `INVITE_CODE_TAKEN`     | 409  | `leagues.service.ts` (createLeague, updateLeague — catch P2002)               | POST/PATCH con un `inviteCode` ya usado (después de normalizar a lowercase). Catch del Prisma error `P2002` hace el chequeo race-free.                                                                                  |
 | `ALREADY_MEMBER`        | 409  | `leagues.service.ts` (joinLeague)                                             | `POST /leagues/join` cuando ya soy ACTIVE member de esa liga. Rejoin de LEFT/KICKED NO tira esto — solo si estoy actualmente ACTIVE.                                                                                    |
 | `LEAGUE_FULL`           | 409  | `leagues.service.ts` (joinLeague)                                             | Intento de joinear cuando `count(ACTIVE members) === maxMembers`.                                                                                                                                                       |
+| `ROSTER_LOCKED`         | 409  | `leagues.service.ts` (joinLeague, leaveLeague, kickMember)                    | `League.draftStatus != PENDING`: una vez que el draft arranco (LIVE o COMPLETED) nadie entra, sale ni es echado — el orden de picks ya esta materializado (B2 / BOX-17). `POST /draft/reset` desbloquea. |
+| `MAX_MEMBERS_EXCEEDS_SEASON` | 409 | `leagues.service.ts` (createLeague, updateLeague)                        | `maxMembers` mayor a `floor(season.driverCount / 2)` — cada miembro draftea 2 pilotos exclusivos (ADR-0006). 11 para la grilla de 22.                                                                                     |
 | `OWNER_CANNOT_LEAVE`    | 409  | `leagues.service.ts` (leaveLeague, kickMember)                                | Owner intenta `POST /leagues/:id/leave` O `DELETE /:id/members/:ownerId`. Debe transferir ownership antes (fuera de scope hoy).                                                                                         |
 | `NOT_LEAGUE_OWNER`      | 403  | `middleware/leagueMembership.ts` (requireLeagueOwner)                         | User ES ACTIVE member pero la ruta requiere owner (PATCH, DELETE kick). Único caso donde 403 NO leakea info (user ya sabe que la liga existe porque es member).                                                         |
 | `FANTASY_TEAM_NOT_FOUND` | 404  | `leagues.service.ts` (getMyFantasyTeam)                                       | Slice 4. Defense-in-depth — no debería ocurrir en la práctica: el FantasyTeam se crea atómicamente junto al LeagueMember en `createLeague`/`joinLeague`.                                                                |
@@ -114,13 +120,6 @@ Estos van a aparecer cuando se construyan los slices del [`roadmap.md`](./roadma
 | -------------------- | ---- | ---------------------------------------------------------- |
 | `PREDICTIONS_LOCKED` | 409  | Crear/editar Prediction después del `lockDate` de la Race. |
 
-### Slice 11 — DriverSwap
-
-| Código                  | HTTP | Cuándo                                                |
-| ----------------------- | ---- | ----------------------------------------------------- |
-| `SWAPS_LOCKED`          | 409  | Swap manual después del `lockDate` de la Race.        |
-| `RESERVE_NOT_AVAILABLE` | 409  | Intento de swap sin tener un piloto reserva asignado. |
-
 ---
 
 ## Draft (Slice 5 REST + Slice 6 WebSocket)
@@ -128,6 +127,7 @@ Estos van a aparecer cuando se construyan los slices del [`roadmap.md`](./roadma
 | Código                         | HTTP | Origen                          | Cuándo                                                                                                                                            |
 | ------------------------------ | ---- | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `DRAFT_ALREADY_STARTED`        | 409  | `draft.service.ts` (startDraft)  | `POST /leagues/:id/draft/start` cuando `League.draftStatus != PENDING` — el draft ya arrancó (o ya terminó).                                        |
+| `TOO_MANY_MEMBERS_FOR_DRAFT`   | 409  | `draft.service.ts` (startDraft)  | Miembros ACTIVE > `floor(season.driverCount / 2)`: no hay pilotos suficientes para 2 por miembro. Red de seguridad de `MAX_MEMBERS_EXCEEDS_SEASON` (ADR-0006). |
 | `DRAFT_NOT_LIVE`                | 409  | `draft.service.ts` (submitPick)  | `POST /leagues/:id/draft/pick` cuando `League.draftStatus != LIVE` (todavía no arrancó, o ya terminó). También defense-in-depth si no hay ningún pick abierto. |
 | `NOT_YOUR_TURN`                 | 409  | `draft.service.ts` (submitPick)  | El pick actual (menor `pickNumber` sin llenar) pertenece a otro `LeagueMember`.                                                                     |
 | `WRONG_PICK_CATEGORY`           | 409  | `draft.service.ts` (submitPick)  | La ronda actual espera `driverId` (rondas 1-3) o `constructorId` (ronda 4) y el body mandó el otro campo.                                           |

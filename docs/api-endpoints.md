@@ -121,7 +121,7 @@ Cada sección está taggeada con su estado actual:
 | PATCH  | `/races/:id`             | Admin  |                                                                                                                                                                                                                                                   |
 | DELETE | `/races/:id`             | Admin  |                                                                                                                                                                                                                                                   |
 | GET    | `/races/:id/results`     | User   | Resultados crudos ordenados por `position` asc (nulls last). 404 si la Race no existe.                                                                                                                                                            |
-| POST   | `/races/:id/results`     | Admin  | Slice 7. Body `{ results: [{driverId, position?, points, gridPosition?, laps?, fastestLap?, status}] }`. Atomico: crea todos los RaceResults + Race pasa a `COMPLETED` en la misma transacción. 409 si Race ya COMPLETED / CANCELLED / POSTPONED. |
+| POST   | `/races/:id/results`     | Admin  | Slice 7. Body `{ results: [{driverId, position?, points, gridPosition?, laps?, fastestLap?, status}] }`. Atomico: crea todos los RaceResults + los ConstructorResults (Slice 8: suma de puntos por escudería vía `DriverSeason` de la temporada; `driver1Points` = el mayor, `driver2Points` = 0 si corrió uno solo) + Race pasa a `COMPLETED`, todo en la misma transacción. 409 si Race ya COMPLETED / CANCELLED / POSTPONED; 409 `DRIVER_NOT_IN_SEASON` si un piloto no tiene DriverSeason en esa temporada. |
 | POST   | `/races/:id/process`     | Admin  | Fetch desde API externa + calcular puntajes                                                                                                                                                                                                       |
 | POST   | `/races/:id/recalculate` | Admin  | Recalcular puntajes sin re-fetch                                                                                                                                                                                                                  |
 
@@ -137,7 +137,7 @@ Cada sección está taggeada con su estado actual:
 | PATCH  | `/leagues/:id`                 | League owner  | Partial: `name`/`maxMembers`/`status`/`inviteCode`. 403 NOT_LEAGUE_OWNER si soy member sin ser owner. Body `{}` → 400                         |
 | POST   | `/leagues/join`                | User          | Rate limit 10/min/user. Body: `{inviteCode}`. 404 INVITE_CODE_NOT_FOUND si inválido o archived. Soporta rejoin desde LEFT/KICKED              |
 | POST   | `/leagues/:id/leave`           | League member | 409 OWNER_CANNOT_LEAVE si soy owner (debe transferir primero — fuera de scope hoy)                                                            |
-| GET    | `/leagues/:id/members`         | League member | Devuelve solo ACTIVE members (LEFT/KICKED no aparecen)                                                                                        |
+| GET    | `/leagues/:id/members`         | League member | Devuelve solo ACTIVE members (LEFT/KICKED no aparecen). Cada miembro incluye `user: { name }` (Slice 13a)                                    |
 | DELETE | `/leagues/:id/members/:userId` | League owner  | Kick (soft → KICKED). 409 OWNER_CANNOT_LEAVE si owner intenta kickearse a sí mismo                                                            |
 
 > **Archivado**: NO hay `DELETE /leagues/:id`. Para archivar una liga: `PATCH /leagues/:id { "status": "ARCHIVED" }`.
@@ -149,7 +149,7 @@ Cada sección está taggeada con su estado actual:
 
 ### REST Endpoints
 
-4 rondas fijas por draft (una por slot de FantasyTeam): rondas 1-3 categoría DRIVER (llenan `driver1`/`driver2`/`reserveDriver` en ese orden), ronda 4 categoría CONSTRUCTOR (llena `constructor`). Con N miembros ACTIVE, el draft completo son `N × 4` picks.
+3 rondas fijas por draft (una por slot de FantasyTeam): rondas 1-2 categoría DRIVER (llenan `driver1`/`driver2` en ese orden), ronda 3 categoría CONSTRUCTOR (llena `constructor`). Con N miembros ACTIVE, el draft completo son `N × 3` picks. No hay piloto reserva (ADR-0006). `start` rechaza con 409 `TOO_MANY_MEMBERS_FOR_DRAFT` si los miembros superan `floor(season.driverCount / 2)`.
 
 | Método | Endpoint                       | Acceso        | Notas                             |
 | ------ | ------------------------------ | ------------- | ---------------------------------- |
@@ -186,9 +186,7 @@ Si el timer llega a 0 sin que nadie pickee, el servidor auto-asigna **al azar** 
 | ------ | ----------------------------- | ------------- | ----------------------------------------------------------------- |
 | GET    | `/leagues/:id/teams`          | League member | Todos los equipos de la liga                                      |
 | GET    | `/leagues/:id/teams/:userId`  | League member | Equipo de un usuario específico                                   |
-| GET    | `/leagues/:id/teams/me`       | League member | Slice 4. Mi FantasyTeam en esta liga; se crea vacío (slots `null`) al crear/joinear la liga |
-| POST   | `/leagues/:id/teams/me/swap`  | League member | Solo antes de `lockDate`. Body: `{ slot, reserveIn: true/false }` |
-| GET    | `/leagues/:id/teams/me/swaps` | League member | Historial de swaps                                                |
+| GET    | `/leagues/:id/teams/me`       | League member | Slice 4. Mi FantasyTeam en esta liga (`driver1Id`, `driver2Id`, `constructorId`); se crea vacío (slots `null`) al crear/joinear la liga |
 
 ---
 
@@ -290,7 +288,6 @@ Suma de los puntos reales de ambos pilotos del constructor en la carrera.
 | Pole position       | +8                    |
 | Team con más puntos | +12                   |
 
-### Piloto Reserva
+### Piloto que no termina (DNF / DSQ / DNS)
 
-- **Auto-sustitución**: Si un titular hace DNF/DSQ/DNS, el reserva lo reemplaza automáticamente. Se toman los mejores 2 puntajes de los 3 pilotos.
-- **Swap manual**: Antes del `lockDate`, el usuario puede intercambiar un titular por el reserva para esa carrera.
+- No hay piloto reserva ni swaps (ADR-0006). Un piloto con status `DNF`, `DSQ` o `DNS` suma 0 puntos para ese slot del FantasyTeam en esa carrera.

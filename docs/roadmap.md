@@ -21,20 +21,13 @@ Stack overview rápido (ver [`../CLAUDE.md`](../CLAUDE.md) para detalle): Expres
 
 ## Now — bloqueantes para todo lo demás
 
-_(Slices 1, 2, 3, 4, 5, 6, 7 completos. Próximo: Slice 8.)_
+_(Slices 1 a 8 completos. Próximo: Slice 9.)_
 
 ---
 
 ## Later — scoring + sync + frontend
 
 _(El carril Draft — Slices 4, 5, 6 — está completo. Lo que sigue es el carril Scoring, que converge con Draft en Slice 9.)_
-
-### Slice 8 — ConstructorResult (derivado de RaceResult)
-
-- **Goal**: al cargar RaceResults, se computan automáticamente los ConstructorResult sumando puntos por equipo.
-- **Touches**: tabla `ConstructorResult` con `driver1Points` y `driver2Points`; lógica en el service de races que, post-carga de RaceResult, agrupa por constructor y crea las filas.
-- **Done when**: para una Race con resultados completos de los 20 pilotos, hay 10 ConstructorResults con la suma correcta. Tests cubren el cálculo + edge cases (constructor con solo 1 piloto clasificado).
-- **Blocked by**: Slice 7.
 
 ### Slice 9 — LeagueStanding (snapshot por carrera)
 
@@ -50,12 +43,9 @@ _(El carril Draft — Slices 4, 5, 6 — está completo. Lo que sigue es el carr
 - **Done when**: una predicción antes del lock se acepta. Después del lock se rechaza (409). Cuando se cargan los RaceResults, las predicciones acertadas suman bonus en LeagueStanding.predictionPoints.
 - **Blocked by**: Slice 9.
 
-### Slice 11 — DriverSwap (manual + AUTO_DNF)
+### Slice 11 — DriverSwap — ELIMINADO (ADR-0006)
 
-- **Goal**: un miembro puede swapear su reserva por un titular antes del lockDate (`MANUAL`); o el sistema lo hace automáticamente cuando un titular hace DNF/DSQ/DNS (`AUTO_DNF`).
-- **Touches**: tabla `DriverSwap`; endpoint `POST /leagues/:id/teams/me/swap`; lógica de AUTO_DNF en el procesamiento de RaceResult (si un Driver del FantasyTeam de un miembro tiene status DNF/DSQ/DNS, se activa el reserva); historial via `GET /leagues/:id/teams/me/swaps`.
-- **Done when**: swap manual antes del lock funciona, después del lock rechaza. RaceResult con DNF dispara DriverSwap automático cuyo `type = AUTO_DNF` y el scoring usa los 2 mejores de los 3 pilotos.
-- **Blocked by**: Slice 9.
+- **Decisión (2026-08-27)**: la reserva y `DriverSwap` salieron del juego — ver [`adr/ADR-0006-draft-3-rondas-sin-reserva.md`](./adr/ADR-0006-draft-3-rondas-sin-reserva.md). El draft tiene 3 rondas (2 pilotos + constructor) y el tope de miembros es `floor(driverCount / 2)`. No se renumeran los slices siguientes. El listado voluntario "historial de swaps" cae con este slice.
 
 ### Slice 12 — Sync con Jolpica/OpenF1
 
@@ -64,12 +54,12 @@ _(El carril Draft — Slices 4, 5, 6 — está completo. Lo que sigue es el carr
 - **Done when**: `POST /admin/sync/season?year=2026` puebla Driver/Constructor/Circuit/Race desde Jolpica y deja un SyncLog `SUCCESS`. Falla parcial deja `PARTIAL` con detalle. Re-sync no duplica (uso de `externalId` + upsert).
 - **Blocked by**: Slice 1 (necesita rol admin) + acceso a las APIs de Jolpica/OpenF1.
 
-### Slice 13 — Frontend bootstrap
+### Slice 13b — Frontend: draft en vivo + e2e + polish
 
-- **Goal**: crear el directorio `frontend/` con Vite + React + TypeScript + Tailwind + cliente HTTP que pega al backend. Puede arrancar en paralelo a partir de Slice 4.
-- **Touches**: nuevo directorio `frontend/`; setup Vite; estructura básica de páginas (login, lista de ligas, detalle de liga); cliente HTTP con el access token; configurar CORS en backend para `http://localhost:5173`.
-- **Done when**: `npm run dev` en `frontend/` levanta en 5173 y puede hacer login contra el backend. Login persiste token en localStorage. Hay al menos una página autenticada (mi perfil) que llama `GET /auth/me`.
-- **Blocked by**: Slice 1 (necesita auth funcionando).
+- **Goal**: conectar la pantalla de draft al namespace `/draft` de Socket.io (Slice 6), agregar tests e2e con Playwright y hacer el pase final de responsive/accesibilidad sobre las pantallas de 13a.
+- **Touches**: `frontend/src/features/draft/` (nuevo); cliente socket.io-client; tests e2e (`frontend/e2e/` o similar).
+- **Done when**: desde `/leagues/:id`, con el draft LIVE, se puede ver el estado del draft en tiempo real y hacer picks; hay al menos un test e2e que cubre login → crear liga → join → draft completo.
+- **Blocked by**: Slice 13a (done), Slice 6.
 
 ---
 
@@ -97,6 +87,26 @@ Si alguno de estos se vuelve demasiado grande, partir así:
 
 ## Completados
 
+### Slice 13a — Frontend bootstrap (auth + ligas)
+
+- **Status**: done (branches `13a/task-5-auth`, `13a/task-6-leagues`, `13a/task-7-league-detail`, mergeadas en `dev`).
+- **Goal**: crear el directorio `frontend/` con Vite + React + TypeScript + Tailwind + cliente HTTP que pega al backend, con las pantallas de auth y ligas funcionando de punta a punta.
+- **Shipped**: `frontend/` (Vite + React 19 + TS + Tailwind v4). `services/api-client.ts` (axios singleton, interceptor con refresh de token dedup'do vía `refreshOnce()`), `store/auth.store.ts` (Zustand, token solo en memoria — sin `persist`), React Query para todo el fetching (`features/*/[...].queries.ts`, un hook por operación, invalidación en cada mutación), React Router v7 con layout-routes de guarda (`RequireAuth` / `GuestOnly`), formularios con `react-hook-form` + Zod (mismos schemas que el backend). Componentes UI propios en `components/ui/` (`Alert`, `Badge`, `Button`, `Card`, `Field`, `PageShell`).
+  - **Pantallas**: `/login`, `/register` (auth), `/leagues` (lista + alta + join por código), `/leagues/:id` (detalle: miembros, invitar por código, iniciar draft si sos owner, salir/echar miembros — todo respetando `ROSTER_LOCKED` una vez que el draft está LIVE).
+- **Touches reales**: todo `frontend/` (nuevo); `backend` sin cambios de lógica — solo `FRONTEND_URL` en CORS (ya soportado desde antes) y `user.name` agregado a `memberSelect` en `leagues.service.ts` para que la UI pueda mostrar nombres.
+- **Tests**: Vitest + Testing Library (`RequireAuth.test.tsx`, `LeagueCard.test.tsx`, `auth.store.test.ts`, `api-error.test.ts`). Cada task se verificó además con un script Playwright manual contra `npm run dev` real (login, crear/joinear liga, iniciar draft, roster lock) antes de mergear.
+- **Pendiente (Slice 13b)**: draft en vivo conectado a Socket.io, tests e2e con Playwright, pase final de responsive/a11y.
+
+### Slice 8 — ConstructorResult (derivado de RaceResult)
+
+- **Status**: done (branch `slice-8-constructor-result`).
+- **Goal**: al cargar RaceResults, se computan automáticamente los ConstructorResult sumando puntos por equipo.
+- **Shipped**: `loadResults` (`races.service.ts`) resuelve el constructor de cada piloto vía `DriverSeason` de la temporada de la Race, agrupa los puntos por constructor (`buildConstructorResults`, función pura: `Map<constructorId, puntos[]>` → una fila por entrada) y crea los `ConstructorResult` en la **misma transacción** que los RaceResults y el pase a `COMPLETED`. `driver1Points` = el mayor de los dos; con un solo piloto, `driver2Points = 0`; constructor sin pilotos en el payload no genera fila. Sin endpoint nuevo: Slice 9 lee la tabla directo. Sin migration (`constructor_results` existía desde `init`).
+- **Reglas nuevas**: 409 `DRIVER_NOT_IN_SEASON` si un piloto del payload no tiene DriverSeason en esa temporada (error de datos, no se ignora en silencio); 409 `CONSTRUCTOR_TOO_MANY_DRIVERS` si tres o más pilotos comparten escudería.
+- **C6 / BOX-24 cerrado**: los chequeos de estado de la Race y de existencia de drivers pasaron **adentro** de la `$transaction` (`tx.race`, `tx.driver`) — misma foto de la DB para decidir e insertar.
+- **Gotcha de tipos**: un `select: { driverId, constructorId }` sobre `driverSeason` choca con la colisión `constructor` de Slice 5 — se trae la fila entera en vez de usar `as Prisma.DriverSeasonSelect`.
+- **Tests**: 4 nuevos en `races.test.ts` (20 pilotos / 10 escuderías con sumas; escudería de un solo piloto; piloto sin DriverSeason → 409 + rollback; tres pilotos en una escudería → 409). `createDrivers()` ahora vincula de a pares via DriverSeason. 205 total.
+
 ### Slice 6 — Draft realtime (Socket.io overlay)
 
 - **Status**: done (branch `slice-6-draft-realtime`).
@@ -115,7 +125,7 @@ Si alguno de estos se vuelve demasiado grande, partir así:
 
 - **Status**: done (branch `slice-5-draft-rest`).
 - **Goal**: la lógica del snake draft funciona contra REST (no realtime todavía). El owner arranca el draft, los miembros piden el estado y mandan picks vía POST.
-- **Decision de diseño (confirmada con el equipo antes de codear)**: FantasyTeam tiene 4 slots (`driver1`, `driver2`, `reserveDriver`, `constructor`), así que el draft son **4 rondas fijas** — una por slot: rondas 1-3 categoría DRIVER (llenan `driver1Id`/`driver2Id`/`reserveDriverId` en ese orden), ronda 4 categoría CONSTRUCTOR (llena `constructorId`). Actualiza el "Done when" original del roadmap (que hablaba de 3 rondas genéricas) — con N miembros el draft completo son `N × 4` picks, no `N × 3`.
+- **Decision de diseño (confirmada con el equipo antes de codear — superseded por ADR-0006, que volvió a 3 rondas sin reserva)**: FantasyTeam tiene 4 slots (`driver1`, `driver2`, `reserveDriver`, `constructor`), así que el draft son **4 rondas fijas** — una por slot: rondas 1-3 categoría DRIVER (llenan `driver1Id`/`driver2Id`/`reserveDriverId` en ese orden), ronda 4 categoría CONSTRUCTOR (llena `constructorId`). Actualiza el "Done when" original del roadmap (que hablaba de 3 rondas genéricas) — con N miembros el draft completo son `N × 4` picks, no `N × 3`.
 - **Shipped**: nuevo módulo `modules/draft/` (schema/service/controller/routes/test) montado como sub-router de `leagues.routes.ts` bajo `/:id/draft` (no se registra en `app.ts` — es un sub-recurso de League, no un módulo top-level). Endpoints: `POST /leagues/:id/draft/start` (owner, genera las `N×4` filas `DraftPick` placeholder con snake order vía Fisher-Yates + transiciona a LIVE), `GET /leagues/:id/draft/state`, `GET /leagues/:id/draft/available`, `POST /leagues/:id/draft/pick` (valida turno + categoría + disponibilidad, llena el slot del FantasyTeam, transiciona a COMPLETED en el último pick — todo en una transacción interactiva), `POST /leagues/:id/draft/reset` (owner). Sin migration: `DraftPick` y `League.draftStatus` ya existían en el schema desde el `init` (idle).
 - **Decisiones clave**: el "pick actual" nunca se guarda como estado aparte — es siempre la fila `DraftPick` de menor `pickNumber` con `driverId` Y `constructorId` null. El orden del draft se materializa completo en `start` (no hay columna `draftOrder` en `LeagueMember`). `leagueId` en los controllers de draft sale de `req.leagueMember.leagueId` (poblado por `requireLeagueMember` en el mount), no de `req.params.id` — evita depender de `mergeParams` en el sub-router.
 - **Bug de tipos encontrado y arreglado (afecta también Slice 4)**: `fantasyTeamSelect` en `leagues.service.ts` fallaba en `tsc --noEmit` (nunca se había corrido — solo `eslint`/`vitest`, que no lo detectan). Causa: el modelo `Constructor` genera una relación/delegate llamado literalmente `constructor`, que colisiona con la propiedad `constructor` que todo objeto JS hereda de `Object.prototype`. Fix: declarar esos `select` con type assertion (`as Prisma.XSelect`) en vez de `as const` o anotación directa — es el único approach que evita el falso positivo (confirmado empíricamente). Aplicado en `fantasyTeamSelect`, `pickSelect` y `constructorAvailableSelect`.
