@@ -54,12 +54,12 @@ _(El carril Draft — Slices 4, 5, 6 — está completo. Lo que sigue es el carr
 - **Done when**: `POST /admin/sync/season?year=2026` puebla Driver/Constructor/Circuit/Race desde Jolpica y deja un SyncLog `SUCCESS`. Falla parcial deja `PARTIAL` con detalle. Re-sync no duplica (uso de `externalId` + upsert).
 - **Blocked by**: Slice 1 (necesita rol admin) + acceso a las APIs de Jolpica/OpenF1.
 
-### Slice 13 — Frontend bootstrap
+### Slice 13b — Frontend: draft en vivo + e2e + polish
 
-- **Goal**: crear el directorio `frontend/` con Vite + React + TypeScript + Tailwind + cliente HTTP que pega al backend. Puede arrancar en paralelo a partir de Slice 4.
-- **Touches**: nuevo directorio `frontend/`; setup Vite; estructura básica de páginas (login, lista de ligas, detalle de liga); cliente HTTP con el access token; configurar CORS en backend para `http://localhost:5173`.
-- **Done when**: `npm run dev` en `frontend/` levanta en 5173 y puede hacer login contra el backend. Login persiste token en localStorage. Hay al menos una página autenticada (mi perfil) que llama `GET /auth/me`.
-- **Blocked by**: Slice 1 (necesita auth funcionando).
+- **Goal**: conectar la pantalla de draft al namespace `/draft` de Socket.io (Slice 6), agregar tests e2e con Playwright y hacer el pase final de responsive/accesibilidad sobre las pantallas de 13a.
+- **Touches**: `frontend/src/features/draft/` (nuevo); cliente socket.io-client; tests e2e (`frontend/e2e/` o similar).
+- **Done when**: desde `/leagues/:id`, con el draft LIVE, se puede ver el estado del draft en tiempo real y hacer picks; hay al menos un test e2e que cubre login → crear liga → join → draft completo.
+- **Blocked by**: Slice 13a (done), Slice 6.
 
 ---
 
@@ -86,6 +86,16 @@ Si alguno de estos se vuelve demasiado grande, partir así:
 ---
 
 ## Completados
+
+### Slice 13a — Frontend bootstrap (auth + ligas)
+
+- **Status**: done (branches `13a/task-5-auth`, `13a/task-6-leagues`, `13a/task-7-league-detail`, mergeadas en `dev`).
+- **Goal**: crear el directorio `frontend/` con Vite + React + TypeScript + Tailwind + cliente HTTP que pega al backend, con las pantallas de auth y ligas funcionando de punta a punta.
+- **Shipped**: `frontend/` (Vite + React 19 + TS + Tailwind v4). `services/api-client.ts` (axios singleton, interceptor con refresh de token dedup'do vía `refreshOnce()`), `store/auth.store.ts` (Zustand, token solo en memoria — sin `persist`), React Query para todo el fetching (`features/*/[...].queries.ts`, un hook por operación, invalidación en cada mutación), React Router v7 con layout-routes de guarda (`RequireAuth` / `GuestOnly`), formularios con `react-hook-form` + Zod (mismos schemas que el backend). Componentes UI propios en `components/ui/` (`Alert`, `Badge`, `Button`, `Card`, `Field`, `PageShell`).
+  - **Pantallas**: `/login`, `/register` (auth), `/leagues` (lista + alta + join por código), `/leagues/:id` (detalle: miembros, invitar por código, iniciar draft si sos owner, salir/echar miembros — todo respetando `ROSTER_LOCKED` una vez que el draft está LIVE).
+- **Touches reales**: todo `frontend/` (nuevo); `backend` sin cambios de lógica — solo `FRONTEND_URL` en CORS (ya soportado desde antes) y `user.name` agregado a `memberSelect` en `leagues.service.ts` para que la UI pueda mostrar nombres.
+- **Tests**: Vitest + Testing Library (`RequireAuth.test.tsx`, `LeagueCard.test.tsx`, `auth.store.test.ts`, `api-error.test.ts`). Cada task se verificó además con un script Playwright manual contra `npm run dev` real (login, crear/joinear liga, iniciar draft, roster lock) antes de mergear.
+- **Pendiente (Slice 13b)**: draft en vivo conectado a Socket.io, tests e2e con Playwright, pase final de responsive/a11y.
 
 ### Slice 8 — ConstructorResult (derivado de RaceResult)
 
