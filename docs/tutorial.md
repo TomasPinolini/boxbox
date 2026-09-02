@@ -189,6 +189,7 @@ npm run build         # tsc -b && vite build
 npm run lint          # eslint .
 npm test              # vitest run (un solo run, no watch)
 npm run test:watch    # vitest en watch mode
+npm run e2e           # playwright — necesita backend + frontend corriendo y DB seedeada
 ```
 
 ---
