@@ -3,11 +3,16 @@
 > vitest run
 
 
- RUN  v4.1.11 /home/user/boxbox/frontend
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.11 [39m[90mC:/Users/Usuario/Desktop/boxbox/frontend[39m
 
+ [32m✓[39m src/store/auth.store.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m src/features/auth/RequireAuth.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 68[2mms[22m[39m
+ [32m✓[39m src/components/ui/Alert.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 201[2mms[22m[39m
+ [32m✓[39m src/services/api-error.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m src/features/leagues/LeagueCard.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 199[2mms[22m[39m
 
- Test Files  5 passed (5)
-      Tests  13 passed (13)
-   Start at  18:50:42
-   Duration  4.34s (transform 527ms, setup 1.51s, import 911ms, tests 514ms, environment 6.77s)
+[2m Test Files [22m [1m[32m5 passed[39m[22m[90m (5)[39m
+[2m      Tests [22m [1m[32m13 passed[39m[22m[90m (13)[39m
+[2m   Start at [22m 16:20:02
+[2m   Duration [22m 34.64s[2m (transform 755ms, setup 36.33s, import 4.79s, tests 480ms, environment 119.31s)[22m
 
