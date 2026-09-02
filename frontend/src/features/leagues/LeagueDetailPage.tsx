@@ -34,9 +34,13 @@ export function LeagueDetailPage() {
   const actionError = startDraft.error ?? leave.error ?? kick.error ?? members.error;
 
   async function copyCode() {
-    await navigator.clipboard.writeText(l.inviteCode);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
+    try {
+      await navigator.clipboard.writeText(l.inviteCode);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // Clipboard bloqueado (permisos o contexto inseguro): no mostramos "Copiado".
+    }
   }
 
   return (
