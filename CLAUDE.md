@@ -6,13 +6,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 BoxBox is a Formula 1 Fantasy League web app — a university project (TP) for Desarrollo de Software at UTN FRRO. Users create/join private leagues, participate in a live snake draft to build a team (2 drivers, 1 constructor — no reserve driver, see ADR-0006), and compete across the F1 season with real race results.
 
-Backend Slices 1–8 are shipped (auth, leagues, membership, fantasy teams, snake draft over REST + Socket.io, race-result ingestion with per-constructor totals). Frontend Slice 13a is also shipped (auth + leagues screens); draft realtime UI, e2e tests and a final responsive pass are still Slice 13b, not built. Scoring (Slice 9), predictions (Slice 10) and external sync (Slice 12) are still **planned, not built**. When in doubt about what is actually implemented, trust the source, not the docs.
+Backend Slices 1–8 are shipped (auth, leagues, membership, fantasy teams, snake draft over REST + Socket.io, race-result ingestion with per-constructor totals). Frontend Slice 13a is also shipped (auth + leagues screens, e2e tests, responsive pass); draft realtime UI is still Slice 13b, not built. Scoring (Slice 9), predictions (Slice 10) and external sync (Slice 12) are still **planned, not built**. When in doubt about what is actually implemented, trust the source, not the docs.
 
 ## Repository Layout
 
 ```
 backend/      Express 5 + Socket.io + TypeScript API
-frontend/     Vite + React 19 + TypeScript + Tailwind v4 SPA (auth + leagues shipped; draft UI pending — Slice 13b)
+frontend/     Vite + React 19 + TypeScript + Tailwind v4 SPA (auth + leagues shipped, incl. e2e; draft UI pending — Slice 13b)
 docs/         Design docs (proposal, ER diagram, API spec, architecture) + local setup tutorial
 ```
 
@@ -30,13 +30,13 @@ Built (one slice = one PR; full log in `docs/roadmap.md` → "Completados"):
 - **Draft realtime (Slice 6)**: Socket.io namespace `/draft` in `modules/draft/draft.gateway.ts`, attached in `server.ts` (not `app.ts`). Handshake `auth: { token, leagueId }`; rejected unless ACTIVE member. Rooms `league:<id>`. Events out: `draft:state|update|timer|complete|error`; in: `draft:pick`. 60s `setTimeout` auto-pick (in-memory, lost on restart). REST controllers broadcast the same events through the `shared/socket.ts` singleton (`getIo()` is `null` in supertest tests → no-op). Gateway tests bind a real port and override `pickTimeoutMs` to 300ms.
 - **RaceResult ingestion (Slice 7)**: `GET /races/:id/results` (public), `POST /races/:id/results` (`requireAuth → requireAdmin`), transitions the race to `COMPLETED`. `middleware/admin.ts` reads `role` from the JWT — no DB hit, stale until token expiry.
 - **ConstructorResult (Slice 8)**: `loadResults` also derives one `ConstructorResult` per constructor (driver → constructor via `DriverSeason` of the race's season; `buildConstructorResults` is a pure grouping function) inside the same `$transaction` — every pre-check now runs on `tx`. 409 `DRIVER_NOT_IN_SEASON` / `CONSTRUCTOR_TOO_MANY_DRIVERS`. No endpoint; Slice 9 reads the table.
-- **Frontend bootstrap (Slice 13a)**: `frontend/` — Vite + React 19 + TypeScript + Tailwind v4. `services/api-client.ts` (axios singleton with dedup'd token-refresh interceptor via `refreshOnce()`), `store/auth.store.ts` (Zustand, token kept in memory only — no `persist`), React Query hooks per feature (`features/*/[...].queries.ts`, invalidated on every mutation), React Router v7 with layout-route guards (`RequireAuth`, `GuestOnly`), `react-hook-form` + Zod forms mirroring the backend schemas, and a handful of `components/ui/` primitives (`Alert`, `Badge`, `Button`, `Card`, `Field`, `PageShell`). Screens shipped: `/login`, `/register`, `/leagues` (list + create + join by invite code), `/leagues/:id` (members, invite code, start draft, leave/kick — respecting `ROSTER_LOCKED` once the draft is LIVE). Draft realtime UI, Playwright e2e, and the final responsive/a11y pass are **Slice 13b, not built yet**.
+- **Frontend bootstrap (Slice 13a)**: `frontend/` — Vite + React 19 + TypeScript + Tailwind v4. `services/api-client.ts` (axios singleton with dedup'd token-refresh interceptor via `refreshOnce()`), `store/auth.store.ts` (Zustand, token kept in memory only — no `persist`), React Query hooks per feature (`features/*/[...].queries.ts`, invalidated on every mutation), React Router v7 with layout-route guards (`RequireAuth`, `GuestOnly`), `react-hook-form` + Zod forms mirroring the backend schemas, and a handful of `components/ui/` primitives (`Alert`, `Badge`, `Button`, `Card`, `Field`, `PageShell`). Screens shipped: `/login`, `/register`, `/leagues` (list + create + join by invite code), `/leagues/:id` (members, invite code, start draft, leave/kick — respecting `ROSTER_LOCKED` once the draft is LIVE). E2E coverage with Playwright (`frontend/e2e/leagues.spec.ts`, `npm run e2e`) plus a verified responsive pass (375/768/1024px, no horizontal overflow) round out the slice. Draft realtime UI is **Slice 13b, not built yet**.
 
 Not yet built — **intentionally deferred**. Do not suggest implementing any of these without an explicit ask from the user; ordering and blockers live in `docs/roadmap.md`:
 
 - Slice 9 LeagueStanding (scoring), Slice 10 Predictions. Slice 11 DriverSwap was **dropped** (ADR-0006) — do not reintroduce a reserve driver or swaps.
 - Slice 12 external API sync (Jolpica, OpenF1)
-- Slice 13b Frontend: draft realtime UI (Socket.io client), Playwright e2e tests, final responsive/a11y pass
+- Slice 13b Frontend: draft realtime UI (Socket.io client)
 - Transfer ownership of leagues — owner trying to leave gets 409 `OWNER_CANNOT_LEAVE`
 - Refresh-token rotation / server-side revocation, CI workflow, structured logging (tracked in local-only `docs/known-debt.md`, gitignored)
 
@@ -85,6 +85,8 @@ npm run lint                  # eslint .
 
 npm test                      # vitest run (single run, not watch)
 npm run test:watch            # vitest (watch mode)
+
+npm run e2e                   # playwright test — needs backend + frontend running, DB seeded
 ```
 
 ## Backend Architecture
@@ -179,6 +181,7 @@ Frontend (`frontend/`):
 
 - Framework: Vitest + Testing Library (`@testing-library/react`, `jest-dom`, `user-event`). No real backend — components/hooks that hit the API are tested via mocked `services/*.service.ts` calls, not a live server.
 - `npm test` runs once (not watch); use `npm run test:watch` while iterating.
+- E2E: Playwright (`frontend/playwright.config.ts`, `frontend/e2e/*.spec.ts`, `npm run e2e`). Needs the backend running (`npm run dev` in `backend/`, DB migrated + seeded) — `webServer` in the config only starts the frontend. `frontend/e2e/leagues.spec.ts` covers register → create league → see it as owner, plus the `/leagues` → `/login` redirect when logged out. The cátedra requires at least one automated browser test — don't let this suite regress to zero tests even mid-refactor.
 - Beyond the automated suite, the standing convention on this project (per the user) is to also manually click through the affected flow against a real `npm run dev` (backend + frontend) before pushing — either with a throwaway Playwright script or by hand in the browser. Don't claim a frontend task is "done" from `lint`/`test`/`build` passing alone.
 
 ## Browser automation (agent-browser)
