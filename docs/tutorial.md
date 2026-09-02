@@ -161,6 +161,38 @@ Si tu PR agrega una tabla nueva al schema, agregala también al `TRUNCATE ... CA
 
 ---
 
+## 8. Levantar el frontend
+
+El frontend (`frontend/`) es una SPA Vite + React + TypeScript + Tailwind. Necesita el backend corriendo (paso 7 arriba, o `npm run dev` en `backend/` en otra terminal).
+
+```bash
+cd ../frontend        # desde backend/, o cd boxbox/frontend desde la raíz
+cp .env.example .env
+npm install
+npm run dev
+```
+
+`.env` trae dos variables (ver `frontend/.env.example`):
+
+- **`VITE_API_URL`** — base de la API REST, por defecto `http://localhost:3000/api/v1`.
+- **`VITE_SOCKET_URL`** — base del servidor Socket.io (draft en vivo), por defecto `http://localhost:3000`.
+
+Con los defaults alcanza si el backend corre local en el puerto 3000. Abrí `http://localhost:5173` — deberías ver la pantalla de login. Registrate con `POST /auth/register` (desde la UI, en `/register`) y probá crear una liga.
+
+**Nota**: el draft en vivo (Socket.io) todavía no tiene pantalla propia en el frontend — eso es Slice 13b, pendiente. Lo que hoy funciona end-to-end desde la UI es: registro/login, crear/unirse a una liga por código de invitación, ver el detalle de la liga (miembros, invitar, iniciar el draft, salir/echar).
+
+Comandos útiles (todos desde `frontend/`):
+
+```bash
+npm run dev          # vite dev server (http://localhost:5173)
+npm run build         # tsc -b && vite build
+npm run lint          # eslint .
+npm test              # vitest run (un solo run, no watch)
+npm run test:watch    # vitest en watch mode
+```
+
+---
+
 ## Próximos pasos
 
 Una vez que veas la data en TablePlus, entrá por la puerta principal de la documentación:
