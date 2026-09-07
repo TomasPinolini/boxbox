@@ -20,7 +20,7 @@ docs/         Design docs (proposal, ER diagram, API spec, architecture) + local
 
 Built (one slice = one PR; full log in `docs/roadmap.md` → "Completados"):
 
-- Backend scaffold (Express 5, TypeScript, Prisma 7, Postgres) + Zod validation + centralized errors + Vitest integration tests against a real Postgres DB (168 tests across 9 files).
+- Backend scaffold (Express 5, TypeScript, Prisma 7, Postgres) + Zod validation + centralized errors + Vitest integration tests against a real Postgres DB (206 tests across 10 files).
 - CRUD modules: `drivers`, `constructors`, `circuits`, `seasons`, `races`.
 - **Auth (Slice 1)**: `auth/` module, `requireAuth`, JWT access (15m) + refresh (7d, httpOnly cookie). `POST /auth/register|login|refresh|logout`, `GET /auth/me`.
 - **Leagues (Slice 2)**: `POST/GET /leagues`, `GET/PATCH /leagues/:id`. Archive via `PATCH status='ARCHIVED'` — no DELETE. `inviteCode` user-supplied (4-20 chars, lowercase, reserved blacklist). `maxMembers` defaults to and is capped at `maxMembersForSeason(season.driverCount) = floor(driverCount / 2)` — 11 for 2026 (ADR-0006); over the cap → 409 `MAX_MEMBERS_EXCEEDS_SEASON`.
