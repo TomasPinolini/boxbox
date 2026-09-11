@@ -6,6 +6,7 @@
 import { prisma } from '../../shared/prisma';
 import { NotFoundError, ConflictError } from '../../shared/errors';
 import { CreateDriverInput, UpdateDriverInput } from './drivers.schema';
+import type { RaceResultStatus } from '../../generated/prisma/client';
 
 // Objeto compartido para excluir soft-deleted en todas las queries.
 // Closure de módulo: todas las funciones de este archivo lo "ven" sin recibirlo como parámetro.
@@ -114,7 +115,11 @@ async function constructorsForDrivers(
   );
 }
 
-export async function findById(id: number) {
+// Version flaca: solo valida existencia. NO se exporta a proposito — update() y
+// softDelete() la usan para el 404 y no tienen por que pagar los joins del detalle.
+// El endpoint publico usa findDetail(). Sin el export, knip no la reporta como muerta y
+// queda auto-documentado cual es cual.
+async function findById(id: number) {
   const driver = await prisma.driver.findFirst({
     where: { id, ...notDeleted }, // findFirst porque filtramos deletedAt (no es solo PK)
   });
@@ -122,6 +127,89 @@ export async function findById(id: number) {
   // Si no existe (o fue soft-deleted), lanza NotFoundError → controller → errorHandler → 404
   if (!driver) throw new NotFoundError('Driver');
   return driver;
+}
+
+export type DriverStats = {
+  races: number;
+  points: number;
+  wins: number;
+  podiums: number;
+  bestFinish: number | null;
+  dnfs: number;
+};
+
+// Agregacion en memoria sobre filas planas, no con groupBy/aggregate de Prisma: es el patron
+// del proyecto (ver buildConstructorResults en races.service.ts). Ventajas concretas: una sola
+// query en vez de tres, y la funcion se testea sin DB porque es pura.
+// No exportada — nadie fuera de este modulo la necesita.
+function buildDriverStats(
+  results: { position: number | null; points: number; status: RaceResultStatus }[],
+): DriverStats {
+  const finished = results.filter((r) => r.position !== null).map((r) => r.position as number);
+
+  return {
+    races: results.length,
+    points: results.reduce((total, r) => total + r.points, 0),
+    wins: finished.filter((position) => position === 1).length,
+    // Los podios incluyen las victorias — convencion de F1, no un off-by-one.
+    podiums: finished.filter((position) => position <= 3).length,
+    bestFinish: finished.length > 0 ? Math.min(...finished) : null,
+    dnfs: results.filter((r) => r.status === 'DNF').length,
+  };
+}
+
+// GET /drivers/:id — el piloto con su escuderia, sus estadisticas y su historial de carreras,
+// todo acotado a la temporada resuelta (la activa salvo que se pase ?seasonId=).
+//
+// Reusa findById para el 404 antes de traer nada mas, igual que getResults en races.service.ts.
+export async function findDetail(id: number, seasonId?: number) {
+  const driver = await findById(id);
+  const resolvedSeasonId = await resolveSeasonId(seasonId);
+
+  // Sin temporada no hay contra que leer: escuderia vacia, stats en cero, historial vacio.
+  // No caemos a "toda la carrera del piloto" porque mezclaria temporadas y `round` dejaria
+  // de ser un orden total.
+  if (!resolvedSeasonId) {
+    return {
+      ...driver,
+      constructor: null,
+      seasonId: null,
+      stats: buildDriverStats([]),
+      results: [],
+    };
+  }
+
+  const byDriver = await constructorsForDrivers([driver.id], resolvedSeasonId);
+
+  // include: { race: true } es seguro — el problema de nombres es con la relacion
+  // `constructor`, que no aparece por ningun lado en esta query.
+  //
+  // Orden por `round`, no por el `position asc nulls last` canonico de races.service.ts: ese
+  // ordena los resultados DE una carrera; el historial DE un piloto se lee cronologicamente.
+  const raceResults = await prisma.raceResult.findMany({
+    where: { driverId: driver.id, race: { seasonId: resolvedSeasonId } },
+    include: { race: true },
+    orderBy: { race: { round: 'asc' } },
+  });
+
+  return {
+    ...driver,
+    constructor: byDriver.get(driver.id) ?? null,
+    seasonId: resolvedSeasonId,
+    stats: buildDriverStats(raceResults),
+    // Aplanado a proposito: la tabla del frontend no tiene que navegar dos niveles.
+    results: raceResults.map((r) => ({
+      raceId: r.raceId,
+      raceName: r.race.name,
+      round: r.race.round,
+      raceDate: r.race.date,
+      position: r.position,
+      points: r.points,
+      gridPosition: r.gridPosition,
+      fastestLap: r.fastestLap,
+      status: r.status,
+    })),
+  };
 }
 
 export async function create(data: CreateDriverInput) {

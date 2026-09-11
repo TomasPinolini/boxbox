@@ -234,6 +234,128 @@ describe('GET /api/v1/drivers/:id', () => {
   });
 });
 
+// Carrera COMPLETED con sus resultados, directo por Prisma. No usamos POST /races/:id/results
+// porque ese path exige el payload completo de la grilla y valida DriverSeason de todos los
+// pilotos (Slice 8); aca solo necesitamos el historial de UN piloto.
+async function seedCompletedRace(
+  seasonId: number,
+  round: number,
+  results: { driverId: number; position: number | null; points: number; status?: 'CLASSIFIED' | 'DNF' }[],
+) {
+  const circuit = await prisma.circuit.create({
+    data: {
+      name: `Circuito ${round}`,
+      city: 'Rosario',
+      country: 'AR',
+      externalId: `circuito-${round}`,
+    },
+  });
+  const race = await prisma.race.create({
+    data: {
+      name: `Gran Premio ${round}`,
+      round,
+      date: new Date(`2026-0${round}-01T15:00:00Z`),
+      lockDate: new Date(`2026-0${round}-01T13:00:00Z`),
+      seasonId,
+      circuitId: circuit.id,
+      status: 'COMPLETED',
+    },
+  });
+  for (const r of results) {
+    await prisma.raceResult.create({
+      data: {
+        raceId: race.id,
+        driverId: r.driverId,
+        position: r.position,
+        points: r.points,
+        status: r.status ?? 'CLASSIFIED',
+      },
+    });
+  }
+  return race.id;
+}
+
+describe('GET /api/v1/drivers/:id — detalle con estadisticas', () => {
+  it('devuelve escuderia, stats y resultados ordenados por round', async () => {
+    const seasonId = await seedSeason();
+    const constructorId = await seedConstructor('Red Bull Racing', 'red_bull', '#3671C6');
+    const driverId = await seedDriver();
+    await linkDriverSeason(driverId, constructorId, seasonId);
+
+    // Tercera, primera, y abandono. Se siembran fuera de orden a proposito para probar el sort.
+    await seedCompletedRace(seasonId, 3, [{ driverId, position: null, points: 0, status: 'DNF' }]);
+    await seedCompletedRace(seasonId, 1, [{ driverId, position: 3, points: 15 }]);
+    await seedCompletedRace(seasonId, 2, [{ driverId, position: 1, points: 25 }]);
+
+    const res = await request(app).get(`/api/v1/drivers/${driverId}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.constructor.name).toBe('Red Bull Racing');
+    expect(res.body.data.seasonId).toBe(seasonId);
+    expect(res.body.data.stats).toEqual({
+      races: 3,
+      points: 40,
+      wins: 1,
+      podiums: 2, // el podio incluye la victoria
+      bestFinish: 1,
+      dnfs: 1,
+    });
+    expect(res.body.data.results.map((r: { round: number }) => r.round)).toEqual([1, 2, 3]);
+    expect(res.body.data.results[0]).toMatchObject({
+      raceName: 'Gran Premio 1',
+      position: 3,
+      points: 15,
+    });
+  });
+
+  it('devuelve stats en cero y resultados vacios para un piloto que no corrio', async () => {
+    const seasonId = await seedSeason();
+    const constructorId = await seedConstructor('Ferrari', 'ferrari');
+    const driverId = await seedDriver();
+    await linkDriverSeason(driverId, constructorId, seasonId);
+
+    const res = await request(app).get(`/api/v1/drivers/${driverId}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.stats).toEqual({
+      races: 0,
+      points: 0,
+      wins: 0,
+      podiums: 0,
+      bestFinish: null,
+      dnfs: 0,
+    });
+    expect(res.body.data.results).toEqual([]);
+  });
+
+  it('no cuenta carreras de otra temporada', async () => {
+    const vieja = await seedSeason(2025, false);
+    const activa = await seedSeason(2026, true);
+    const driverId = await seedDriver();
+    await seedCompletedRace(vieja, 1, [{ driverId, position: 1, points: 25 }]);
+
+    const res = await request(app).get(`/api/v1/drivers/${driverId}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.seasonId).toBe(activa);
+    expect(res.body.data.stats.races).toBe(0);
+  });
+
+  it('bestFinish es null si el piloto nunca clasifico', async () => {
+    const seasonId = await seedSeason();
+    const driverId = await seedDriver();
+    await seedCompletedRace(seasonId, 1, [
+      { driverId, position: null, points: 0, status: 'DNF' },
+    ]);
+
+    const res = await request(app).get(`/api/v1/drivers/${driverId}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.stats.bestFinish).toBeNull();
+    expect(res.body.data.stats.dnfs).toBe(1);
+  });
+});
+
 describe('POST /api/v1/drivers', () => {
   it('creates a driver with valid data', async () => {
     const res = await request(app)

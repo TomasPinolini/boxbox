@@ -23,7 +23,7 @@ export async function getAll(req: Request, res: Response, next: NextFunction) {
 export async function getById(req: Request, res: Response, next: NextFunction) {
   try {
     // req.params.id es siempre string, Number() lo convierte
-    const driver = await driversService.findById(Number(req.params.id));
+    const driver = await driversService.findDetail(Number(req.params.id));
     res.json({ data: driver });
   } catch (err) {
     next(err);
