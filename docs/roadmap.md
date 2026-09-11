@@ -1,6 +1,11 @@
-# Roadmap — Backend pendiente
+# Roadmap — qué falta para la entrega
 
-Slices ordenados por dependencia para llegar de los 5 CRUDs actuales al MVP funcional del TP. Cada slice ≈ 1 PR. Ningún slice salta sobre otro si está marcado en `Blocked by`.
+Slices ordenados por dependencia para llegar al MVP funcional del TP. Cada slice ≈ 1 PR. Ningún slice salta sobre otro si está marcado en `Blocked by`.
+
+> **Primera entrega: 12/10 al 16/10.** Recuperatorio 26/10–30/10; última instancia 9/11–13/11.
+> Fechas de [utnfrrodsw/tp](https://github.com/utnfrrodsw/tp).
+> El plan de las cuatro semanas y el reparto por integrante están en Linear (project BoxBox,
+> milestone "Entrega 12/10").
 
 **Cómo se usa este archivo:**
 
@@ -19,15 +24,63 @@ Stack overview rápido (ver [`../CLAUDE.md`](../CLAUDE.md) para detalle): Expres
 
 ---
 
-## Now — bloqueantes para todo lo demás
+## Now — lo que bloquea la entrega del 12/10
 
-_(Slices 1 a 8 completos. Próximo: Slice 9.)_
+_(Backend Slices 1–8 completos. Frontend 13a completo. Lo de abajo sale de cruzar la rúbrica de la cátedra contra el código el 2026-09-11 — no de lo que dicen los docs.)_
+
+### Estado contra la rúbrica (2 integrantes)
+
+La rúbrica pide cantidades "por integrante" o "cada 2 integrantes o fracción". Somos dos: lo que dice "cada 2" se pide una vez, lo que dice "por integrante" se pide dos.
+
+| Requisito                                                    | Nivel       | Estado                                                                |
+| :----------------------------------------------------------- | :---------- | :-------------------------------------------------------------------- |
+| CRUD simple ×2                                               | Regularidad | ✅ Driver, Constructor, Circuit, Season                                |
+| CRUD dependiente ×1                                          | Regularidad | ✅ Race (depende de Circuit + Season)                                  |
+| **Listado con filtro + detalle ×1**                          | Regularidad | ❌ **Slice 14** — el filtro existe en la API, las pantallas no         |
+| CUU/epic ×1                                                  | Regularidad | ⚠️ Draft: backend listo, falta la UI (**Slice 13b**)                   |
+| CUU/epic ×2 (uno por integrante), mínimo 2 relacionados      | Aprobación  | ⚠️ Epic 1 = draft (13b). **Epic 2 = Slices 9 + 12, sin empezar**       |
+| 1 test automatizado por integrante + 1 de integración        | Aprobación  | ✅ 206 tests contra Postgres real                                      |
+| Backend: login 2 niveles + rutas protegidas                  | Aprobación  | ✅ `requireAuth` + `requireAdmin`                                      |
+| Frontend: mobile-first, 3 breakpoints                        | Regularidad | ✅ Tailwind, verificado a 375/768/1024                                 |
+| Frontend: 1 test unitario de componente + 1 e2e              | Aprobación  | ✅ 13 unitarios + 2 Playwright                                         |
+| **Frontend: login con protección por niveles**               | Aprobación  | ❌ **Slice 15** — `UserRole` existe en `models/user.ts` y no se usa    |
+
+### Tarea sin slice: avisar a la cátedra (BOX-36)
+
+[`ADR-0006`](./adr/ADR-0006-draft-3-rondas-sin-reserva.md) se comprometió a comunicar el desvío antes de la entrega: `proposal.md` prometió "2 pilotos titulares, 1 reserva y 1 escudería" y el juego implementado tiene 3 rondas sin reserva. Nunca se hizo. Va en la semana 1 porque depende de que conteste un tercero.
+
+También falta completar los nombres de los integrantes en `proposal.md:10-11` (siguen como `XXXXX - Apellido(s), Nombre(s)`).
+
+### Slice 14 — Listado de pilotos con filtro + detalle
+
+- **Goal**: cubrir el requisito de Regularidad "1 listado con filtro, con detalle al seleccionar". `proposal.md:174` lo comprometió como "listado de pilotos filtrado por escudería → detalle con estadísticas y resultados de carrera".
+- **Estado hoy**: `findAll(constructorId?, seasonId?)` (`drivers.service.ts:14`) ya filtra vía `GET /drivers?constructorId=N`. `findById` devuelve la fila pelada — sin stats ni resultados. En el frontend no existe ninguna ruta `/drivers`.
+- **Touches**: `drivers.service.ts` (enriquecer el detalle: carreras corridas, puntos totales, mejor posición, podios + los `RaceResult` con join a Race); `drivers.test.ts`; `frontend/src/features/drivers/` (nuevo); `frontend/src/app/router.tsx`.
+- **Done when**: `/drivers` muestra nombre, número y equipo; el filtro por escudería recorta sin recargar; `/drivers/:id` muestra estadísticas y resultados por carrera. Un test unitario de componente y el paso agregado al e2e.
+- **Blocked by**: nada. Es el slice más barato de los que faltan y sostiene la Regularidad.
+
+### Slice 15 — Frontend: protección de rutas por nivel
+
+- **Goal**: cubrir "login implementado con protección por niveles de usuario" (rúbrica, Frontend / Aprobación). El backend ya distingue USER de ADMIN; la UI no.
+- **Estado hoy**: `UserRole = 'USER' | 'ADMIN'` está declarado en `frontend/src/models/user.ts:1` y no se usa en ningún archivo. Los únicos guards son `RequireAuth` y `GuestOnly`, que solo miran si hay sesión.
+- **Touches**: `features/auth/RequireAdmin.tsx` (nuevo, mismo patrón que `RequireAuth`); `app/router.tsx`; una pantalla real detrás del guard — la candidata natural es **carga de resultados de carrera**, porque `POST /races/:id/results` ya existe desde Slice 7, es admin-only y alimenta el Epic 2.
+- **Done when**: un USER que entra por URL a la ruta admin no la ve; un ADMIN sí y puede cargar resultados contra el backend real. Test unitario del guard.
+- **Blocked by**: Slice 13a (done).
 
 ---
 
 ## Later — scoring + sync + frontend
 
 _(El carril Draft — Slices 4, 5, 6 — está completo. Lo que sigue es el carril Scoring, que converge con Draft en Slice 9.)_
+
+**Reparto por epic.** La rúbrica pide un CUU/epic **por integrante**, así que cada uno es dueño de uno y lo defiende en el oral:
+
+| Epic                                       | Slices        | Dueño    |
+| :----------------------------------------- | :------------ | :------- |
+| 1 — Draft en vivo                          | 13b           | Rivero   |
+| 2 — Procesar resultados y actualizar standings | 9 + 12    | Pinolini |
+
+Los dos se relacionan solos, que es el otro requisito: el draft arma el equipo que el scoring puntúa.
 
 ### Slice 9 — LeagueStanding (snapshot por carrera)
 
@@ -52,7 +105,9 @@ _(El carril Draft — Slices 4, 5, 6 — está completo. Lo que sigue es el carr
 - **Goal**: en vez de cargar RaceResults manualmente, un endpoint admin sincroniza con la API externa de F1.
 - **Touches**: tabla `SyncLog`; nuevo módulo `modules/sync/` (o sub-rutas en `modules/admin/`); endpoints `POST /api/v1/admin/sync/drivers`, `.../constructors`, `.../circuits`, `.../races`, `.../season`; HTTP client para Jolpica (probablemente `fetch` nativo o `undici`); cada sync deja un SyncLog con counts y status.
 - **Done when**: `POST /admin/sync/season?year=2026` puebla Driver/Constructor/Circuit/Race desde Jolpica y deja un SyncLog `SUCCESS`. Falla parcial deja `PARTIAL` con detalle. Re-sync no duplica (uso de `externalId` + upsert).
-- **Blocked by**: Slice 1 (necesita rol admin) + acceso a las APIs de Jolpica/OpenF1.
+- **Blocked by**: ~~acceso a las APIs~~ — **desbloqueado**. Verificado el 2026-09-11: `api.jolpi.ca/ergast/f1/2026/drivers.json` y `api.openf1.org/v1/drivers` responden 200 sin credenciales.
+- **⚠️ Trampa de datos**: Jolpica devuelve **32 pilotos para 2026** (`"total": "32"`), no 22 — incluye suplentes y reservas que corrieron alguna sesión. Si el sync los escribe todos como `DriverSeason`, `maxMembersForSeason = floor(32/2) = 16` en vez de 11, se rompe la regla "un miembro por equipo de la grilla" de ADR-0006 y vuelve el bug de BOX-14 por otra puerta. Filtrar a titulares antes de escribir `DriverSeason`.
+- **Alcance mínimo para el 12/10**: es la pata de "fetch desde APIs externas" del Epic 2 de Aprobación. Con `12a` (drivers + constructors) alcanza para demostrarlo; `12b` y `12c` son upside.
 
 ### Slice 13b — Frontend: draft en vivo
 
@@ -76,7 +131,9 @@ Si alguno de estos se vuelve demasiado grande, partir así:
 
 ## Out of scope para este TP (post-cursada)
 
-- Refresh token rotation con httpOnly cookies y revocación.
+Esta sección manda sobre Linear: si un issue pide algo de acá, va a prioridad mínima. Ya pasó una vez — BOX-32 se creó pidiendo rotación de refresh tokens sin cruzarlo contra esta lista.
+
+- Refresh token rotation con httpOnly cookies y revocación (Linear BOX-32).
 - Rate limiting global y de auth.
 - WebSocket reconnection con state recovery.
 - Internacionalización del frontend.
