@@ -527,6 +527,101 @@ const races2026: RaceData[] = [
   },
 ];
 
+type RaceResultData = {
+  round: number;
+  // externalIds de pilotos, el ganador primero. La posicion sale del indice y los puntos
+  // de F1_POINTS. Los que no figuran acá ni en `dnf` no corrieron esa carrera.
+  finishOrder: string[];
+  // Abandonos: position null, 0 puntos, status DNF. Sirven para que el detalle de piloto
+  // tenga un caso donde `position` es null y `bestFinish` tiene que ignorarlo.
+  dnf?: string[];
+};
+
+// Sistema de puntos vigente: del 1ro al 10mo. Del 11vo para abajo, cero.
+const F1_POINTS = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1];
+
+// Resultados de las 3 primeras fechas. Sin esto, /drivers/:id renderiza vacio contra un seed
+// fresco (24 carreras, 0 resultados) y Slice 9 no tiene con que calcular standings.
+// Inventados: no son resultados reales de 2026.
+const results2026: RaceResultData[] = [
+  {
+    round: 1, // Bahrain
+    finishOrder: [
+      'max_verstappen', 'norris', 'leclerc', 'russell', 'piastri', 'hamilton', 'antonelli',
+      'sainz', 'albon', 'gasly', 'hadjar', 'lawson', 'alonso', 'stroll', 'ocon', 'bearman',
+      'hulkenberg', 'bortoleto', 'colapinto', 'lindblad',
+    ],
+    dnf: ['perez', 'bottas'],
+  },
+  {
+    round: 2, // Jeddah
+    finishOrder: [
+      'norris', 'piastri', 'max_verstappen', 'leclerc', 'hamilton', 'russell', 'sainz',
+      'antonelli', 'gasly', 'alonso', 'albon', 'hadjar', 'bearman', 'ocon', 'stroll',
+      'lawson', 'bottas', 'perez', 'hulkenberg', 'bortoleto', 'colapinto',
+    ],
+    dnf: ['lindblad'],
+  },
+  {
+    round: 3, // Albert Park
+    finishOrder: [
+      'leclerc', 'max_verstappen', 'hamilton', 'norris', 'antonelli', 'piastri', 'russell',
+      'albon', 'alonso', 'sainz', 'colapinto', 'gasly', 'lawson', 'stroll', 'hadjar',
+      'bearman', 'bortoleto', 'perez', 'bottas', 'hulkenberg', 'lindblad', 'ocon',
+    ],
+  },
+];
+
+// ───────────────────────────────────────────────────────────────────────────
+// Multimedia
+// ───────────────────────────────────────────────────────────────────────────
+
+// Logos de escuderia, servidos como estaticos desde frontend/public/logos/.
+// Origen y licencia de cada archivo: frontend/public/logos/CREDITS.md (todos de Wikimedia
+// Commons, dominio publico o CC0 salvo los marcados ahi).
+// Faltan Ferrari, Audi y Racing Bulls: no habia archivo usable con fondo transparente. La UI
+// cae al badge con el color del equipo, que ya alcanza para identificarlo.
+// Slice 12 va a poder pisar estos valores con las URLs que devuelva la API externa.
+const teamLogos: Record<string, string> = {
+  alpine: '/logos/alpine.png',
+  aston_martin: '/logos/aston-martin.png',
+  cadillac: '/logos/cadillac.png',
+  haas: '/logos/haas.png',
+  mclaren: '/logos/mclaren.png',
+  mercedes: '/logos/mercedes.png',
+  red_bull: '/logos/red-bull-racing.png',
+  williams: '/logos/williams.png',
+};
+
+// Fotos de pilotos: se guarda la URL, NO el archivo. Son imagenes de prensa de F1 alojadas en
+// su CDN y este repositorio es publico, asi que bajarlas y commitearlas seria redistribuirlas.
+// Las URLs salieron del campo `headshot_url` de la API de OpenF1 (gratuita, sin credenciales).
+// El `2col` del path es el escalon de tamano: 1col=93px, 2col=206px, 3col=319px, 4col=432px.
+// Falta Hadjar, que OpenF1 no devuelve.
+const driverHeadshots: Record<string, string> = {
+  albon: 'https://media.formula1.com/content/dam/fom-website/drivers/A/ALEALB01_Alexander_Albon/alealb01.png.transform/2col/image.png',
+  alonso: 'https://media.formula1.com/content/dam/fom-website/drivers/F/FERALO01_Fernando_Alonso/feralo01.png.transform/2col/image.png',
+  antonelli: 'https://media.formula1.com/content/dam/fom-website/drivers/K/ANDANT01_Kimi_Antonelli/andant01.png.transform/2col/image.png',
+  bearman: 'https://media.formula1.com/content/dam/fom-website/drivers/O/OLIBEA01_Oliver_Bearman/olibea01.png.transform/2col/image.png',
+  bortoleto: 'https://media.formula1.com/content/dam/fom-website/drivers/G/GABBOR01_Gabriel_Bortoleto/gabbor01.png.transform/2col/image.png',
+  bottas: 'https://media.formula1.com/content/dam/fom-website/drivers/V/VALBOT01_Valtteri_Bottas/valbot01.png.transform/2col/image.png',
+  colapinto: 'https://media.formula1.com/content/dam/fom-website/drivers/F/FRACOL01_Franco_Colapinto/fracol01.png.transform/2col/image.png',
+  gasly: 'https://media.formula1.com/content/dam/fom-website/drivers/P/PIEGAS01_Pierre_Gasly/piegas01.png.transform/2col/image.png',
+  hamilton: 'https://media.formula1.com/content/dam/fom-website/drivers/L/LEWHAM01_Lewis_Hamilton/lewham01.png.transform/2col/image.png',
+  hulkenberg: 'https://media.formula1.com/content/dam/fom-website/drivers/N/NICHUL01_Nico_Hulkenberg/nichul01.png.transform/2col/image.png',
+  lawson: 'https://media.formula1.com/content/dam/fom-website/drivers/L/LIALAW01_Liam_Lawson/lialaw01.png.transform/2col/image.png',
+  leclerc: 'https://media.formula1.com/content/dam/fom-website/drivers/C/CHALEC01_Charles_Leclerc/chalec01.png.transform/2col/image.png',
+  lindblad: 'https://media.formula1.com/content/dam/fom-website/drivers/A/ARVLIN01_Arvid_Lindblad/arvlin01.png.transform/2col/image.png',
+  max_verstappen: 'https://media.formula1.com/content/dam/fom-website/drivers/M/MAXVER01_Max_Verstappen/maxver01.png.transform/2col/image.png',
+  norris: 'https://media.formula1.com/content/dam/fom-website/drivers/L/LANNOR01_Lando_Norris/lannor01.png.transform/2col/image.png',
+  ocon: 'https://media.formula1.com/content/dam/fom-website/drivers/E/ESTOCO01_Esteban_Ocon/estoco01.png.transform/2col/image.png',
+  perez: 'https://media.formula1.com/content/dam/fom-website/drivers/S/SERPER01_Sergio_Perez/serper01.png.transform/2col/image.png',
+  piastri: 'https://media.formula1.com/content/dam/fom-website/drivers/O/OSCPIA01_Oscar_Piastri/oscpia01.png.transform/2col/image.png',
+  russell: 'https://media.formula1.com/content/dam/fom-website/drivers/G/GEORUS01_George_Russell/georus01.png.transform/2col/image.png',
+  sainz: 'https://media.formula1.com/content/dam/fom-website/drivers/C/CARSAI01_Carlos_Sainz/carsai01.png.transform/2col/image.png',
+  stroll: 'https://media.formula1.com/content/dam/fom-website/drivers/L/LANSTR01_Lance_Stroll/lanstr01.png.transform/2col/image.png',
+};
+
 // ───────────────────────────────────────────────────────────────────────────
 // Lógica — recorre los arrays y persiste vía upsert
 // ───────────────────────────────────────────────────────────────────────────
@@ -565,22 +660,28 @@ async function main() {
 
   // 2. Constructors + Drivers + DriverSeasons -------------------------------
   for (const team of teams2026) {
+    const logoUrl = teamLogos[team.externalId] ?? null;
     const teamConstructor = await prisma.constructor.upsert({
       where: { externalId: team.externalId },
-      update: {},
-      create: { externalId: team.externalId, name: team.name, color: team.color },
+      // logoUrl SI se actualiza (a diferencia del resto de los upserts, que usan `update: {}`):
+      // el seed es su fuente de verdad, asi que agregar un logo nuevo tiene que impactar en una
+      // DB ya seedeada sin obligar a borrarla.
+      update: { logoUrl },
+      create: { externalId: team.externalId, name: team.name, color: team.color, logoUrl },
     });
 
     for (const d of team.drivers) {
+      const headshotUrl = driverHeadshots[d.externalId] ?? null;
       const driver = await prisma.driver.upsert({
         where: { externalId: d.externalId },
-        update: {},
+        update: { headshotUrl }, // mismo criterio que logoUrl
         create: {
           externalId: d.externalId,
           firstName: d.firstName,
           lastName: d.lastName,
           number: d.number,
           code: d.code,
+          headshotUrl,
         },
       });
       await connectDriverSeason(driver.id, teamConstructor.id);
@@ -624,15 +725,106 @@ async function main() {
     });
   }
 
-  // 5. Summary --------------------------------------------------------------
+  // 5. RaceResults + ConstructorResults -------------------------------------
+  // Solo las fechas que figuran en results2026; el resto de las carreras queda UPCOMING.
+  const driverIdByExternalId = new Map(
+    (await prisma.driver.findMany({ select: { id: true, externalId: true } })).map((d) => [
+      d.externalId,
+      d.id,
+    ]),
+  );
+  // driverId -> constructorId de esta temporada, para derivar los ConstructorResult.
+  const constructorIdByDriverId = new Map(
+    (await prisma.driverSeason.findMany({ where: { seasonId: season.id } })).map((ds) => [
+      ds.driverId,
+      ds.constructorId,
+    ]),
+  );
+
+  for (const r of results2026) {
+    const race = await prisma.race.findUnique({
+      where: { seasonId_round: { seasonId: season.id, round: r.round } },
+    });
+    if (!race) throw new Error(`results2026 referencia la fecha ${r.round}, que no existe`);
+
+    const resolve = (externalId: string) => {
+      const driverId = driverIdByExternalId.get(externalId);
+      if (!driverId) {
+        throw new Error(`results2026 (fecha ${r.round}) referencia al piloto "${externalId}"`);
+      }
+      return driverId;
+    };
+
+    const rows = [
+      ...r.finishOrder.map((externalId, index) => ({
+        driverId: resolve(externalId),
+        position: index + 1,
+        points: F1_POINTS[index] ?? 0,
+        status: 'CLASSIFIED' as const,
+      })),
+      ...(r.dnf ?? []).map((externalId) => ({
+        driverId: resolve(externalId),
+        position: null,
+        points: 0,
+        status: 'DNF' as const,
+      })),
+    ];
+
+    for (const row of rows) {
+      await prisma.raceResult.upsert({
+        where: { raceId_driverId: { raceId: race.id, driverId: row.driverId } },
+        update: {},
+        create: { raceId: race.id, ...row },
+      });
+    }
+
+    // El upsert de la carrera usa `update: {}`, asi que en una DB ya seedeada nunca aplicaria
+    // el COMPLETED. Hace falta este update explicito (idempotente por naturaleza).
+    await prisma.race.update({ where: { id: race.id }, data: { status: 'COMPLETED' } });
+
+    // ConstructorResults derivados, con la misma regla que loadResults (Slice 8):
+    // driver1Points es el mayor de los dos. Sin esto la DB de dev queda en un estado que
+    // Slice 8 nunca produciria y que Slice 9 leeria mal.
+    const pointsByConstructor = new Map<number, number[]>();
+    for (const row of rows) {
+      const constructorId = constructorIdByDriverId.get(row.driverId);
+      if (!constructorId) continue;
+      pointsByConstructor.set(constructorId, [
+        ...(pointsByConstructor.get(constructorId) ?? []),
+        row.points,
+      ]);
+    }
+
+    for (const [constructorId, points] of pointsByConstructor) {
+      const [driver1Points = 0, driver2Points = 0] = [...points].sort((a, b) => b - a);
+      await prisma.constructorResult.upsert({
+        where: { raceId_constructorId: { raceId: race.id, constructorId } },
+        update: {},
+        create: {
+          raceId: race.id,
+          constructorId,
+          driver1Points,
+          driver2Points,
+          totalPoints: driver1Points + driver2Points,
+        },
+      });
+    }
+  }
+
+  // 6. Summary --------------------------------------------------------------
   const counts = {
     admins: await prisma.user.count({ where: { role: 'ADMIN' } }),
     seasons: await prisma.season.count(),
     constructors: await prisma.constructor.count({ where: { deletedAt: null } }),
+    constructorsConLogo: await prisma.constructor.count({ where: { logoUrl: { not: null } } }),
     drivers: await prisma.driver.count({ where: { deletedAt: null } }),
+    driversConFoto: await prisma.driver.count({ where: { headshotUrl: { not: null } } }),
     driverSeasons: await prisma.driverSeason.count(),
     circuits: await prisma.circuit.count({ where: { deletedAt: null } }),
     races: await prisma.race.count(),
+    racesCompleted: await prisma.race.count({ where: { status: 'COMPLETED' } }),
+    raceResults: await prisma.raceResult.count(),
+    constructorResults: await prisma.constructorResult.count(),
   };
   console.log('Seed completo:', counts);
 }

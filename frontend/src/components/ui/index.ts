@@ -1,5 +1,5 @@
 export { Button } from './Button';
-export { Field, inputClass } from './Field';
+export { Field, inputClass, selectClass } from './Field';
 export { Card } from './Card';
 export { Badge, type BadgeTone } from './Badge';
 export { Alert } from './Alert';

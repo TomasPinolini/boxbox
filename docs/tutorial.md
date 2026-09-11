@@ -190,6 +190,7 @@ npm run lint          # eslint .
 npm test              # vitest run (un solo run, no watch)
 npm run test:watch    # vitest en watch mode
 npm run e2e           # playwright — necesita backend + frontend corriendo y DB seedeada
+                      # (el spec de pilotos depende de las 3 fechas COMPLETED del seed)
 ```
 
 ---

@@ -5,12 +5,14 @@
 
 import { Request, Response, NextFunction } from 'express';
 import * as driversService from './drivers.service';
+import type { ListDriversQuery } from './drivers.schema';
 
 export async function getAll(req: Request, res: Response, next: NextFunction) {
   try {
-    // Convierte query strings (siempre strings en HTTP) a números opcionales
-    const constructorId = req.query.constructorId ? Number(req.query.constructorId) : undefined;
-    const seasonId = req.query.seasonId ? Number(req.query.seasonId) : undefined;
+    // validateQuery ya coerciono y valido; si algo no era un entero positivo, el request
+    // nunca llego hasta aca (400 VALIDATION_ERROR). Ver src/types/express.d.ts para por que
+    // el resultado vive en req.validatedQuery y no en req.query.
+    const { constructorId, seasonId } = (req.validatedQuery ?? {}) as ListDriversQuery;
     const drivers = await driversService.findAll(constructorId, seasonId);
     res.json({ data: drivers }); // envelope { data: ... } consistente en toda la API
   } catch (err) {
@@ -21,7 +23,7 @@ export async function getAll(req: Request, res: Response, next: NextFunction) {
 export async function getById(req: Request, res: Response, next: NextFunction) {
   try {
     // req.params.id es siempre string, Number() lo convierte
-    const driver = await driversService.findById(Number(req.params.id));
+    const driver = await driversService.findDetail(Number(req.params.id));
     res.json({ data: driver });
   } catch (err) {
     next(err);

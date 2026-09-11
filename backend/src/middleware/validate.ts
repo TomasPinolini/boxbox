@@ -55,3 +55,34 @@ export function validateParams(schema: ZodSchema) {
     next();
   };
 }
+
+// validateQuery: equivalente para los query params (?constructorId=1&seasonId=2).
+// Igual que validateParams, el schema deberia usar z.coerce.number() — todo query param
+// llega como string.
+//
+// OJO: a diferencia de validate/validateParams, este NO reemplaza req.query. En Express 5
+// `req.query` es un getter definido en el prototipo y sin setter; con "strict": true
+// asignarle tira TypeError en runtime (500 en cada request) y tsc no avisa. req.params y
+// req.body son propiedades propias del objeto, por eso alla si se puede.
+// El resultado va a req.validatedQuery (ver src/types/express.d.ts) y el controller lo
+// castea al tipo de su schema.
+export function validateQuery(schema: ZodSchema) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    const result = schema.safeParse(req.query);
+
+    if (!result.success) {
+      res.status(400).json({
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Invalid query params',
+          status: 400,
+          details: result.error.flatten().fieldErrors,
+        },
+      });
+      return;
+    }
+
+    req.validatedQuery = result.data;
+    next();
+  };
+}
