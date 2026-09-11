@@ -8,8 +8,8 @@
 Cada sección está taggeada con su estado actual:
 
 - **[✅ shipped]** — implementado en `main`, con tests verdes
-- **[🚧 planned]** — diseñado acá pero todavía no construido (ver [`roadmap.md`](./roadmap.md) para orden)
-- **[🔒 outlier]** — implementación parcial / divergente del diseño (típicamente en-memoria sin Prisma); ver el roadmap para el reemplazo
+- **[🚧 planned]** — diseñado acá pero todavía no construido (ver [`backend/docs/roadmap.md`](../backend/docs/roadmap.md) para orden)
+- **[🔒 outlier]** — implementación parcial / divergente del diseño (típicamente en-memoria sin Prisma); ver el roadmap del backend para el reemplazo
 
 ---
 

@@ -11,14 +11,14 @@ Backend Slices 1–8 are shipped (auth, leagues, membership, fantasy teams, snak
 ## Repository Layout
 
 ```
-backend/      Express 5 + Socket.io + TypeScript API
-frontend/     Vite + React 19 + TypeScript + Tailwind v4 SPA (auth + leagues shipped, incl. e2e; draft UI pending — Slice 13b)
+backend/      Express 5 + Socket.io + TypeScript API (+ docs/roadmap.md — backend lane)
+frontend/     Vite + React 19 + TypeScript + Tailwind v4 SPA (+ docs/roadmap.md — frontend lane) (auth + leagues shipped, incl. e2e; draft UI pending — Slice 13b)
 docs/         Design docs (proposal, ER diagram, API spec, architecture) + local setup tutorial
 ```
 
 ## Current Implementation Status
 
-Built (one slice = one PR; full log in `docs/roadmap.md` → "Completados"):
+Built (one slice = one PR; full log in `backend/docs/roadmap.md` and `frontend/docs/roadmap.md` → "Completados"):
 
 - Backend scaffold (Express 5, TypeScript, Prisma 7, Postgres) + Zod validation + centralized errors + Vitest integration tests against a real Postgres DB (206 tests across 10 files).
 - CRUD modules: `drivers`, `constructors`, `circuits`, `seasons`, `races`.
@@ -31,10 +31,10 @@ Built (one slice = one PR; full log in `docs/roadmap.md` → "Completados"):
 - **RaceResult ingestion (Slice 7)**: `GET /races/:id/results` (public), `POST /races/:id/results` (`requireAuth → requireAdmin`), transitions the race to `COMPLETED`. `middleware/admin.ts` reads `role` from the JWT — no DB hit, stale until token expiry.
 - **ConstructorResult (Slice 8)**: `loadResults` also derives one `ConstructorResult` per constructor (driver → constructor via `DriverSeason` of the race's season; `buildConstructorResults` is a pure grouping function) inside the same `$transaction` — every pre-check now runs on `tx`. 409 `DRIVER_NOT_IN_SEASON` / `CONSTRUCTOR_TOO_MANY_DRIVERS`. No endpoint; Slice 9 reads the table.
 - **Frontend bootstrap (Slice 13a)**: `frontend/` — Vite + React 19 + TypeScript + Tailwind v4. `services/api-client.ts` (axios singleton with dedup'd token-refresh interceptor via `refreshOnce()`), `store/auth.store.ts` (Zustand, token kept in memory only — no `persist`), React Query hooks per feature (`features/*/[...].queries.ts`, invalidated on every mutation), React Router v7 with layout-route guards (`RequireAuth`, `GuestOnly`), `react-hook-form` + Zod forms mirroring the backend schemas, and a handful of `components/ui/` primitives (`Alert`, `Badge`, `Button`, `Card`, `Field`, `PageShell`). Screens shipped: `/login`, `/register`, `/leagues` (list + create + join by invite code), `/leagues/:id` (members, invite code, start draft, leave/kick — respecting `ROSTER_LOCKED` once the draft is LIVE). E2E coverage with Playwright (`frontend/e2e/leagues.spec.ts`, `npm run e2e`) plus a verified responsive pass (375/768/1024px, no horizontal overflow) round out the slice. Draft realtime UI is **Slice 13b, not built yet**.
+- **Drivers list + detail (Slice 14)**: `GET /drivers` includes `constructor` (`{id, name, color, logoUrl}`, `null` when the driver has no `DriverSeason` in the resolved season); `GET /drivers/:id` adds `stats` and a `results` history ordered by `round`. The service splits `findById` (lean, **not exported**, existence checks only) from `findDetail` (public endpoint), so `update`/`softDelete` never pay for the joins. The constructor is fetched with **three flat queries + a merge in TS**, never an `include`/`select` on the `constructor` relation — that name collides with `Object.prototype` (Slices 4 and 5). `middleware/validate.ts` gained `validateQuery`, which writes to `req.validatedQuery`: **`req.query` is a getter without a setter in Express 5**, so assigning to it throws at runtime under `"strict"` and `tsc` will not catch it. `?constructorId=` is now season-scoped. Frontend: `features/drivers/`, routes `/drivers` and `/drivers/:id` **public, outside `RequireAuth`**, server-side filter whose value lives in the URL. The team badge is painted with `Constructor.color` — pick the text colour that **maximises** contrast, not by a luminance threshold, and use pure black: 4 of the 11 grid colours fail WCAG otherwise (see `features/drivers/team-color.ts`). `Driver.headshotUrl` (21/22, remote URLs from OpenF1) and `Constructor.logoUrl` (8/11, static files under `frontend/public/logos/`, licences in `CREDITS.md`) are populated by the seed.
 
-**Required for the 12/10 delivery** — these gate the cátedra's rubric, verified against the code on 2026-09-11. Full breakdown in `docs/roadmap.md` → "Now":
+**Required for the 12/10 delivery** — these gate the cátedra's rubric, verified against the code on 2026-09-11. Full breakdown in `backend/docs/roadmap.md` / `frontend/docs/roadmap.md` → "Now"; the rubric table and epic split live in the hub, `docs/roadmap.md`:
 
-- **Slice 14 — drivers list with filter + detail**. Regularidad requirement ("1 listado con filtro, con detalle al seleccionar"). The API filter exists (`GET /drivers?constructorId=N`); `findById` returns a bare row and there is **no `/drivers` route in the frontend at all**.
 - **Slice 15 — frontend route protection by role**. Aprobación requirement. `UserRole` is declared in `frontend/src/models/user.ts` and used nowhere; there is no `RequireAdmin` and no admin screen.
 - **Slice 13b — draft realtime UI** (Socket.io client). The Regularidad epic; the backend has been ready since Slice 6.
 - **Slices 9 + 12 — LeagueStanding and Jolpica sync**. Together they are the second Aprobación epic ("procesar resultados de carrera y actualizar standings"). Jolpica returns **32 drivers for 2026**, not 22 — filter to race seats before writing `DriverSeason` or `maxMembersForSeason` breaks (see roadmap).
@@ -43,7 +43,7 @@ Not yet built — **intentionally deferred**. Do not suggest implementing any of
 
 - Slice 10 Predictions — Alcance Adicional Voluntario in `docs/proposal.md`, no impact on the grade. Slice 11 DriverSwap was **dropped** (ADR-0006) — do not reintroduce a reserve driver or swaps.
 - Transfer ownership of leagues — owner trying to leave gets 409 `OWNER_CANNOT_LEAVE` (Linear BOX-31)
-- Refresh-token rotation / server-side revocation — `docs/roadmap.md` lists this under "Out of scope para este TP (post-cursada)". That section outranks Linear (Linear BOX-32).
+- Refresh-token rotation / server-side revocation — `docs/roadmap.md` (the hub) lists this under "Out of scope para este TP (post-cursada)". That section outranks Linear (Linear BOX-32).
 - CI workflow (BOX-33), structured logging (BOX-34)
 
 ## Development Commands
@@ -231,3 +231,5 @@ agent-browser snapshot -i           # 4. RE-SNAPSHOT tras cualquier navegación 
 - `docs/data-model.mmd` — full planned ER diagram (many tables are not yet in `schema.prisma`)
 - `docs/api-endpoints.md` — full planned API surface (most endpoints not yet implemented)
 - `docs/tutorial.md` — local setup walkthrough for new contributors (clone → DB → seed)
+- `docs/roadmap.md` — roadmap hub: rubric status, epic ownership, out of scope. Holds nothing lane-specific.
+- `backend/docs/roadmap.md`, `frontend/docs/roadmap.md` — the actual slices, one file per lane. **Slice numbers are one global sequence shared by both files** and are never renumbered, so a higher number implies nothing about dependency — only `Blocked by` does.

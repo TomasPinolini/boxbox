@@ -205,14 +205,14 @@ Una vez que veas la data en TablePlus, entrá por la puerta principal de la docu
 - [`docs/data-model.mmd`](./data-model.mmd) — diagrama ER completo. Abrilo con la extensión Mermaid de VS Code o en [mermaid.live](https://mermaid.live).
 - [`docs/domain-entities.md`](./domain-entities.md) — narrativa: qué representa cada entidad, ciclo de vida, por qué existe.
 - [`docs/api-endpoints.md`](./api-endpoints.md) — endpoints (con tags `[✅ shipped]` / `[🚧 planned]` / `[🔒 outlier]`).
-- [`docs/roadmap.md`](./roadmap.md) — slices ordenadas por dependencia; acá encontrás qué falta construir y cuál tomar.
+- [`backend/docs/roadmap.md`](../backend/docs/roadmap.md) y [`frontend/docs/roadmap.md`](../frontend/docs/roadmap.md) — slices ordenados por dependencia; acá encontrás qué falta construir y cuál tomar. El [`docs/roadmap.md`](./roadmap.md) de arriba es el hub: rúbrica, epics y fuera de alcance.
 - [`docs/recipes/add-a-module.md`](./recipes/add-a-module.md) — receta paso a paso para agregar un módulo nuevo (la mayoría de los slices del roadmap son módulos nuevos).
 - [`docs/adr/`](./adr/) — decisiones cerradas (por qué Prisma y no MikroORM, por qué no Repository pattern, etc.). Leelas cuando una decisión te parezca rara.
 - [`CLAUDE.md`](../CLAUDE.md) (raíz) — convenciones de código y request lifecycle. Fuente de verdad de "cómo se programa acá".
 
 ## Tu primer PR
 
-1. Tomá un slice del [`roadmap.md`](./roadmap.md) (probablemente el **Slice 1 — Auth**, que bloquea todo lo demás).
+1. Tomá un slice del roadmap de tu carril ([backend](../backend/docs/roadmap.md) o [frontend](../frontend/docs/roadmap.md)).
 2. Creá una branch con nombre descriptivo: `git checkout -b slice-1-auth-register`.
 3. Trabajá. Cuando termines, abrí PR en GitHub — el template ([`.github/pull_request_template.md`](../.github/pull_request_template.md)) te aparece auto-cargado con un checklist.
 4. **Convenciones**: commits en español, imperativo, sin emojis. Código + identificadores en inglés. Sin atribución de IA en commits ni en PR (preferencia del profe).
