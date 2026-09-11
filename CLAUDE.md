@@ -32,13 +32,19 @@ Built (one slice = one PR; full log in `docs/roadmap.md` → "Completados"):
 - **ConstructorResult (Slice 8)**: `loadResults` also derives one `ConstructorResult` per constructor (driver → constructor via `DriverSeason` of the race's season; `buildConstructorResults` is a pure grouping function) inside the same `$transaction` — every pre-check now runs on `tx`. 409 `DRIVER_NOT_IN_SEASON` / `CONSTRUCTOR_TOO_MANY_DRIVERS`. No endpoint; Slice 9 reads the table.
 - **Frontend bootstrap (Slice 13a)**: `frontend/` — Vite + React 19 + TypeScript + Tailwind v4. `services/api-client.ts` (axios singleton with dedup'd token-refresh interceptor via `refreshOnce()`), `store/auth.store.ts` (Zustand, token kept in memory only — no `persist`), React Query hooks per feature (`features/*/[...].queries.ts`, invalidated on every mutation), React Router v7 with layout-route guards (`RequireAuth`, `GuestOnly`), `react-hook-form` + Zod forms mirroring the backend schemas, and a handful of `components/ui/` primitives (`Alert`, `Badge`, `Button`, `Card`, `Field`, `PageShell`). Screens shipped: `/login`, `/register`, `/leagues` (list + create + join by invite code), `/leagues/:id` (members, invite code, start draft, leave/kick — respecting `ROSTER_LOCKED` once the draft is LIVE). E2E coverage with Playwright (`frontend/e2e/leagues.spec.ts`, `npm run e2e`) plus a verified responsive pass (375/768/1024px, no horizontal overflow) round out the slice. Draft realtime UI is **Slice 13b, not built yet**.
 
-Not yet built — **intentionally deferred**. Do not suggest implementing any of these without an explicit ask from the user; ordering and blockers live in `docs/roadmap.md`:
+**Required for the 12/10 delivery** — these gate the cátedra's rubric, verified against the code on 2026-09-11. Full breakdown in `docs/roadmap.md` → "Now":
 
-- Slice 9 LeagueStanding (scoring), Slice 10 Predictions. Slice 11 DriverSwap was **dropped** (ADR-0006) — do not reintroduce a reserve driver or swaps.
-- Slice 12 external API sync (Jolpica, OpenF1)
-- Slice 13b Frontend: draft realtime UI (Socket.io client)
-- Transfer ownership of leagues — owner trying to leave gets 409 `OWNER_CANNOT_LEAVE`
-- Refresh-token rotation / server-side revocation, CI workflow, structured logging (tracked in local-only `docs/known-debt.md`, gitignored)
+- **Slice 14 — drivers list with filter + detail**. Regularidad requirement ("1 listado con filtro, con detalle al seleccionar"). The API filter exists (`GET /drivers?constructorId=N`); `findById` returns a bare row and there is **no `/drivers` route in the frontend at all**.
+- **Slice 15 — frontend route protection by role**. Aprobación requirement. `UserRole` is declared in `frontend/src/models/user.ts` and used nowhere; there is no `RequireAdmin` and no admin screen.
+- **Slice 13b — draft realtime UI** (Socket.io client). The Regularidad epic; the backend has been ready since Slice 6.
+- **Slices 9 + 12 — LeagueStanding and Jolpica sync**. Together they are the second Aprobación epic ("procesar resultados de carrera y actualizar standings"). Jolpica returns **32 drivers for 2026**, not 22 — filter to race seats before writing `DriverSeason` or `maxMembersForSeason` breaks (see roadmap).
+
+Not yet built — **intentionally deferred**. Do not suggest implementing any of these without an explicit ask from the user:
+
+- Slice 10 Predictions — Alcance Adicional Voluntario in `docs/proposal.md`, no impact on the grade. Slice 11 DriverSwap was **dropped** (ADR-0006) — do not reintroduce a reserve driver or swaps.
+- Transfer ownership of leagues — owner trying to leave gets 409 `OWNER_CANNOT_LEAVE` (Linear BOX-31)
+- Refresh-token rotation / server-side revocation — `docs/roadmap.md` lists this under "Out of scope para este TP (post-cursada)". That section outranks Linear (Linear BOX-32).
+- CI workflow (BOX-33), structured logging (BOX-34)
 
 ## Development Commands
 
