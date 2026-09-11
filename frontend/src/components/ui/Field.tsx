@@ -20,3 +20,8 @@ export function Field({ label, error, children }: FieldProps) {
 
 // Clases compartidas para los <input> nativos, asi las paginas no las repiten.
 export const inputClass = 'w-full rounded-md border border-slate-300 px-3 py-2';
+
+// Hermano de inputClass para los <select> nativos. `bg-white` explicito porque Safari le pone
+// un gris propio, y `pr-8` para que el texto no quede debajo de la flecha.
+export const selectClass =
+  'w-full rounded-md border border-slate-300 bg-white px-3 py-2 pr-8';

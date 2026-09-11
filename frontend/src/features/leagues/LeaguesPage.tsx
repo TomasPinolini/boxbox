@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { z } from 'zod';
 import { Alert, Button, Card, Field, PageShell, inputClass } from '../../components/ui';
 import { authService } from '../../services/auth.service';
@@ -37,6 +37,9 @@ export function LeaguesPage() {
       title="Mis ligas"
       actions={
         <div className="flex items-center gap-3 text-sm text-slate-600">
+          <Link to="/drivers" className="font-semibold text-red-600 hover:underline">
+            Pilotos
+          </Link>
           <span>{user?.name}</span>
           <Button variant="secondary" onClick={logout}>
             Salir
