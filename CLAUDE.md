@@ -71,10 +71,11 @@ npx prisma db seed            # populate DB with F1 dev data (idempotent)
 
 npx tsc --noEmit              # type-check — NOT run by lint or vitest; run before a PR (Slice 5 found a latent TS error this way)
 npx knip                      # unused exports/deps (config in package.json)
-SMOKE=1 npm run smoke:slice-4 # manual end-to-end script against a running server (src/scripts/)
+SMOKE=1 npm run smoke:slice-4 # end-to-end smoke against a running server (src/scripts/)
+SMOKE=1 npm run smoke:slice-9 # ídem, scoring: draft completo → resultados → standings
+SMOKE_KEEP=1 SMOKE=1 npm run smoke:slice-9       # ...y DEJA sus fixtures para inspeccionarlos
 ```
 
-`smoke:slice-7` in `package.json` points at `src/scripts/smoke-slice-7.ts`, which does not exist — dangling script.
 
 Health check: `GET /api/v1/health`.
 
@@ -189,6 +190,23 @@ Frontend (`frontend/`):
 - `npm test` runs once (not watch); use `npm run test:watch` while iterating.
 - E2E: Playwright (`frontend/playwright.config.ts`, `frontend/e2e/*.spec.ts`, `npm run e2e`). Needs the backend running (`npm run dev` in `backend/`, DB migrated + seeded) — `webServer` in the config only starts the frontend. `frontend/e2e/leagues.spec.ts` covers register → create league → see it as owner, plus the `/leagues` → `/login` redirect when logged out. The cátedra requires at least one automated browser test — don't let this suite regress to zero tests even mid-refactor.
 - Beyond the automated suite, the standing convention on this project (per the user) is to also manually click through the affected flow against a real `npm run dev` (backend + frontend) before pushing — either with a throwaway Playwright script or by hand in the browser. Don't claim a frontend task is "done" from `lint`/`test`/`build` passing alone.
+
+### Smoke tests (`src/scripts/smoke-slice-*.ts`)
+
+Scripts que ejercitan un slice **de punta a punta contra un servidor y una DB de desarrollo reales**, por HTTP, como lo haría un cliente. Complementan a Vitest, no lo reemplazan.
+
+**Por qué existen, más allá de "probar a mano".** La suite corre sobre una DB truncada y construye su propio mundo: cada archivo crea su temporada, sus pilotos y su liga, así que *todo lo que existe* pertenece al test. Un smoke corre sobre la base que existe de verdad, con el seed cargado y datos de corridas anteriores. Esa diferencia encuentra cosas que la suite no puede ver: **BOX-39** (el draft ofrece pilotos de cualquier temporada) apareció así, con 231 tests en verde.
+
+Reglas al escribir uno nuevo, todas aprendidas a los golpes:
+
+- **Repetible.** Todo fixture lleva un `runId = Date.now()` en su clave única. Sin eso, la segunda corrida choca contra un `externalId` duplicado y falla de forma confusa — y peor, el soft delete conserva la fila, así que el nombre queda reservado para siempre.
+- **Aislado.** Usar una `Season` propia con un año fuera del rango real de F1 (`smoke-slice-9.ts` deriva el año del `runId`). Así no ensucia los datos del seed 2026 que se usan para la demo.
+- **Limpia por defecto.** `SMOKE_KEEP=1` los deja, para inspeccionar. El default tiene que ser el seguro: con la limpieza como opt-in, cinco corridas dejaron 20 pilotos inventados visibles en `/drivers`, al lado de los 22 reales.
+- **Verifica números, no status codes.** Un `200` no prueba que el cálculo esté bien. Comparar el total contra la suma de sus partes y contra el valor de la corrida anterior.
+- **El fixture tiene que poder fallar.** La primera versión de `smoke-slice-9` repartía los mismos puntos en las dos fechas: los totales empataban por construcción, el `positionChange` nunca se movía y el script pasaba en verde **sin haber probado lo que decía probar**. Si una aserción tiene una rama "no pasó nada", asegurate de que el fixture no la tome siempre.
+- **Fail-fast** con `exit(1)` y el diff impreso.
+
+`smoke:slice-4` no sigue todas estas reglas (es anterior); `smoke:slice-9` es la referencia.
 
 ## Browser automation (agent-browser)
 

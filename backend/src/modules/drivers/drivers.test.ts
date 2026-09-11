@@ -99,6 +99,7 @@ describe('GET /api/v1/drivers — escuderia en el listado', () => {
       id: constructorId,
       name: 'Red Bull Racing',
       color: '#3671C6',
+      logoUrl: null, // el seed lo puebla; los tests crean el constructor sin logo
     });
   });
 
