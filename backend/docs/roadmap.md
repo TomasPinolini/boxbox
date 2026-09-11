@@ -32,15 +32,7 @@ Prisma 7 + Postgres. Tests = Vitest + Supertest contra DB real.
 
 ## Now — lo que bloquea la entrega del 12/10
 
-_(Slices 1–8 completos.)_
-
-### Slice 14 (backend) — detalle de piloto enriquecido
-
-- **Goal**: que `GET /drivers/:id` devuelva lo que la pantalla de detalle necesita mostrar. Es la mitad backend de un slice que se completa en el frontend — ver [Slice 14 (frontend)](../../frontend/docs/roadmap.md).
-- **Estado hoy**: `findAll(constructorId?, seasonId?)` (`drivers.service.ts:14`) ya filtra vía `GET /drivers?constructorId=N`, así que el listado no necesita backend nuevo. `findById` devuelve la fila pelada, sin estadísticas ni resultados.
-- **Touches**: `drivers.service.ts` (carreras corridas, puntos totales, mejor posición, podios, más los `RaceResult` con join a Race); `drivers.test.ts`.
-- **Done when**: `GET /drivers/:id` incluye estadísticas agregadas y resultados por carrera, con tests contra la DB real.
-- **Blocked by**: nada.
+_(Slices 1–8 y 14 completos. Lo que sigue del carril backend es el Epic 2: Slices 9 y 12.)_
 
 ---
 
@@ -91,6 +83,21 @@ Si alguno de estos se vuelve demasiado grande, partir así:
 ---
 
 ## Completados
+
+### Slice 14 (backend) — detalle de piloto enriquecido
+
+- **Status**: done (branch `14/drivers-list-detail`, PR #30 mergeado en `dev`). Mitad backend de un slice que se completa en [el carril frontend](../../frontend/docs/roadmap.md).
+- **Shipped**: `GET /drivers` ahora incluye `constructor` (`{id, name, color, logoUrl}`, `null` si el piloto no corre la temporada resuelta). `GET /drivers/:id` suma `stats` (carreras, puntos, victorias, podios, mejor puesto, abandonos) e historial de `results` ordenado por `round`. `middleware/validate.ts` ganó `validateQuery`. El seed carga 3 fechas COMPLETED con sus `RaceResult` y `ConstructorResult`, y puebla `Constructor.logoUrl` y `Driver.headshotUrl`.
+- **Decisiones clave**:
+  - **El service quedó partido**: `findById` flaca y **sin exportar**, solo para los chequeos de existencia de `update`/`softDelete`; `findDetail` para el endpoint público. Así un `PATCH` no paga los joins del detalle. Sin el `export`, knip tampoco la marca como muerta.
+  - **La escudería se trae con tres queries planas + merge en TS**, nunca con `include`/`select` sobre la relación `constructor`: ese nombre colisiona con `Object.prototype` y rompió `tsc` en los Slices 4 y 5.
+  - **Sin `groupBy`/`aggregate` de Prisma**: `buildDriverStats` es una función pura sobre filas planas, mismo patrón que `buildConstructorResults`. Una query en vez de tres, y se testea sin DB.
+  - **La temporada se resuelve con un helper local no-lanzante**, no con `seasonsService.findActive()`: esa tira `NotFoundError` y haría que `GET /drivers` devuelva 404 en la DB truncada de cada test y en un clone sin seed. Hay un test canario que se pone rojo si alguien lo cambia.
+- **Gotchas**:
+  - **`validateQuery` no puede hacer `req.query = parsed`** como hacen `validate`/`validateParams` con body y params. En Express 5 `req.query` es un getter del prototipo **sin setter** (verificado en 5.2.1); con `"strict": true` asignarle tira `TypeError` en runtime, un 500 por request, y `tsc` no lo detecta. El resultado va a `req.validatedQuery`.
+  - **El filtro `?constructorId=` mentía**: no acotaba por temporada, así que un piloto que corrió para Ferrari en 2025 aparecía al filtrar Ferrari en 2026 mostrando su escudería actual en la fila. Corregido. Era código muerto y sin tests, así que el cambio de contrato no costó nada.
+  - `?constructorId=abc` escalaba a 500 (NaN → Prisma). Ahora 400 `VALIDATION_ERROR`: el mismo bug A3/BOX-13 entrando por query params.
+- **Tests**: 219 (+13), incluida la **primera cobertura del filtro**, que no tenía ninguna.
 
 ### Slice 8 — ConstructorResult (derivado de RaceResult)
 

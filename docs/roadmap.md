@@ -32,7 +32,7 @@ La rúbrica pide cantidades "por integrante" o "cada 2 integrantes o fracción".
 | :------------------------------------------------------ | :---------- | :------------------------------------------------------------------------------- |
 | CRUD simple ×2                                          | Regularidad | ✅ Driver, Constructor, Circuit, Season                                          |
 | CRUD dependiente ×1                                     | Regularidad | ✅ Race (depende de Circuit + Season)                                            |
-| **Listado con filtro + detalle ×1**                     | Regularidad | ❌ **Slice 14**, los dos carriles — el filtro existe en la API, las pantallas no |
+| Listado con filtro + detalle ×1                          | Regularidad | ✅ **Slice 14**, los dos carriles — `/drivers` y `/drivers/:id`, públicas        |
 | CUU/epic ×1                                             | Regularidad | ⚠️ Draft: backend listo, falta la UI (**Slice 13b**)                             |
 | CUU/epic ×2 (uno por integrante), mínimo 2 relacionados | Aprobación  | ⚠️ Epic 1 = draft (13b). **Epic 2 = Slices 9 + 12, sin empezar**                 |
 | 1 test automatizado por integrante + 1 de integración   | Aprobación  | ✅ 206 tests contra Postgres real                                                |

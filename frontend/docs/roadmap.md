@@ -31,15 +31,7 @@ TypeScript + Tailwind v4. Tests = Vitest + Testing Library, e2e con Playwright.
 
 ## Now — lo que bloquea la entrega del 12/10
 
-_(Slice 13a completo.)_
-
-### Slice 14 (frontend) — listado de pilotos con filtro + detalle
-
-- **Goal**: cubrir el requisito de Regularidad "1 listado con filtro, con detalle al seleccionar". `proposal.md:174` lo comprometió como "listado de pilotos filtrado por escudería → detalle con estadísticas y resultados de carrera". La mitad backend está en [Slice 14 (backend)](../../backend/docs/roadmap.md).
-- **Estado hoy**: no existe ninguna ruta `/drivers` en el frontend. El filtro ya existe en la API (`GET /drivers?constructorId=N`), así que el listado se puede construir antes de que el detalle enriquecido esté listo.
-- **Touches**: `src/features/drivers/` (nuevo); `src/app/router.tsx`; `src/services/` (wrapper del endpoint).
-- **Done when**: `/drivers` muestra nombre, número y equipo; el filtro por escudería recorta sin recargar; `/drivers/:id` muestra estadísticas y resultados por carrera. Un test unitario de componente y el paso agregado al e2e.
-- **Blocked by**: el listado no depende de nada. El detalle completo necesita la mitad backend del Slice 14.
+_(Slices 13a y 14 completos. Queda el Slice 15, y 13b en "Later".)_
 
 ### Slice 15 — Protección de rutas por nivel
 
@@ -67,6 +59,20 @@ _(Slice 13a completo.)_
 ---
 
 ## Completados
+
+### Slice 14 (frontend) — listado de pilotos con filtro + detalle
+
+- **Status**: done (branch `14/drivers-list-detail`, PR #30 mergeado en `dev`). Mitad frontend; la del backend está en [su carril](../../backend/docs/roadmap.md).
+- **Goal cumplido**: el requisito de Regularidad "1 listado con filtro, con detalle al seleccionar", comprometido en `proposal.md:174`.
+- **Shipped**: `features/drivers/` con `/drivers` y `/drivers/:id`, **públicas** — los `GET` del catálogo no piden auth en el backend y la UI lo espeja, así que se pueden abrir sin cuenta. `DriverCard`, `ConstructorFilter`, `DriverResultsTable`, `TeamBadge`, `DriverAvatar`. Links de navegación en el prop `actions` de `PageShell` y uno en el login, sin construir un navbar.
+- **Decisiones clave**:
+  - **Filtro server-side**, contra el `?constructorId=` que ya existía en la API y no tenía consumidor ni test. El valor vive en la **URL** vía `useSearchParams`, no en `useState`: sobrevive al "atrás" del browser desde el detalle y el link filtrado se puede compartir.
+  - El `<select>` se puebla con `GET /constructors` aparte. Si las opciones salieran del listado ya filtrado, elegir Ferrari dejaría Ferrari como única opción sin vuelta atrás.
+  - **Multimedia**: `Driver.headshotUrl` (21/22) guarda la **URL** contra el CDN de F1, no el archivo — son imágenes de prensa y el repo es público. `Constructor.logoUrl` (8/11) sí son estáticos, de Wikimedia Commons, con licencias en `frontend/public/logos/CREDITS.md`.
+- **Gotcha que solo apareció midiendo**: el badge se pinta con el color oficial del equipo. Elegir el color del texto comparando la luminancia contra un umbral fijo dejaba **4 de 11 equipos por debajo del mínimo de contraste de WCAG** (Haas 1.95:1, Williams 2.19, McLaren 2.52, Racing Bulls 2.95). Hay que elegir el color que **maximiza** el contraste, y el texto oscuro tiene que ser **negro puro**: con el `#111827` del sistema de diseño, el rojo de Audi topaba en 4.07 y ninguna de las dos opciones llegaba. `team-color.test.ts` afirma que cada uno de los 11 llega a 4.5:1.
+- **Primeros del repo**: el primer `<select>`, y `src/test/render-with-query.tsx`, el primer wrapper de React Query para tests (ningún test renderizaba un componente con `useQuery`).
+- **Tests**: 37 (+24) unitarios, 4 e2e (+2 — uno verifica que `/drivers` **no** redirige a `/login`, el par simétrico del de `/leagues`). Pase responsive 375/768/1024 sin overflow. Evidencia en `docs/test-evidence/slice-14-*.txt`.
+- **Pendiente, post-entrega**: el logo dentro del badge de cada card. Necesita conseguir Ferrari, Audi y Racing Bulls (no están en Commons) y recortar los wordmarks a un ícono cuadrado.
 
 ### Slice 13a — Frontend bootstrap (auth + ligas)
 
