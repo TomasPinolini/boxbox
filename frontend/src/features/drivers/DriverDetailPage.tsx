@@ -1,7 +1,9 @@
 import { Link, useParams } from 'react-router-dom';
-import { Alert, Badge, Card, PageShell } from '../../components/ui';
+import { Alert, Card, PageShell } from '../../components/ui';
 import type { DriverStats } from '../../models/driver';
+import { DriverAvatar } from './DriverAvatar';
 import { DriverResultsTable } from './DriverResultsTable';
+import { TeamBadge } from './TeamBadge';
 import { useDriver } from './drivers.queries';
 
 // Las seis estadisticas que devuelve el backend, en el orden en que se leen.
@@ -39,12 +41,23 @@ export function DriverDetailPage() {
       }
     >
       <div className="flex flex-col gap-6">
-        <div className="flex flex-wrap items-center gap-3 text-slate-600">
-          <span className="font-mono text-lg">#{d.number}</span>
-          <span>{d.code}</span>
-          <Badge tone={d.constructor ? 'info' : 'neutral'}>
-            {d.constructor?.name ?? 'Sin equipo'}
-          </Badge>
+        <div className="flex flex-wrap items-center gap-4">
+          <DriverAvatar driver={d} size={88} />
+          <div className="flex flex-col gap-2 text-slate-600">
+            <div className="flex items-center gap-3">
+              <span className="font-mono text-lg">#{d.number}</span>
+              <span>{d.code}</span>
+              <TeamBadge constructor={d.constructor} />
+            </div>
+            {/* El logo solo aparece si lo tenemos: faltan Ferrari, Audi y Racing Bulls. */}
+            {d.constructor?.logoUrl && (
+              <img
+                src={d.constructor.logoUrl}
+                alt={d.constructor.name}
+                className="h-10 max-w-[220px] object-contain object-left"
+              />
+            )}
+          </div>
         </div>
 
         <Card>

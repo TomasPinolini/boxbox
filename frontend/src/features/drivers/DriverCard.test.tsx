@@ -11,7 +11,7 @@ const driver: Driver = {
   number: 1,
   code: 'VER',
   headshotUrl: null,
-  constructor: { id: 3, name: 'Red Bull Racing', color: '#3671C6' },
+  constructor: { id: 3, name: 'Red Bull Racing', color: '#3671C6', logoUrl: null },
 };
 
 // Componente puro, sin queries ni router: se renderiza directo, igual que LeagueCard.test.tsx.

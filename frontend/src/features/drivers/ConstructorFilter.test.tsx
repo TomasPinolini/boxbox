@@ -5,8 +5,8 @@ import type { ConstructorRef } from '../../models/driver';
 import { ConstructorFilter } from './ConstructorFilter';
 
 const constructors: ConstructorRef[] = [
-  { id: 3, name: 'Red Bull Racing', color: '#3671C6' },
-  { id: 5, name: 'Ferrari', color: '#E8002D' },
+  { id: 3, name: 'Red Bull Racing', color: '#3671C6', logoUrl: null },
+  { id: 5, name: 'Ferrari', color: '#E8002D', logoUrl: null },
 ];
 
 describe('ConstructorFilter', () => {

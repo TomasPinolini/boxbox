@@ -10,7 +10,8 @@ export type RaceResultStatus = 'CLASSIFIED' | 'DNF' | 'DSQ' | 'DNS';
 export interface ConstructorRef {
   id: number;
   name: string;
-  color: string;
+  color: string; // hex, ej "#3671C6" — es el color oficial del equipo
+  logoUrl: string | null; // estatico servido desde /public/logos; null si no tenemos logo
 }
 
 export interface Driver {

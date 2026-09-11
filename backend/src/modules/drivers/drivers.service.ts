@@ -14,7 +14,12 @@ const notDeleted = { deletedAt: null };
 
 // Escuderia tal como la exponemos en la API. No es el modelo entero de Constructor:
 // el listado solo necesita con que pintar el chip de equipo.
-export type ConstructorRef = { id: number; name: string; color: string };
+export type ConstructorRef = {
+  id: number;
+  name: string;
+  color: string;
+  logoUrl: string | null;
+};
 
 // Resuelve contra que temporada leer la escuderia: la explicita si vino por query, si no
 // la activa, y si no hay ninguna -> null.
@@ -111,7 +116,7 @@ async function constructorsForDrivers(
 
   return indexConstructorsByDriver(
     links,
-    constructors.map((c) => ({ id: c.id, name: c.name, color: c.color })),
+    constructors.map((c) => ({ id: c.id, name: c.name, color: c.color, logoUrl: c.logoUrl })),
   );
 }
 
