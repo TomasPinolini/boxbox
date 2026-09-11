@@ -23,6 +23,7 @@
 import { Router } from 'express';
 import * as leaguesController from './leagues.controller';
 import draftRoutes from '../draft/draft.routes';
+import standingsRoutes from '../standings/standings.routes';
 import { validate, validateParams } from '../../middleware/validate';
 import { requireAuth } from '../../middleware/auth';
 import { requireLeagueMember, requireLeagueOwner } from '../../middleware/leagueMembership';
@@ -120,6 +121,17 @@ router.use(
   validateParams(leagueIdParamSchema),
   requireLeagueMember,
   draftRoutes,
+);
+
+// ─── Sub-router Slice 9: /leagues/:id/standings ───────────────────────
+// Mismo encadenado que draft: requireAuth + validateParams + requireLeagueMember corren aca,
+// asi que standings.routes.ts ya recibe req.leagueMember poblado.
+router.use(
+  '/:id/standings',
+  requireAuth,
+  validateParams(leagueIdParamSchema),
+  requireLeagueMember,
+  standingsRoutes,
 );
 
 router.delete(
