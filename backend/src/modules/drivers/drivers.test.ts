@@ -7,6 +7,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import request from 'supertest'; // simula requests HTTP sin levantar un puerto real
 import app from '../../app';
 import { createTestAdmin, createTestUser } from '../../tests/setup';
+import { prisma } from '../../shared/prisma';
 
 // adminToken: el CRUD de catalogo es admin-only (A5 / BOX-15). setup.ts trunca la DB antes de
 // cada test, asi que el admin se recrea por test.
@@ -55,6 +56,158 @@ describe('GET /api/v1/drivers', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveLength(2);
+  });
+});
+
+// Helpers locales, no compartidos. tests/setup.ts solo exporta createTestUser/createTestAdmin;
+// races.test.ts ya sento el precedente de que cada archivo arme los suyos. Season, Constructor
+// y DriverSeason van directo por Prisma (crearlos por HTTP solo agrega ruido); los drivers van
+// por HTTP para ejercitar el path real.
+async function seedSeason(year = 2026, isActive = true) {
+  const season = await prisma.season.create({ data: { year, isActive, driverCount: 22 } });
+  return season.id;
+}
+
+async function seedConstructor(name: string, externalId: string, color = '#FF0000') {
+  const constructor = await prisma.constructor.create({ data: { name, color, externalId } });
+  return constructor.id;
+}
+
+async function seedDriver(overrides: Partial<typeof validDriver> = {}) {
+  const res = await request(app)
+    .post('/api/v1/drivers')
+    .set('Authorization', `Bearer ${adminToken}`)
+    .send({ ...validDriver, ...overrides });
+  return res.body.data.id as number;
+}
+
+async function linkDriverSeason(driverId: number, constructorId: number, seasonId: number) {
+  await prisma.driverSeason.create({ data: { driverId, constructorId, seasonId } });
+}
+
+describe('GET /api/v1/drivers — escuderia en el listado', () => {
+  it('incluye la escuderia del piloto en la temporada activa', async () => {
+    const seasonId = await seedSeason();
+    const constructorId = await seedConstructor('Red Bull Racing', 'red_bull', '#3671C6');
+    const driverId = await seedDriver();
+    await linkDriverSeason(driverId, constructorId, seasonId);
+
+    const res = await request(app).get('/api/v1/drivers');
+
+    expect(res.status).toBe(200);
+    expect(res.body.data[0].constructor).toEqual({
+      id: constructorId,
+      name: 'Red Bull Racing',
+      color: '#3671C6',
+    });
+  });
+
+  it('devuelve constructor null si el piloto no corre esta temporada', async () => {
+    await seedSeason();
+    await seedDriver();
+
+    const res = await request(app).get('/api/v1/drivers');
+
+    expect(res.status).toBe(200);
+    expect(res.body.data[0].constructor).toBeNull();
+  });
+
+  it('devuelve constructor null si la escuderia esta soft-deleted', async () => {
+    const seasonId = await seedSeason();
+    const constructorId = await seedConstructor('Extinta', 'extinta');
+    const driverId = await seedDriver();
+    await linkDriverSeason(driverId, constructorId, seasonId);
+    await prisma.constructor.update({
+      where: { id: constructorId },
+      data: { deletedAt: new Date() },
+    });
+
+    const res = await request(app).get('/api/v1/drivers');
+
+    expect(res.status).toBe(200);
+    expect(res.body.data[0].constructor).toBeNull();
+  });
+
+  // Canario: si alguien reemplaza resolveSeasonId por seasonsService.findActive(), que tira
+  // NotFoundError, este test pasa de 200 a 404. Un endpoint publico de catalogo no puede
+  // depender de que exista una temporada activa.
+  it('responde 200, no 404, cuando no hay ninguna temporada activa', async () => {
+    await seedDriver();
+
+    const res = await request(app).get('/api/v1/drivers');
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toHaveLength(1);
+    expect(res.body.data[0].constructor).toBeNull();
+  });
+});
+
+describe('GET /api/v1/drivers?constructorId=', () => {
+  it('devuelve solo los pilotos de esa escuderia', async () => {
+    const seasonId = await seedSeason();
+    const ferrari = await seedConstructor('Ferrari', 'ferrari');
+    const mclaren = await seedConstructor('McLaren', 'mclaren');
+    const leclerc = await seedDriver({ lastName: 'Leclerc', code: 'LEC', externalId: 'leclerc' });
+    const norris = await seedDriver({ lastName: 'Norris', code: 'NOR', externalId: 'norris' });
+    await linkDriverSeason(leclerc, ferrari, seasonId);
+    await linkDriverSeason(norris, mclaren, seasonId);
+
+    const res = await request(app).get(`/api/v1/drivers?constructorId=${ferrari}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toHaveLength(1);
+    expect(res.body.data[0].lastName).toBe('Leclerc');
+  });
+
+  // El filtro se acota a la temporada resuelta: sin eso, un piloto que corrio para Ferrari
+  // en 2025 aparecia al filtrar Ferrari en 2026 mostrando su escuderia actual en la fila.
+  it('no devuelve un piloto que corrio para esa escuderia en OTRA temporada', async () => {
+    const vieja = await seedSeason(2025, false);
+    const activa = await seedSeason(2026, true);
+    const ferrari = await seedConstructor('Ferrari', 'ferrari');
+    const mclaren = await seedConstructor('McLaren', 'mclaren');
+    const driverId = await seedDriver({ lastName: 'Sainz', code: 'SAI', externalId: 'sainz' });
+    await linkDriverSeason(driverId, ferrari, vieja);
+    await linkDriverSeason(driverId, mclaren, activa);
+
+    const res = await request(app).get(`/api/v1/drivers?constructorId=${ferrari}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual([]);
+  });
+
+  it('devuelve lista vacia (200) para una escuderia inexistente, no 404', async () => {
+    await seedSeason();
+    await seedDriver();
+
+    const res = await request(app).get('/api/v1/drivers?constructorId=99999');
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual([]);
+  });
+
+  // Mismo bug que A3/BOX-13 pero en query params: sin validateQuery, Number('abc') era NaN,
+  // llegaba a Prisma y escalaba a 500.
+  it('rechaza ?constructorId=abc con 400 VALIDATION_ERROR, no 500', async () => {
+    const res = await request(app).get('/api/v1/drivers?constructorId=abc');
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  it('?seasonId= acota la escuderia mostrada a esa temporada', async () => {
+    const vieja = await seedSeason(2025, false);
+    const activa = await seedSeason(2026, true);
+    const ferrari = await seedConstructor('Ferrari', 'ferrari');
+    const mclaren = await seedConstructor('McLaren', 'mclaren');
+    const driverId = await seedDriver({ lastName: 'Sainz', code: 'SAI', externalId: 'sainz' });
+    await linkDriverSeason(driverId, ferrari, vieja);
+    await linkDriverSeason(driverId, mclaren, activa);
+
+    const res = await request(app).get(`/api/v1/drivers?seasonId=${vieja}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data[0].constructor.name).toBe('Ferrari');
   });
 });
 
