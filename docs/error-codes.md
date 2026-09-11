@@ -112,7 +112,7 @@ Códigos de error tipados que la API puede devolver en el envelope `{ error: { c
 
 ## Códigos planeados (todavía no implementados)
 
-Estos van a aparecer cuando se construyan los slices del [`roadmap.md`](./roadmap.md). Documentados acá para que el equipo no invente variantes inconsistentes:
+Estos van a aparecer cuando se construyan los slices del [`backend/docs/roadmap.md`](../backend/docs/roadmap.md). Documentados acá para que el equipo no invente variantes inconsistentes:
 
 ### Slice 10 — Predictions
 
