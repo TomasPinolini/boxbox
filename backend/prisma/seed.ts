@@ -527,6 +527,51 @@ const races2026: RaceData[] = [
   },
 ];
 
+type RaceResultData = {
+  round: number;
+  // externalIds de pilotos, el ganador primero. La posicion sale del indice y los puntos
+  // de F1_POINTS. Los que no figuran acá ni en `dnf` no corrieron esa carrera.
+  finishOrder: string[];
+  // Abandonos: position null, 0 puntos, status DNF. Sirven para que el detalle de piloto
+  // tenga un caso donde `position` es null y `bestFinish` tiene que ignorarlo.
+  dnf?: string[];
+};
+
+// Sistema de puntos vigente: del 1ro al 10mo. Del 11vo para abajo, cero.
+const F1_POINTS = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1];
+
+// Resultados de las 3 primeras fechas. Sin esto, /drivers/:id renderiza vacio contra un seed
+// fresco (24 carreras, 0 resultados) y Slice 9 no tiene con que calcular standings.
+// Inventados: no son resultados reales de 2026.
+const results2026: RaceResultData[] = [
+  {
+    round: 1, // Bahrain
+    finishOrder: [
+      'max_verstappen', 'norris', 'leclerc', 'russell', 'piastri', 'hamilton', 'antonelli',
+      'sainz', 'albon', 'gasly', 'hadjar', 'lawson', 'alonso', 'stroll', 'ocon', 'bearman',
+      'hulkenberg', 'bortoleto', 'colapinto', 'lindblad',
+    ],
+    dnf: ['perez', 'bottas'],
+  },
+  {
+    round: 2, // Jeddah
+    finishOrder: [
+      'norris', 'piastri', 'max_verstappen', 'leclerc', 'hamilton', 'russell', 'sainz',
+      'antonelli', 'gasly', 'alonso', 'albon', 'hadjar', 'bearman', 'ocon', 'stroll',
+      'lawson', 'bottas', 'perez', 'hulkenberg', 'bortoleto', 'colapinto',
+    ],
+    dnf: ['lindblad'],
+  },
+  {
+    round: 3, // Albert Park
+    finishOrder: [
+      'leclerc', 'max_verstappen', 'hamilton', 'norris', 'antonelli', 'piastri', 'russell',
+      'albon', 'alonso', 'sainz', 'colapinto', 'gasly', 'lawson', 'stroll', 'hadjar',
+      'bearman', 'bortoleto', 'perez', 'bottas', 'hulkenberg', 'lindblad', 'ocon',
+    ],
+  },
+];
+
 // ───────────────────────────────────────────────────────────────────────────
 // Lógica — recorre los arrays y persiste vía upsert
 // ───────────────────────────────────────────────────────────────────────────
@@ -624,7 +669,93 @@ async function main() {
     });
   }
 
-  // 5. Summary --------------------------------------------------------------
+  // 5. RaceResults + ConstructorResults -------------------------------------
+  // Solo las fechas que figuran en results2026; el resto de las carreras queda UPCOMING.
+  const driverIdByExternalId = new Map(
+    (await prisma.driver.findMany({ select: { id: true, externalId: true } })).map((d) => [
+      d.externalId,
+      d.id,
+    ]),
+  );
+  // driverId -> constructorId de esta temporada, para derivar los ConstructorResult.
+  const constructorIdByDriverId = new Map(
+    (await prisma.driverSeason.findMany({ where: { seasonId: season.id } })).map((ds) => [
+      ds.driverId,
+      ds.constructorId,
+    ]),
+  );
+
+  for (const r of results2026) {
+    const race = await prisma.race.findUnique({
+      where: { seasonId_round: { seasonId: season.id, round: r.round } },
+    });
+    if (!race) throw new Error(`results2026 referencia la fecha ${r.round}, que no existe`);
+
+    const resolve = (externalId: string) => {
+      const driverId = driverIdByExternalId.get(externalId);
+      if (!driverId) {
+        throw new Error(`results2026 (fecha ${r.round}) referencia al piloto "${externalId}"`);
+      }
+      return driverId;
+    };
+
+    const rows = [
+      ...r.finishOrder.map((externalId, index) => ({
+        driverId: resolve(externalId),
+        position: index + 1,
+        points: F1_POINTS[index] ?? 0,
+        status: 'CLASSIFIED' as const,
+      })),
+      ...(r.dnf ?? []).map((externalId) => ({
+        driverId: resolve(externalId),
+        position: null,
+        points: 0,
+        status: 'DNF' as const,
+      })),
+    ];
+
+    for (const row of rows) {
+      await prisma.raceResult.upsert({
+        where: { raceId_driverId: { raceId: race.id, driverId: row.driverId } },
+        update: {},
+        create: { raceId: race.id, ...row },
+      });
+    }
+
+    // El upsert de la carrera usa `update: {}`, asi que en una DB ya seedeada nunca aplicaria
+    // el COMPLETED. Hace falta este update explicito (idempotente por naturaleza).
+    await prisma.race.update({ where: { id: race.id }, data: { status: 'COMPLETED' } });
+
+    // ConstructorResults derivados, con la misma regla que loadResults (Slice 8):
+    // driver1Points es el mayor de los dos. Sin esto la DB de dev queda en un estado que
+    // Slice 8 nunca produciria y que Slice 9 leeria mal.
+    const pointsByConstructor = new Map<number, number[]>();
+    for (const row of rows) {
+      const constructorId = constructorIdByDriverId.get(row.driverId);
+      if (!constructorId) continue;
+      pointsByConstructor.set(constructorId, [
+        ...(pointsByConstructor.get(constructorId) ?? []),
+        row.points,
+      ]);
+    }
+
+    for (const [constructorId, points] of pointsByConstructor) {
+      const [driver1Points = 0, driver2Points = 0] = [...points].sort((a, b) => b - a);
+      await prisma.constructorResult.upsert({
+        where: { raceId_constructorId: { raceId: race.id, constructorId } },
+        update: {},
+        create: {
+          raceId: race.id,
+          constructorId,
+          driver1Points,
+          driver2Points,
+          totalPoints: driver1Points + driver2Points,
+        },
+      });
+    }
+  }
+
+  // 6. Summary --------------------------------------------------------------
   const counts = {
     admins: await prisma.user.count({ where: { role: 'ADMIN' } }),
     seasons: await prisma.season.count(),
@@ -633,6 +764,9 @@ async function main() {
     driverSeasons: await prisma.driverSeason.count(),
     circuits: await prisma.circuit.count({ where: { deletedAt: null } }),
     races: await prisma.race.count(),
+    racesCompleted: await prisma.race.count({ where: { status: 'COMPLETED' } }),
+    raceResults: await prisma.raceResult.count(),
+    constructorResults: await prisma.constructorResult.count(),
   };
   console.log('Seed completo:', counts);
 }
