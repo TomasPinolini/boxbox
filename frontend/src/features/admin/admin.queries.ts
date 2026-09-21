@@ -2,7 +2,11 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Race } from '../../models/race';
 import { ApiError } from '../../services/api-error';
 import { leaguesService } from '../../services/leagues.service';
-import { racesService, type RaceResultInput } from '../../services/races.service';
+import {
+  racesService,
+  type JolpicaPreview,
+  type RaceResultInput,
+} from '../../services/races.service';
 
 const keys = { races: ['races', 'active-season'] as const };
 
@@ -35,5 +39,13 @@ export function useProcessRace() {
       void qc.invalidateQueries({ queryKey: ['drivers'] });
       void qc.invalidateQueries({ queryKey: ['leagues'] });
     },
+  });
+}
+
+// Vista previa desde Jolpica. Es mutation y no query: la dispara un boton, y cada corrida deja
+// un SyncLog en el backend — no queremos que React Query la repita sola al re-enfocar la pestaña.
+export function useJolpicaPreview() {
+  return useMutation<JolpicaPreview, ApiError, number>({
+    mutationFn: (raceId) => racesService.previewFromJolpica(raceId),
   });
 }

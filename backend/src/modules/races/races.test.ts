@@ -494,18 +494,20 @@ describe('POST /api/v1/races/:id/results', () => {
     });
 
     // Ahora POST con los mismos 2 drivers. El pre-check "duplicate en payload" no ve
-    // conflicto (son 2 driverIds unicos). Pero cuando llega a la DB, el unique
-    // constraint @@unique([raceId, driverId]) explota en driver[0] → 500 INTERNAL_ERROR.
-    // Este test documenta ese comportamiento — si algun dia lo queremos tipar como
-    // ConflictError, el fix va en el catch del service.
+    // conflicto (son 2 driverIds unicos). El @@unique([raceId, driverId]) explota en
+    // driver[0]; el catch de loadResults traduce el P2002 a un 409 tipado (Slice 12 —
+    // antes escalaba a 500).
     const res = await request(app)
       .post(`/api/v1/races/${raceId}/results`)
       .set('Authorization', `Bearer ${accessToken}`)
       .send({ results: buildResults(drivers) });
 
-    expect(res.status).toBe(500);
-    // No verificamos error.code — es INTERNAL_ERROR generico. Esto es P3 deuda
-    // documentada en known-debt.md (mapear P2002 a ConflictError tipado).
+    expect(res.status).toBe(409);
+    expect(res.body.error.code).toBe('RACE_RESULTS_ALREADY_EXIST');
+    // Rollback total: sigue habiendo solo la fila insertada a mano y la Race no se cerro.
+    expect(await prisma.raceResult.count({ where: { raceId } })).toBe(1);
+    const race = await prisma.race.findUnique({ where: { id: raceId } });
+    expect(race?.status).toBe('UPCOMING');
   });
 
   // ── Conflict — payload malformado (aunque valido para Zod) ─────
