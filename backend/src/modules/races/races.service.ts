@@ -1,4 +1,5 @@
 import { prisma } from '../../shared/prisma';
+import { Prisma } from '../../generated/prisma/client';
 import type { RaceStatus } from '../../generated/prisma/enums';
 import { NotFoundError, ConflictError } from '../../shared/errors';
 import { CreateRaceInput, UpdateRaceInput, LoadRaceResultsInput } from './races.schema';
@@ -98,7 +99,20 @@ export async function loadResults(raceId: number, input: LoadRaceResultsInput) {
   // chequeos y los inserts ven la misma foto de la DB, y si cualquier paso tira, rollback
   // total — nunca queda una Race con RaceResults pero sin ConstructorResults, o al reves.
   // Devolvemos los results desde adentro para no hacer otro round-trip.
-  return prisma.$transaction(async (tx) => {
+  return prisma.$transaction(runLoad).catch((err: unknown) => {
+    // La Race puede tener RaceResults sin estar COMPLETED (status reabierto por PATCH, o dos
+    // cargas concurrentes que pasan ambas el chequeo de status). El @@unique([raceId, driverId])
+    // lo frena; aca lo traducimos a un 409 tipado en vez de dejarlo escalar a 500 (Slice 12).
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+      throw new ConflictError(
+        'This race already has results for one or more of these drivers',
+        'RACE_RESULTS_ALREADY_EXIST',
+      );
+    }
+    throw err;
+  });
+
+  async function runLoad(tx: Prisma.TransactionClient) {
     // 2a. La Race tiene que existir y estar en un estado cargable.
     const race = await tx.race.findUnique({ where: { id: raceId } });
     if (!race) throw new NotFoundError('Race');
@@ -159,7 +173,7 @@ export async function loadResults(raceId: number, input: LoadRaceResultsInput) {
       where: { raceId },
       orderBy: [{ position: { sort: 'asc', nulls: 'last' } }],
     });
-  });
+  }
 }
 
 type ConstructorResultRow = {
