@@ -105,6 +105,14 @@ export function LeagueDetailPage() {
 
           <Card>
             <h2 className="mb-2 text-lg font-semibold">Draft</h2>
+            {l.draftStatus !== 'PENDING' && (
+              <Link
+                to={`/leagues/${id}/draft`}
+                className="mb-3 block text-sm font-semibold text-red-600 hover:underline"
+              >
+                Ver draft en vivo →
+              </Link>
+            )}
             {isOwner ? (
               <>
                 <p className="mb-3 text-sm text-slate-600">

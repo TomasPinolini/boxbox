@@ -33,13 +33,13 @@ La rúbrica pide cantidades "por integrante" o "cada 2 integrantes o fracción".
 | CRUD simple ×2                                          | Regularidad | ✅ Driver, Constructor, Circuit, Season                                          |
 | CRUD dependiente ×1                                     | Regularidad | ✅ Race (depende de Circuit + Season)                                            |
 | Listado con filtro + detalle ×1                          | Regularidad | ✅ **Slice 14**, los dos carriles — `/drivers` y `/drivers/:id`, públicas        |
-| CUU/epic ×1                                             | Regularidad | ⚠️ Draft: backend listo, falta la UI (**Slice 13b**)                             |
-| CUU/epic ×2 (uno por integrante), mínimo 2 relacionados | Aprobación  | ⚠️ Epic 1 = draft (13b). **Epic 2 = Slices 9 + 12, sin empezar**                 |
+| CUU/epic ×1                                             | Regularidad | ⚠️ Draft: se ve en vivo (**13b tramo 1**, done); falta poder pickear desde la UI (tramo 2) |
+| CUU/epic ×2 (uno por integrante), mínimo 2 relacionados | Aprobación  | ⚠️ Epic 1 = draft, tramo 1 done / tramo 2 sin empezar. **Epic 2 = Slices 9 + 12, sin empezar** |
 | 1 test automatizado por integrante + 1 de integración   | Aprobación  | ✅ 206 tests contra Postgres real                                                |
 | Backend: login 2 niveles + rutas protegidas             | Aprobación  | ✅ `requireAuth` + `requireAdmin`                                                |
 | Frontend: mobile-first, 3 breakpoints                   | Regularidad | ✅ Tailwind, verificado a 375/768/1024                                           |
-| Frontend: 1 test unitario de componente + 1 e2e         | Aprobación  | ✅ 13 unitarios + 2 Playwright                                                   |
-| **Frontend: login con protección por niveles**          | Aprobación  | ❌ **Slice 15** — `UserRole` existe en `models/user.ts` y no se usa              |
+| Frontend: 1 test unitario de componente + 1 e2e         | Aprobación  | ✅ 48 unitarios + 2 Playwright                                                   |
+| **Frontend: login con protección por niveles**          | Aprobación  | ✅ **Slice 15** — `RequireAdmin` + `/admin/results`, PR #33                      |
 
 ### Trámites de cátedra (no son slices)
 

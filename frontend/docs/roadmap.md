@@ -31,34 +31,48 @@ TypeScript + Tailwind v4. Tests = Vitest + Testing Library, e2e con Playwright.
 
 ## Now — lo que bloquea la entrega del 12/10
 
-_(Slices 13a y 14 completos. Queda el Slice 15, y 13b en "Later".)_
-
-### Slice 15 — Protección de rutas por nivel
-
-- **Goal**: cubrir "login implementado con protección por niveles de usuario" (rúbrica, Frontend / Aprobación). El backend ya distingue USER de ADMIN; la UI no.
-- **Estado hoy**: `UserRole = 'USER' | 'ADMIN'` está declarado en `frontend/src/models/user.ts:1` y no se usa en ningún archivo. Los únicos guards son `RequireAuth` y `GuestOnly`, que solo miran si hay sesión.
-- **Touches**: `features/auth/RequireAdmin.tsx` (nuevo, mismo patrón que `RequireAuth`); `app/router.tsx`; una pantalla real detrás del guard — la candidata natural es **carga de resultados de carrera**, porque `POST /races/:id/results` ya existe desde Slice 7, es admin-only y alimenta el Epic 2.
-- **Done when**: un USER que entra por URL a la ruta admin no la ve; un ADMIN sí y puede cargar resultados contra el backend real. Test unitario del guard.
-- **Blocked by**: Slice 13a (done).
-
----
-
----
-
-## Later
+_(Slices 13a, 14 y 15 completos. Queda el tramo 2 de 13b.)_
 
 ### Slice 13b — Draft en vivo
 
-- **Goal**: conectar la pantalla de draft al namespace `/draft` de Socket.io (Slice 6) — hoy `/leagues/:id` permite arrancar el draft pero no tiene UI para jugarlo en vivo.
-- **Touches**: `frontend/src/features/draft/` (nuevo); cliente socket.io-client.
-- **Done when**: desde `/leagues/:id`, con el draft LIVE, se puede ver el estado del draft en tiempo real y hacer picks. Ampliar `frontend/e2e/leagues.spec.ts` (o un spec nuevo) con un flujo que cubra login → crear liga → join → draft completo.
-- **Blocked by**: Slice 13a (done), Slice 6.
+Partida en dos tramos (Pino, 2026-09-21) para no apostar toda la entrega del 12/10 a tener
+el ciclo de vida completo del socket andando de una — el tramo 1 es chico y verificable,
+el tramo 2 se apoya en esa base sin rehacer nada.
+
+- **Tramo 1 — conectar y mostrar `draft:state`, sin picks ni timer**. Status: **done**
+  (branch `13b/draft-realtime`). Ver detalle en "Completados" más abajo.
+- **Tramo 2 — hacer picks desde la UI + timer countdown**. Sin empezar.
+  - **Goal**: desde `/leagues/:id/draft`, con el draft LIVE y tu turno, poder elegir piloto o
+    escudería y mandarlo (`emit('draft:pick', ...)` sobre el mismo socket del tramo 1) — más
+    el countdown del `draft:timer` que ya manda el backend.
+  - **Touches**: `features/draft/DraftPage.tsx` (agrega la UI de pick sobre lo que ya existe),
+    `features/draft/useDraftState.ts` (agrega el emit y el manejo de `draft:timer`).
+  - **Done when**: se puede completar un draft entero desde la UI (todos los miembros, las 3
+    rondas) sin usar la API a mano. Ampliar `frontend/e2e/leagues.spec.ts` (o un spec nuevo)
+    con ese flujo.
+  - **Blocked by**: tramo 1 (done).
 
 ---
 
 ---
 
 ## Completados
+
+### Slice 13b (tramo 1) — Draft en vivo: conectar y mostrar `draft:state`
+
+- **Status**: done (branch `13b/draft-realtime`).
+- **Goal**: cubrir el CUU/epic de Regularidad del draft con lo más chico y verificable posible — ver el estado del draft en tiempo real, sin todavía poder tirar un pick desde la UI (eso es el tramo 2). Alcance acordado con Pino el 2026-09-21 para no jugarse la entrega del 12/10 a tener el socket completo (conectar + picks + timer) andando de una.
+- **Shipped**: `features/draft/draft-socket.ts` (única puerta al namespace `/draft`, mismo criterio que `ApiClient` para HTTP — un `connectDraftSocket(leagueId, token)`, nunca un `io(...)` suelto en un componente), `features/draft/useDraftState.ts` (hook: conecta al montar, guarda el `draft:state` inicial, y sigue al día con `draft:update`/`draft:complete` mientras la pantalla esté abierta — sin esto el estado quedaría viejo apenas otro miembro pickeara, aunque tramo 1 no ofrezca un botón propio para pickear), `features/draft/DraftPage.tsx` (ruta `/leagues/:id/draft`: badge de estado, ronda + de quién es el turno, lista de picks hechos con nombres resueltos vía `useMembers`/`useDrivers`/`useConstructors`). `LeagueDetailPage` linkea a la pantalla cuando `draftStatus !== 'PENDING'`.
+- **Decisión de diseño**: el hook escucha `draft:update` y `draft:complete` (no solo el `draft:state` inicial) a propósito — aunque la UI de picks es tramo 2, la pantalla igual tiene que reflejar en vivo los picks que hacen otros miembros (o los que se manden por REST) mientras está abierta.
+- **Tests**: 5 unitarios en `useDraftState.test.ts` (conecta → `connected`, guarda `draft:state`, mergea `draft:update` sin duplicar picks, `connect_error` deja `status: 'error'` con el mensaje, desconecta al desmontar) — mockeando `socket.io-client` con un fake socket minimalista (sin depender de tipos de Node, para no romper `tsc -b`). Verificado además a mano contra `npm run dev` real (backend + frontend): dos usuarios, liga, draft arrancado, un pick mandado por REST desde otro cliente aparece en la pantalla del primero **sin reload** — la prueba de que el overlay socket funciona igual que en Slice 6. Pase responsive a 375px sin overflow horizontal. Evidencia en `docs/test-evidence/slice-13b-unit.txt`.
+- **Pendiente (tramo 2)**: mandar picks desde la UI + timer countdown — ver la entrada de Slice 13b en "Now" más arriba.
+
+### Slice 15 — Protección de rutas por nivel
+
+- **Status**: done (branch `15/admin-route-guard`, PR #33 mergeado en `dev`, 2026-09-21).
+- **Goal**: cubrir "login implementado con protección por niveles de usuario" (rúbrica, Frontend / Aprobación).
+- **Shipped**: `features/auth/RequireAdmin.tsx` (mismo patrón que `RequireAuth`, anidado dentro — primero "hay sesión", después "es ADMIN"), montado en `/admin/results` sobre `RaceResultsPage` (Slice 7 backend, `POST /races/:id/results`). De paso sumó `StandingsTable` al detalle de liga.
+- **Tests**: `RequireAdmin.test.tsx` (un USER que entra por URL vuelve a `/leagues`; un ADMIN ve la ruta).
 
 ### Slice 16 (frontend) — pantalla de campeonato
 
