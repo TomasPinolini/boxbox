@@ -3,21 +3,24 @@ import { Link } from 'react-router-dom';
 import { Alert, Button, Card, PageShell } from '../../components/ui';
 import type { RaceResultStatus } from '../../models/driver';
 import { useDrivers } from '../drivers/drivers.queries';
-import { useActiveSeasonRaces, useProcessRace } from './admin.queries';
-import { buildResultsPayload, pointsFor } from './results-payload';
+import { useActiveSeasonRaces, useJolpicaPreview, useProcessRace } from './admin.queries';
+import { buildResultsPayload, entriesFromPreview, pointsFor, type Entry } from './results-payload';
 
 const STATUSES: RaceResultStatus[] = ['CLASSIFIED', 'DNF', 'DSQ', 'DNS'];
 
-type Entry = { position: string; status: RaceResultStatus };
 const EMPTY: Entry = { position: '', status: 'CLASSIFIED' };
 
 // Pantalla admin: cargar los resultados de una carrera y recalcular los standings de todas
 // las ligas. useState y no react-hook-form: es una grilla de N filas iguales sin validacion
 // por campo — toda la regla vive en buildResultsPayload, que es pura y tiene su test.
+// "Importar de Jolpica" solo LLENA la grilla (vista previa, no escribe nada): el admin revisa,
+// edita si hace falta y confirma con el mismo boton de la carga manual.
 export function RaceResultsPage() {
   const races = useActiveSeasonRaces();
   const drivers = useDrivers();
   const process = useProcessRace();
+  const preview = useJolpicaPreview();
+  const [notes, setNotes] = useState<string[]>([]);
   const [raceId, setRaceId] = useState<number | null>(null);
   const [entries, setEntries] = useState<Record<number, Entry>>({});
   const [errors, setErrors] = useState<string[]>([]);
@@ -31,6 +34,40 @@ export function RaceResultsPage() {
 
   function update(driverId: number, patch: Partial<Entry>) {
     setEntries((prev) => ({ ...prev, [driverId]: { ...(prev[driverId] ?? EMPTY), ...patch } }));
+  }
+
+  function selectRace(id: number | null) {
+    setRaceId(id);
+    setEntries({});
+    setErrors([]);
+    setNotes([]);
+    preview.reset();
+  }
+
+  function importFromJolpica() {
+    if (raceId === null) return;
+    preview.mutate(raceId, {
+      onSuccess: ({ results, skipped }) => {
+        const { entries: imported, pointsMismatch } = entriesFromPreview(results);
+        const nameOf = (id: number) => {
+          const d = grid.find((g) => g.id === id);
+          return d ? `${d.firstName} ${d.lastName}` : `piloto ${id}`;
+        };
+        // Un titular que Jolpica no trae no corrio esa fecha (lo reemplazo un suplente). Sin
+        // esto su fila queda vacia = CLASSIFIED sin posicion, y la validacion frena la carga.
+        const absent = grid.filter((d) => !(d.id in imported));
+        for (const d of absent) imported[d.id] = { position: '', status: 'DNS' };
+        setEntries(imported);
+        setErrors([]);
+        setNotes([
+          ...absent.map((d) => `${nameOf(d.id)} no figura en Jolpica: queda DNS, revisalo`),
+          ...skipped.map((s) => `Jolpica trae a "${s.ref}", que no se importa: ${s.reason}`),
+          ...pointsMismatch.map(
+            (m) => `${nameOf(m.driverId)}: Jolpica le da ${m.jolpica} pts y la tabla ${m.table}`,
+          ),
+        ]);
+      },
+    });
   }
 
   function submit() {
@@ -47,10 +84,7 @@ export function RaceResultsPage() {
     process.mutate(
       { raceId, results: out.results },
       {
-        onSuccess: () => {
-          setRaceId(null);
-          setEntries({});
-        },
+        onSuccess: () => selectRace(null),
       },
     );
   }
@@ -67,6 +101,7 @@ export function RaceResultsPage() {
       <Card>
         {loadError && <Alert code={loadError.code} message={loadError.message} />}
         {process.error && <Alert code={process.error.code} message={process.error.message} />}
+        {preview.error && <Alert code={preview.error.code} message={preview.error.message} />}
         {process.isSuccess && (
           <p role="status" className="mb-3 rounded bg-green-50 px-3 py-2 text-sm text-green-800">
             Resultados cargados. Se recalcularon {process.data.standings} standings en{' '}
@@ -79,7 +114,7 @@ export function RaceResultsPage() {
           <select
             className="rounded border border-slate-300 px-2 py-2"
             value={raceId ?? ''}
-            onChange={(e) => setRaceId(e.target.value ? Number(e.target.value) : null)}
+            onChange={(e) => selectRace(e.target.value ? Number(e.target.value) : null)}
           >
             <option value="">Elegí una carrera…</option>
             {loadable.map((r) => (
@@ -92,6 +127,25 @@ export function RaceResultsPage() {
 
         {raceId !== null && (
           <>
+            <div className="mb-4 flex flex-wrap items-center gap-3">
+              <Button variant="secondary" disabled={preview.isPending} onClick={importFromJolpica}>
+                {preview.isPending ? 'Importando…' : 'Importar de Jolpica'}
+              </Button>
+              {preview.isSuccess && (
+                <p role="status" className="text-sm text-slate-600">
+                  Vista previa: {preview.data.results.length} resultados. Todavía no se guardó nada
+                  — revisá y confirmá abajo.
+                </p>
+              )}
+            </div>
+            {notes.length > 0 && (
+              <ul className="mb-3 list-disc rounded bg-amber-50 py-2 pl-8 pr-3 text-sm text-amber-900">
+                {notes.map((n) => (
+                  <li key={n}>{n}</li>
+                ))}
+              </ul>
+            )}
+
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead className="hidden border-b border-slate-200 text-slate-500 sm:table-header-group">
