@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { League } from '../../models/league';
 import type { LeagueMember } from '../../models/league-member';
+import type { LeagueStandings } from '../../models/standing';
 import { ApiError } from '../../services/api-error';
 import { leaguesService, type CreateLeagueInput } from '../../services/leagues.service';
 
@@ -10,6 +11,7 @@ const keys = {
   all: ['leagues'] as const,
   one: (id: number) => ['leagues', id] as const,
   members: (id: number) => ['leagues', id, 'members'] as const,
+  standings: (id: number) => ['leagues', id, 'standings'] as const,
 };
 
 export function useLeagues() {
@@ -27,6 +29,13 @@ export function useMembers(id: number) {
   return useQuery<LeagueMember[], ApiError>({
     queryKey: keys.members(id),
     queryFn: () => leaguesService.members(id),
+  });
+}
+
+export function useStandings(id: number) {
+  return useQuery<LeagueStandings, ApiError>({
+    queryKey: keys.standings(id),
+    queryFn: () => leaguesService.standings(id),
   });
 }
 
