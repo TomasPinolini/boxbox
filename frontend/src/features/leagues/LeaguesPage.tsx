@@ -43,6 +43,12 @@ export function LeaguesPage() {
           <Link to="/standings" className="font-semibold text-red-600 hover:underline">
             Campeonato
           </Link>
+          {/* Solo ADMIN: un link muerto para un USER es peor que no tenerlo (BOX-37). */}
+          {user?.role === 'ADMIN' && (
+            <Link to="/admin/results" className="font-semibold text-red-600 hover:underline">
+              Cargar resultados
+            </Link>
+          )}
           <span>{user?.name}</span>
           <Button variant="secondary" onClick={logout}>
             Salir
