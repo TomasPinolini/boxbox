@@ -9,15 +9,16 @@ import { useDraftState } from './useDraftState';
 class FakeSocket {
   private listeners = new Map<string, ((...args: unknown[]) => void)[]>();
   disconnect = vi.fn();
+  // vi.fn (no un metodo plano): dispara los listeners locales para simular eventos "del
+  // servidor" en los tests Y queda espiable para afirmar que submitPick mando 'draft:pick'.
+  emit = vi.fn((event: string, ...args: unknown[]) => {
+    for (const handler of this.listeners.get(event) ?? []) handler(...args);
+  });
 
   on(event: string, handler: (...args: unknown[]) => void) {
     const handlers = this.listeners.get(event) ?? [];
     handlers.push(handler);
     this.listeners.set(event, handlers);
-  }
-
-  emit(event: string, ...args: unknown[]) {
-    for (const handler of this.listeners.get(event) ?? []) handler(...args);
   }
 }
 let lastSocket: FakeSocket;
@@ -105,5 +106,73 @@ describe('useDraftState', () => {
     const { unmount } = renderHook(() => useDraftState(7));
     unmount();
     expect(lastSocket.disconnect).toHaveBeenCalledOnce();
+  });
+
+  it('submitPick manda draft:pick por el socket y marca pending', () => {
+    const { result } = renderHook(() => useDraftState(7));
+    act(() => result.current.submitPick({ driverId: 44 }));
+
+    expect(lastSocket.emit).toHaveBeenCalledWith('draft:pick', { driverId: 44 });
+    expect(result.current.pickPending).toBe(true);
+  });
+
+  it('un draft:error baja pending y guarda el error del pick', async () => {
+    const { result } = renderHook(() => useDraftState(7));
+    act(() => result.current.submitPick({ driverId: 44 }));
+
+    act(() => lastSocket.emit('draft:error', { code: 'NOT_YOUR_TURN', message: 'no es tu turno' }));
+    await waitFor(() => expect(result.current.pickPending).toBe(false));
+    expect(result.current.pickError).toEqual({ code: 'NOT_YOUR_TURN', message: 'no es tu turno' });
+  });
+
+  it('un draft:update propio baja pending y limpia el error del pick anterior', async () => {
+    const { result } = renderHook(() => useDraftState(7));
+    act(() =>
+      lastSocket.emit('draft:state', { draftStatus: 'LIVE', round: 1, pickNumber: 1, currentTurnLeagueMemberId: 5, picks: [] }),
+    );
+    act(() => lastSocket.emit('draft:error', { code: 'NOT_YOUR_TURN', message: 'no es tu turno' }));
+    await waitFor(() => expect(result.current.pickError).not.toBeNull());
+
+    act(() =>
+      lastSocket.emit('draft:update', {
+        pick: { id: 1, leagueMemberId: 5, pickNumber: 1, round: 1, driverId: 44, constructorId: null, pickedAt: null },
+        nextTurn: 6,
+        round: 1,
+        available: { drivers: [], constructors: [] },
+      }),
+    );
+    await waitFor(() => expect(result.current.pickError).toBeNull());
+    expect(result.current.pickPending).toBe(false);
+  });
+
+  it('el timer cuenta hacia atras un segundo por tick', () => {
+    vi.useFakeTimers();
+    try {
+      const { result } = renderHook(() => useDraftState(7));
+      act(() => lastSocket.emit('draft:timer', { secondsRemaining: 5 }));
+      expect(result.current.secondsRemaining).toBe(5);
+
+      act(() => vi.advanceTimersByTime(1000));
+      expect(result.current.secondsRemaining).toBe(4);
+
+      act(() => vi.advanceTimersByTime(4000));
+      expect(result.current.secondsRemaining).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('un draft:complete limpia el timer', () => {
+    vi.useFakeTimers();
+    try {
+      const { result } = renderHook(() => useDraftState(7));
+      act(() => lastSocket.emit('draft:timer', { secondsRemaining: 10 }));
+      expect(result.current.secondsRemaining).toBe(10);
+
+      act(() => lastSocket.emit('draft:complete', { teams: [] }));
+      expect(result.current.secondsRemaining).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

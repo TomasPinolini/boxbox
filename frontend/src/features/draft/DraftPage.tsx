@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { Alert, Badge, Card, PageShell } from '../../components/ui';
+import { Alert, Badge, Button, Card, Field, PageShell, selectClass } from '../../components/ui';
+import { useAuthStore } from '../../store/auth.store';
 import { useDrivers, useConstructors } from '../drivers/drivers.queries';
 import { DRAFT_LABEL } from '../leagues/draft-label';
 import { useMembers } from '../leagues/leagues.queries';
@@ -13,10 +15,29 @@ const CONNECTION_LABEL: Record<string, string> = {
 
 export function DraftPage() {
   const id = Number(useParams().id);
-  const { state, status, errorMessage } = useDraftState(id);
+  const me = useAuthStore((s) => s.user);
+  const { state, status, errorMessage, secondsRemaining, pickError, pickPending, submitPick } =
+    useDraftState(id);
   const members = useMembers(id);
   const drivers = useDrivers();
   const constructors = useConstructors();
+  const [selected, setSelected] = useState('');
+  // Limpiar la seleccion cuando cambia de turno o de ronda (ajuste de estado durante el
+  // render, no un efecto — sin esto quedaria marcado un piloto que ya no es valido). Ver
+  // https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes
+  const turnKey = `${state?.currentTurnLeagueMemberId}:${state?.round}`;
+  const [lastTurnKey, setLastTurnKey] = useState(turnKey);
+  if (turnKey !== lastTurnKey) {
+    setLastTurnKey(turnKey);
+    setSelected('');
+  }
+
+  const myLeagueMemberId = members.data?.find((m) => m.userId === me?.id)?.id ?? null;
+  const isMyTurn =
+    state?.draftStatus === 'LIVE' &&
+    state.currentTurnLeagueMemberId !== null &&
+    state.currentTurnLeagueMemberId === myLeagueMemberId;
+  const category = state?.round !== null && (state?.round ?? 0) < 3 ? 'DRIVER' : 'CONSTRUCTOR';
 
   const memberName = (leagueMemberId: number) =>
     members.data?.find((m) => m.id === leagueMemberId)?.user.name ?? `miembro ${leagueMemberId}`;
@@ -29,6 +50,13 @@ export function DraftPage() {
     const constructor = constructors.data?.find((c) => c.id === pick.constructorId);
     return constructor?.name ?? `escudería ${pick.constructorId}`;
   };
+
+  function confirmPick() {
+    if (!selected) return;
+    submitPick(
+      category === 'DRIVER' ? { driverId: Number(selected) } : { constructorId: Number(selected) },
+    );
+  }
 
   return (
     <PageShell
@@ -64,10 +92,51 @@ export function DraftPage() {
                     ? memberName(state.currentTurnLeagueMemberId)
                     : '—'}
                 </span>
+                {secondsRemaining !== null && (
+                  <span className="ml-2 text-slate-400">({secondsRemaining}s)</span>
+                )}
               </p>
             )}
             {state.draftStatus === 'COMPLETED' && (
               <p className="mt-3 text-sm text-slate-600">El draft ya terminó.</p>
+            )}
+
+            {isMyTurn && state.available && (
+              <div className="mt-4 border-t border-slate-200 pt-4">
+                <p className="mb-2 text-sm font-semibold text-slate-900">¡Te toca a vos!</p>
+                {pickError && (
+                  <div className="mb-3">
+                    <Alert code={pickError.code} message={pickError.message} />
+                  </div>
+                )}
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                  <div className="flex-1">
+                    <Field label={category === 'DRIVER' ? 'Piloto' : 'Escudería'}>
+                      <select
+                        className={selectClass}
+                        value={selected}
+                        onChange={(e) => setSelected(e.target.value)}
+                      >
+                        <option value="">Elegí uno…</option>
+                        {category === 'DRIVER'
+                          ? state.available.drivers.map((d) => (
+                              <option key={d.id} value={d.id}>
+                                {d.firstName} {d.lastName}
+                              </option>
+                            ))
+                          : state.available.constructors.map((c) => (
+                              <option key={c.id} value={c.id}>
+                                {c.name}
+                              </option>
+                            ))}
+                      </select>
+                    </Field>
+                  </div>
+                  <Button disabled={!selected || pickPending} onClick={confirmPick}>
+                    {pickPending ? 'Mandando…' : 'Confirmar pick'}
+                  </Button>
+                </div>
+              </div>
             )}
           </Card>
 
