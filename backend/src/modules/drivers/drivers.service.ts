@@ -23,12 +23,13 @@ export type ConstructorRef = {
 
 // Resuelve contra que temporada leer la escuderia: la explicita si vino por query, si no
 // la activa, y si no hay ninguna -> null.
+// Exportada porque constructors.service.ts resuelve la temporada igual (Slice 16).
 //
 // Por que NO importamos seasonsService.findActive(): esa tira NotFoundError, asi que
 // GET /drivers devolveria 404 en una DB sin temporada activa. Eso es exactamente el estado
 // de la DB en cada test (setup.ts trunca seasons antes de cada uno) y el de un clone fresco
 // sin seed. Un endpoint publico de catalogo no puede depender de que exista una temporada.
-async function resolveSeasonId(seasonId?: number): Promise<number | null> {
+export async function resolveSeasonId(seasonId?: number): Promise<number | null> {
   if (seasonId) return seasonId;
   const active = await prisma.season.findFirst({ where: { isActive: true } });
   return active?.id ?? null;
@@ -215,6 +216,65 @@ export async function findDetail(id: number, seasonId?: number) {
       status: r.status,
     })),
   };
+}
+
+// GET /drivers/standings — campeonato de pilotos de la temporada resuelta (Slice 16).
+//
+// Entran todos los pilotos con DriverSeason en la temporada, tambien los que tienen 0 puntos:
+// una temporada sin carreras completadas devuelve la grilla entera en cero.
+// Aca si se usa groupBy (a diferencia de buildDriverStats): es la grilla entera por todas las
+// carreras, y no hace falta traer ~500 filas para sumar una columna.
+export async function findStandings(seasonId?: number) {
+  const resolvedSeasonId = await resolveSeasonId(seasonId);
+  if (!resolvedSeasonId) return [];
+
+  const links = await prisma.driverSeason.findMany({ where: { seasonId: resolvedSeasonId } });
+  const drivers = await prisma.driver.findMany({
+    where: { id: { in: links.map((l) => l.driverId) }, ...notDeleted },
+  });
+  if (drivers.length === 0) return [];
+
+  const driverIds = drivers.map((d) => d.id);
+  const inSeason = { driverId: { in: driverIds }, race: { seasonId: resolvedSeasonId } };
+
+  const [byDriver, pointRows, winRows] = await Promise.all([
+    constructorsForDrivers(driverIds, resolvedSeasonId),
+    prisma.raceResult.groupBy({ by: ['driverId'], where: inSeason, _sum: { points: true } }),
+    prisma.raceResult.groupBy({
+      by: ['driverId'],
+      where: { ...inSeason, position: 1 },
+      _count: { _all: true },
+    }),
+  ]);
+
+  const points = new Map(pointRows.map((r) => [r.driverId, r._sum.points ?? 0]));
+  const wins = new Map(winRows.map((r) => [r.driverId, r._count._all]));
+
+  return (
+    drivers
+      .map((d) => ({
+        points: points.get(d.id) ?? 0,
+        wins: wins.get(d.id) ?? 0,
+        driver: {
+          id: d.id,
+          firstName: d.firstName,
+          lastName: d.lastName,
+          code: d.code,
+          headshotUrl: d.headshotUrl,
+          constructor: byDriver.get(d.id) ?? null,
+        },
+      }))
+      // Puntos, despues victorias (el desempate real de la F1), despues apellido y nombre para
+      // que el orden sea deterministico aun con toda la grilla en cero.
+      .sort(
+        (a, b) =>
+          b.points - a.points ||
+          b.wins - a.wins ||
+          a.driver.lastName.localeCompare(b.driver.lastName) ||
+          a.driver.firstName.localeCompare(b.driver.firstName),
+      )
+      .map((row, index) => ({ position: index + 1, ...row }))
+  );
 }
 
 export async function create(data: CreateDriverInput) {

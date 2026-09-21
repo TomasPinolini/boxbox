@@ -4,7 +4,10 @@ import type { Driver } from '../../models/driver';
 // Foto del piloto, contra el CDN de F1 (ver Driver.headshotUrl). Puede fallar: es un recurso
 // remoto que no controlamos. Por eso el fallback a las iniciales, que ademas cubre a los
 // pilotos que la API externa todavia no tiene.
-export function DriverAvatar({ driver, size = 48 }: { driver: Driver; size?: number }) {
+// Pick y no Driver entero: el campeonato (Slice 16) pasa un piloto sin `number`.
+type AvatarDriver = Pick<Driver, 'firstName' | 'lastName' | 'headshotUrl'>;
+
+export function DriverAvatar({ driver, size = 48 }: { driver: AvatarDriver; size?: number }) {
   const [failed, setFailed] = useState(false);
   const initials = `${driver.firstName[0] ?? ''}${driver.lastName[0] ?? ''}`;
 

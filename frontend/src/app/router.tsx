@@ -10,6 +10,7 @@ import { DriverDetailPage } from '../features/drivers/DriverDetailPage';
 import { DriversPage } from '../features/drivers/DriversPage';
 import { LeagueDetailPage } from '../features/leagues/LeagueDetailPage';
 import { LeaguesPage } from '../features/leagues/LeaguesPage';
+import { ChampionshipPage } from '../features/standings/ChampionshipPage';
 
 export const router = createBrowserRouter([
   { path: '/', element: <Navigate to="/leagues" replace /> },
@@ -38,5 +39,6 @@ export const router = createBrowserRouter([
   // layout routes porque tienen que envolver a sus hijos.
   { path: '/drivers', element: <DriversPage /> },
   { path: '/drivers/:id', element: <DriverDetailPage /> },
+  { path: '/standings', element: <ChampionshipPage /> },
   { path: '*', element: <Navigate to="/leagues" replace /> },
 ]);
