@@ -40,11 +40,9 @@ export function LeaguesPage() {
           <Link to="/drivers" className="font-semibold text-red-600 hover:underline">
             Pilotos
           </Link>
-          {user?.role === 'ADMIN' && (
-            <Link to="/admin/results" className="font-semibold text-red-600 hover:underline">
-              Cargar resultados
-            </Link>
-          )}
+          <Link to="/standings" className="font-semibold text-red-600 hover:underline">
+            Campeonato
+          </Link>
           <span>{user?.name}</span>
           <Button variant="secondary" onClick={logout}>
             Salir

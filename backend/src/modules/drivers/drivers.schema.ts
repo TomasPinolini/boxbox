@@ -26,8 +26,12 @@ export const listDriversQuerySchema = z.object({
   seasonId: z.coerce.number().int().positive().optional(),
 });
 
+// Query de GET /drivers/standings: solo la temporada.
+export const standingsQuerySchema = listDriversQuerySchema.pick({ seasonId: true });
+
 // z.infer<> deriva los tipos TypeScript directamente del schema de Zod.
 // Si cambiás el schema, los tipos cambian solos — cero sincronización manual.
 export type CreateDriverInput = z.infer<typeof createDriverSchema>;
 export type UpdateDriverInput = z.infer<typeof updateDriverSchema>;
 export type ListDriversQuery = z.infer<typeof listDriversQuerySchema>;
+export type StandingsQuery = z.infer<typeof standingsQuerySchema>;

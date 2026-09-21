@@ -84,6 +84,21 @@ Si alguno de estos se vuelve demasiado grande, partir así:
 
 ## Completados
 
+### Slice 16 (backend) — campeonato de pilotos y de escuderías
+
+- **Status**: implementado en branch `16/championship-standings`, **sin commitear ni mergear**. Mitad backend; la pantalla está en [el carril frontend](../../frontend/docs/roadmap.md).
+- **Fuera de la rúbrica de la cátedra**: es un requisito propio del usuario, no suma ni bloquea nada de la entrega del 12/10.
+- **Shipped**: `GET /drivers/standings` (`[{position, points, wins, driver}]`) y `GET /constructors/standings` (`[{position, points, constructor}]`), públicos, con `?seasonId=` opcional y la temporada activa por defecto. **Sin cambio de schema ni migración**: suman `RaceResult.points` y `ConstructorResult.totalPoints`, que ya existían.
+- **Decisiones clave**:
+  - **Viven en los módulos existentes**, no en un módulo `championship/` ni colgando de `/seasons/:id`: cada endpoint reusa la resolución de temporada de `GET /drivers` (`resolveSeasonId`, ahora exportada desde `drivers.service.ts`) y el merge de escudería (`constructorsForDrivers`).
+  - **Acá sí se usa `groupBy` + `_sum`**, a diferencia de `buildDriverStats` (Slice 14): es la grilla entera por todas las carreras, no un piloto. Las victorias salen de un segundo `groupBy` con `position: 1`.
+  - **Entra toda la grilla de la temporada** (los que tienen `DriverSeason`), también con 0 puntos: una temporada sin carreras devuelve a todos en cero. Sin temporada resuelta → `[]` con 200, mismo criterio que `GET /drivers`.
+  - **Orden determinístico**: puntos desc, victorias desc (el desempate real de la F1), después apellido/nombre. `position` es correlativa, sin puestos compartidos.
+- **Gotchas**:
+  - **`/standings` va registrada antes de `/:id`** en los dos routers. Al revés, Express la matchea como id y `validateParams` responde 400.
+  - **La colisión de `constructor` tiene una tercera cara**: el tipo de fila que Prisma genera para el modelo `Constructor` queda intersectado con `Function`, y `name` choca con `Function.name` → tipa como `never`. `c.name.localeCompare(...)` no compila; asignarlo a un campo `string` sí (`never` es asignable a todo), que es por lo que nunca se había notado. Solución: pasar por `ConstructorRef` antes de ordenar.
+- **Tests**: 241 (+10), en `drivers.test.ts` y `constructors.test.ts`. El fixture del desempate hace empatar a dos pilotos en 33 por caminos distintos (25+8 vs 18+15) con el orden alfabético en contra, así que solo las victorias pueden ordenarlos.
+
 ### Slice 14 (backend) — detalle de piloto enriquecido
 
 - **Status**: done (branch `14/drivers-list-detail`, PR #30 mergeado en `dev`). Mitad backend de un slice que se completa en [el carril frontend](../../frontend/docs/roadmap.md).

@@ -68,6 +68,7 @@ Cada sección está taggeada con su estado actual:
 | ------ | -------------- | ------ | ---------------------------------------------- |
 | GET    | `/drivers`     | Public | Soporta `?constructorId=X&seasonId=Y`. Cada piloto incluye `constructor` (ver abajo) |
 | GET    | `/drivers/:id` | Public | Incluye `constructor`, `stats` e historial de `results` (ver abajo) |
+| GET    | `/drivers/standings` | Public | Slice 16 (fuera de la rúbrica). Campeonato de pilotos: `[{position, points, wins, driver}]`. Soporta `?seasonId=Y`, default temporada activa. Incluye a los de 0 puntos; orden puntos → victorias → apellido |
 | POST   | `/drivers`     | Admin  |                                                |
 | PATCH  | `/drivers/:id` | Admin  |                                                |
 | DELETE | `/drivers/:id` | Admin  | Soft delete. 409 si tiene dependencias activas |
@@ -119,6 +120,7 @@ piloto, porque eso mezclaría temporadas y `round` dejaría de ser un orden tota
 | ------ | ------------------- | ------ | ---------------------------------------------- |
 | GET    | `/constructors`     | Public |                                                |
 | GET    | `/constructors/:id` | Public |                                                |
+| GET    | `/constructors/standings` | Public | Slice 16 (fuera de la rúbrica). Campeonato de escuderías: `[{position, points, constructor}]`. Soporta `?seasonId=Y`, default temporada activa. Incluye a las de 0 puntos |
 | POST   | `/constructors`     | Admin  |                                                |
 | PATCH  | `/constructors/:id` | Admin  |                                                |
 | DELETE | `/constructors/:id` | Admin  | Soft delete. 409 si tiene dependencias activas |

@@ -5,7 +5,7 @@
 
 import { Request, Response, NextFunction } from 'express';
 import * as driversService from './drivers.service';
-import type { ListDriversQuery } from './drivers.schema';
+import type { ListDriversQuery, StandingsQuery } from './drivers.schema';
 
 export async function getAll(req: Request, res: Response, next: NextFunction) {
   try {
@@ -17,6 +17,16 @@ export async function getAll(req: Request, res: Response, next: NextFunction) {
     res.json({ data: drivers }); // envelope { data: ... } consistente en toda la API
   } catch (err) {
     next(err); // delega el error al errorHandler central — no maneja errores acá
+  }
+}
+
+export async function getStandings(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { seasonId } = (req.validatedQuery ?? {}) as StandingsQuery;
+    const standings = await driversService.findStandings(seasonId);
+    res.json({ data: standings });
+  } catch (err) {
+    next(err);
   }
 }
 

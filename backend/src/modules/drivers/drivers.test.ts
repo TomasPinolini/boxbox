@@ -357,6 +357,96 @@ describe('GET /api/v1/drivers/:id — detalle con estadisticas', () => {
   });
 });
 
+describe('GET /api/v1/drivers/standings — campeonato de pilotos', () => {
+  type Row = { position: number; points: number; wins: number; driver: { code: string } };
+  const codes = (rows: Row[]) => rows.map((r) => r.driver.code);
+
+  it('suma dos carreras, desempata por victorias e incluye a los de 0 puntos', async () => {
+    const seasonId = await seedSeason();
+    const constructorId = await seedConstructor('McLaren', 'mclaren', '#FF8000');
+    const ver = await seedDriver();
+    const nor = await seedDriver({ lastName: 'Norris', code: 'NOR', externalId: 'norris' });
+    const pia = await seedDriver({ lastName: 'Piastri', code: 'PIA', externalId: 'piastri' });
+    const bot = await seedDriver({ lastName: 'Bottas', code: 'BOT', externalId: 'bottas' });
+    for (const id of [ver, nor, pia, bot]) await linkDriverSeason(id, constructorId, seasonId);
+
+    // Puntos distintos por carrera a proposito: VER y NOR empatan en 33 pero por caminos
+    // distintos (25+8 vs 18+15), asi que solo las victorias pueden ordenarlos. Alfabeticamente
+    // NOR iria primero: si el desempate por victorias se rompe, el test falla.
+    await seedCompletedRace(seasonId, 1, [
+      { driverId: ver, position: 1, points: 25 },
+      { driverId: nor, position: 2, points: 18 },
+      { driverId: pia, position: 3, points: 15 },
+    ]);
+    await seedCompletedRace(seasonId, 2, [
+      { driverId: pia, position: 1, points: 25 },
+      { driverId: nor, position: 3, points: 15 },
+      { driverId: ver, position: 6, points: 8 },
+    ]);
+
+    const res = await request(app).get('/api/v1/drivers/standings');
+
+    expect(res.status).toBe(200);
+    expect(codes(res.body.data)).toEqual(['PIA', 'VER', 'NOR', 'BOT']);
+    expect(res.body.data.map((r: Row) => [r.position, r.points, r.wins])).toEqual([
+      [1, 40, 1],
+      [2, 33, 1],
+      [3, 33, 0],
+      [4, 0, 0],
+    ]);
+    expect(res.body.data[0].driver.constructor).toMatchObject({ name: 'McLaren', color: '#FF8000' });
+  });
+
+  it('excluye resultados de otra temporada y acepta ?seasonId=', async () => {
+    const vieja = await seedSeason(2025, false);
+    const activa = await seedSeason(2026, true);
+    const constructorId = await seedConstructor('Ferrari', 'ferrari');
+    const driverId = await seedDriver();
+    await linkDriverSeason(driverId, constructorId, vieja);
+    await linkDriverSeason(driverId, constructorId, activa);
+    await seedCompletedRace(vieja, 1, [{ driverId, position: 1, points: 25 }]);
+    await seedCompletedRace(activa, 2, [{ driverId, position: 4, points: 12 }]);
+
+    const current = await request(app).get('/api/v1/drivers/standings');
+    const old = await request(app).get(`/api/v1/drivers/standings?seasonId=${vieja}`);
+
+    expect(current.body.data).toHaveLength(1);
+    expect(current.body.data[0]).toMatchObject({ points: 12, wins: 0 });
+    expect(old.body.data[0]).toMatchObject({ points: 25, wins: 1 });
+  });
+
+  it('excluye pilotos soft-deleted y los que no corren la temporada', async () => {
+    const seasonId = await seedSeason();
+    const constructorId = await seedConstructor('Ferrari', 'ferrari');
+    const borrado = await seedDriver();
+    const activo = await seedDriver({ lastName: 'Leclerc', code: 'LEC', externalId: 'leclerc' });
+    await seedDriver({ lastName: 'Sainz', code: 'SAI', externalId: 'sainz' }); // sin DriverSeason
+    await linkDriverSeason(borrado, constructorId, seasonId);
+    await linkDriverSeason(activo, constructorId, seasonId);
+    await seedCompletedRace(seasonId, 1, [{ driverId: borrado, position: 1, points: 25 }]);
+    await prisma.driver.update({ where: { id: borrado }, data: { deletedAt: new Date() } });
+
+    const res = await request(app).get('/api/v1/drivers/standings');
+
+    expect(codes(res.body.data)).toEqual(['LEC']);
+    expect(res.body.data[0].position).toBe(1);
+  });
+
+  it('responde 200 con lista vacia cuando no hay temporada activa', async () => {
+    const res = await request(app).get('/api/v1/drivers/standings');
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual([]);
+  });
+
+  it('rechaza ?seasonId=abc con 400 VALIDATION_ERROR', async () => {
+    const res = await request(app).get('/api/v1/drivers/standings?seasonId=abc');
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+});
+
 describe('POST /api/v1/drivers', () => {
   it('creates a driver with valid data', async () => {
     const res = await request(app)

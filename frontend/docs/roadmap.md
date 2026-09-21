@@ -60,6 +60,19 @@ _(Slices 13a y 14 completos. Queda el Slice 15, y 13b en "Later".)_
 
 ## Completados
 
+### Slice 16 (frontend) — pantalla de campeonato
+
+- **Status**: implementado en branch `16/championship-standings`, **sin commitear ni mergear**. Mitad frontend; los endpoints están en [el carril backend](../../backend/docs/roadmap.md).
+- **Fuera de la rúbrica de la cátedra**: es un requisito propio del usuario, no suma ni bloquea nada de la entrega del 12/10.
+- **Shipped**: `features/standings/` con `/standings`, **pública** (entrada suelta en el router, igual que `/drivers`). Dos `Card` — Pilotos y Escuderías — lado a lado desde `lg:`, apiladas en mobile. Links "Campeonato" en `LeaguesPage` y `DriversPage`.
+- **Decisiones clave**:
+  - **Reusa `TeamBadge` y `DriverAvatar`** de `features/drivers/`; no se reimplementa la lógica de color. `DriverAvatar` pasó a pedir un `Pick<Driver, ...>` porque la fila del campeonato no trae `number`.
+  - Los tipos viven en `models/championship.ts`, **no** `standing.ts`: ese nombre queda para `LeagueStanding` (la tabla de una liga fantasy), que es otra cosa.
+  - Los dos métodos nuevos viven en `drivers.service.ts`, mismo criterio que `constructors()`: un solo consumidor.
+  - Cada tabla maneja su propia carga/error: si falla una, la otra se muestra igual.
+- **Mobile**: tablas en `overflow-x-auto`; Escudería y Victorias se esconden debajo de `sm:`.
+- **Tests**: 39 (+2) unitarios. **Sin e2e nuevo y sin pase manual en browser todavía** — ver el reporte del slice.
+
 ### Slice 14 (frontend) — listado de pilotos con filtro + detalle
 
 - **Status**: done (branch `14/drivers-list-detail`, PR #30 mergeado en `dev`). Mitad frontend; la del backend está en [su carril](../../backend/docs/roadmap.md).
