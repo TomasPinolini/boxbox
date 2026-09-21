@@ -2,6 +2,8 @@ import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { GuestOnly } from '../features/auth/GuestOnly';
 import { LoginPage } from '../features/auth/LoginPage';
 import { RegisterPage } from '../features/auth/RegisterPage';
+import { RaceResultsPage } from '../features/admin/RaceResultsPage';
+import { RequireAdmin } from '../features/auth/RequireAdmin';
 import { RequireAuth } from '../features/auth/RequireAuth';
 import { DriverDetailPage } from '../features/drivers/DriverDetailPage';
 import { DriversPage } from '../features/drivers/DriversPage';
@@ -22,6 +24,11 @@ export const router = createBrowserRouter([
     children: [
       { path: '/leagues', element: <LeaguesPage /> },
       { path: '/leagues/:id', element: <LeagueDetailPage /> },
+      // Segundo nivel, anidado: primero "hay sesion" (RequireAuth), despues "es ADMIN".
+      {
+        element: <RequireAdmin />,
+        children: [{ path: '/admin/results', element: <RaceResultsPage /> }],
+      },
     ],
   },
   // Publicas, a proposito: los GET del catalogo no piden auth en el backend, asi que la
