@@ -5,6 +5,7 @@ import { RegisterPage } from '../features/auth/RegisterPage';
 import { RaceResultsPage } from '../features/admin/RaceResultsPage';
 import { RequireAdmin } from '../features/auth/RequireAdmin';
 import { RequireAuth } from '../features/auth/RequireAuth';
+import { DraftPage } from '../features/draft/DraftPage';
 import { DriverDetailPage } from '../features/drivers/DriverDetailPage';
 import { DriversPage } from '../features/drivers/DriversPage';
 import { LeagueDetailPage } from '../features/leagues/LeagueDetailPage';
@@ -24,6 +25,7 @@ export const router = createBrowserRouter([
     children: [
       { path: '/leagues', element: <LeaguesPage /> },
       { path: '/leagues/:id', element: <LeagueDetailPage /> },
+      { path: '/leagues/:id/draft', element: <DraftPage /> },
       // Segundo nivel, anidado: primero "hay sesion" (RequireAuth), despues "es ADMIN".
       {
         element: <RequireAdmin />,
