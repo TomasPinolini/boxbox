@@ -31,41 +31,26 @@ TypeScript + Tailwind v4. Tests = Vitest + Testing Library, e2e con Playwright.
 
 ## Now — lo que bloquea la entrega del 12/10
 
-_(Slices 13a, 14 y 15 completos. Queda el tramo 2 de 13b.)_
-
-### Slice 13b — Draft en vivo
-
-Partida en dos tramos (Pino, 2026-09-21) para no apostar toda la entrega del 12/10 a tener
-el ciclo de vida completo del socket andando de una — el tramo 1 es chico y verificable,
-el tramo 2 se apoya en esa base sin rehacer nada.
-
-- **Tramo 1 — conectar y mostrar `draft:state`, sin picks ni timer**. Status: **done**
-  (branch `13b/draft-realtime`). Ver detalle en "Completados" más abajo.
-- **Tramo 2 — hacer picks desde la UI + timer countdown**. Sin empezar.
-  - **Goal**: desde `/leagues/:id/draft`, con el draft LIVE y tu turno, poder elegir piloto o
-    escudería y mandarlo (`emit('draft:pick', ...)` sobre el mismo socket del tramo 1) — más
-    el countdown del `draft:timer` que ya manda el backend.
-  - **Touches**: `features/draft/DraftPage.tsx` (agrega la UI de pick sobre lo que ya existe),
-    `features/draft/useDraftState.ts` (agrega el emit y el manejo de `draft:timer`).
-  - **Done when**: se puede completar un draft entero desde la UI (todos los miembros, las 3
-    rondas) sin usar la API a mano. Ampliar `frontend/e2e/leagues.spec.ts` (o un spec nuevo)
-    con ese flujo.
-  - **Blocked by**: tramo 1 (done).
-
----
+_(Slices 13a, 13b, 14 y 15 completos, este carril. Ver el hub para el estado de la entrega
+en conjunto.)_
 
 ---
 
 ## Completados
 
-### Slice 13b (tramo 1) — Draft en vivo: conectar y mostrar `draft:state`
+### Slice 13b — Draft en vivo
 
-- **Status**: done (branch `13b/draft-realtime`).
-- **Goal**: cubrir el CUU/epic de Regularidad del draft con lo más chico y verificable posible — ver el estado del draft en tiempo real, sin todavía poder tirar un pick desde la UI (eso es el tramo 2). Alcance acordado con Pino el 2026-09-21 para no jugarse la entrega del 12/10 a tener el socket completo (conectar + picks + timer) andando de una.
-- **Shipped**: `features/draft/draft-socket.ts` (única puerta al namespace `/draft`, mismo criterio que `ApiClient` para HTTP — un `connectDraftSocket(leagueId, token)`, nunca un `io(...)` suelto en un componente), `features/draft/useDraftState.ts` (hook: conecta al montar, guarda el `draft:state` inicial, y sigue al día con `draft:update`/`draft:complete` mientras la pantalla esté abierta — sin esto el estado quedaría viejo apenas otro miembro pickeara, aunque tramo 1 no ofrezca un botón propio para pickear), `features/draft/DraftPage.tsx` (ruta `/leagues/:id/draft`: badge de estado, ronda + de quién es el turno, lista de picks hechos con nombres resueltos vía `useMembers`/`useDrivers`/`useConstructors`). `LeagueDetailPage` linkea a la pantalla cuando `draftStatus !== 'PENDING'`.
-- **Decisión de diseño**: el hook escucha `draft:update` y `draft:complete` (no solo el `draft:state` inicial) a propósito — aunque la UI de picks es tramo 2, la pantalla igual tiene que reflejar en vivo los picks que hacen otros miembros (o los que se manden por REST) mientras está abierta.
-- **Tests**: 5 unitarios en `useDraftState.test.ts` (conecta → `connected`, guarda `draft:state`, mergea `draft:update` sin duplicar picks, `connect_error` deja `status: 'error'` con el mensaje, desconecta al desmontar) — mockeando `socket.io-client` con un fake socket minimalista (sin depender de tipos de Node, para no romper `tsc -b`). Verificado además a mano contra `npm run dev` real (backend + frontend): dos usuarios, liga, draft arrancado, un pick mandado por REST desde otro cliente aparece en la pantalla del primero **sin reload** — la prueba de que el overlay socket funciona igual que en Slice 6. Pase responsive a 375px sin overflow horizontal. Evidencia en `docs/test-evidence/slice-13b-unit.txt`.
-- **Pendiente (tramo 2)**: mandar picks desde la UI + timer countdown — ver la entrada de Slice 13b en "Now" más arriba.
+Partida en dos tramos (Pino, 2026-09-21) para no apostar toda la entrega del 12/10 a tener
+el ciclo de vida completo del socket andando de una — el tramo 1 fue chico y verificable,
+el tramo 2 se apoyó en esa base sin rehacer nada.
+
+- **Status**: done (branches `13b/draft-realtime` → PR #35, `13b/draft-picks`).
+- **Goal**: cubrir el CUU/epic de Regularidad del draft — desde `/leagues/:id/draft`, ver el estado en vivo y, cuando te toca, elegir piloto o escudería y mandarlo, con timer.
+- **Tramo 1 — conectar y mostrar `draft:state`, sin picks ni timer**. `features/draft/draft-socket.ts` (única puerta al namespace `/draft`, mismo criterio que `ApiClient` para HTTP — un `connectDraftSocket(leagueId, token)`, nunca un `io(...)` suelto en un componente), `features/draft/useDraftState.ts` (hook: conecta al montar, guarda el `draft:state` inicial, y sigue al día con `draft:update`/`draft:complete` mientras la pantalla esté abierta), `features/draft/DraftPage.tsx` (ruta `/leagues/:id/draft`: badge de estado, ronda + de quién es el turno, lista de picks con nombres resueltos vía `useMembers`/`useDrivers`/`useConstructors`). `LeagueDetailPage` linkea a la pantalla cuando `draftStatus !== 'PENDING'`.
+- **Tramo 2 — picks desde la UI + timer countdown**. `useDraftState` suma `submitPick(input)` (`emit('draft:pick', ...)` sobre el mismo socket) y maneja `draft:timer`/`draft:error`/`draft:complete`; `DraftPage` suma el `<select>` + botón "Confirmar pick" cuando `isMyTurn`, deshabilitado mientras `pickPending`, con el error del pick (`NOT_YOUR_TURN`, etc.) en un `Alert` aparte del de conexión.
+  - **El countdown es local, no un poll al backend**: el server manda `draft:timer` **una vez** por ronda (`{ secondsRemaining }`), igual que hace con los clientes Socket.io directos (Slice 6) — el `setInterval` que lo decrementa vive en el frontend. Separar `timerTick` (sube solo cuando llega un evento de timer nuevo) de `secondsRemaining` (lo que se muestra, decrementado por el intervalo) evita dos problemas de las reglas de pureza de `eslint-plugin-react-hooks` v7: recrear el `setInterval` en cada segundo (si dependiera de `secondsRemaining`) y leer `Date.now()` durante el render (si se derivara el valor mostrado a cada render en vez de mantenerlo como estado).
+  - **Reset de la selección sin `useEffect`**: cuando cambia el turno o la ronda, `DraftPage` limpia el `<select>` ajustando el estado durante el render (comparando una `turnKey` contra la última vista), no con un efecto — mismo patrón que React recomienda para "adjusting state when a prop changes"; un efecto ahí también viola la regla de pureza (`no llamar a setState sincrónicamente dentro de un efecto`).
+- **Tests**: 10 unitarios en `useDraftState.test.ts` (los 5 de tramo 1 + `submitPick` emite `draft:pick` y marca `pending`, `draft:error` baja `pending` y guarda el error, un `draft:update` propio limpia el error anterior, el timer cuenta 1 por segundo con `vi.useFakeTimers`, `draft:complete` limpia el timer) — mockeando `socket.io-client` con un fake socket cuyo `emit` es a la vez dispatcher de eventos entrantes (simula al servidor) y spy (afirma lo que mandó `submitPick`). Verificado a mano contra `npm run dev` real: **un draft completo de punta a punta desde la UI** — 2 miembros, 3 rondas, 6 picks alternando quién le toca según el turno, ambas pantallas terminan en "El draft ya terminó." sin reload. Pase responsive a 375px con el picker visible, sin overflow. Evidencia en `docs/test-evidence/slice-13b-unit.txt` y `slice-13b-tramo2-unit.txt`.
 
 ### Slice 15 — Protección de rutas por nivel
 
