@@ -1,6 +1,7 @@
 /**
- * Dev seed — pobla la DB con datos suficientes para arrancar el backend
- * con algo en la base, antes de que exista sync con Jolpica.
+ * Dev seed — pobla la DB con la grilla y el calendario 2026. El calendario es el de Jolpica
+ * (23 fechas, mismos `round` y `circuitId`), asi el sync del Slice 12 empareja por `round`.
+ * Los resultados NO se seedean: se importan de Jolpica.
  *
  * Cómo se corre:
  *   npx prisma db seed        -> idempotente, podés correrlo cuantas veces quieras
@@ -45,7 +46,7 @@ type CircuitData = {
   name: string;
   country: string;
   city: string;
-  circuitLength: number;
+  circuitLength?: number; // Jolpica no lo publica; se omite antes que inventarlo
 };
 
 type RaceData = {
@@ -152,7 +153,7 @@ const teams2026: TeamData[] = [
       { externalId: 'lawson', firstName: 'Liam', lastName: 'Lawson', number: 30, code: 'LAW' },
       // Lindblad: rookie absoluto promocionado desde la academia.
       {
-        externalId: 'lindblad',
+        externalId: 'arvid_lindblad',
         firstName: 'Arvid',
         lastName: 'Lindblad',
         number: 41,
@@ -207,20 +208,6 @@ const teams2026: TeamData[] = [
 
 const circuits2026: CircuitData[] = [
   {
-    externalId: 'bahrain',
-    name: 'Bahrain International Circuit',
-    country: 'Bahrain',
-    city: 'Sakhir',
-    circuitLength: 5.412,
-  },
-  {
-    externalId: 'jeddah',
-    name: 'Jeddah Corniche Circuit',
-    country: 'Saudi Arabia',
-    city: 'Jeddah',
-    circuitLength: 6.174,
-  },
-  {
     externalId: 'albert_park',
     name: 'Albert Park Circuit',
     country: 'Australia',
@@ -263,13 +250,6 @@ const circuits2026: CircuitData[] = [
     circuitLength: 4.309,
   },
   {
-    externalId: 'imola',
-    name: 'Autodromo Enzo e Dino Ferrari',
-    country: 'Italy',
-    city: 'Imola',
-    circuitLength: 4.909,
-  },
-  {
     externalId: 'miami',
     name: 'Miami International Autodrome',
     country: 'USA',
@@ -277,14 +257,14 @@ const circuits2026: CircuitData[] = [
     circuitLength: 5.412,
   },
   {
-    externalId: 'montreal',
+    externalId: 'villeneuve',
     name: 'Circuit Gilles Villeneuve',
     country: 'Canada',
     city: 'Montreal',
     circuitLength: 4.361,
   },
   {
-    externalId: 'barcelona',
+    externalId: 'catalunya',
     name: 'Circuit de Barcelona-Catalunya',
     country: 'Spain',
     city: 'Barcelona',
@@ -337,10 +317,10 @@ const circuits2026: CircuitData[] = [
     name: 'Marina Bay Street Circuit',
     country: 'Singapore',
     city: 'Singapore',
-    circuitLength: 4.940,
+    circuitLength: 4.94,
   },
   {
-    externalId: 'cota',
+    externalId: 'americas',
     name: 'Circuit of the Americas',
     country: 'USA',
     city: 'Austin',
@@ -354,14 +334,14 @@ const circuits2026: CircuitData[] = [
     circuitLength: 4.304,
   },
   {
-    externalId: 'las_vegas',
+    externalId: 'vegas',
     name: 'Las Vegas Strip Circuit',
     country: 'USA',
     city: 'Las Vegas',
     circuitLength: 6.201,
   },
   {
-    externalId: 'lusail',
+    externalId: 'losail',
     name: 'Lusail International Circuit',
     country: 'Qatar',
     city: 'Lusail',
@@ -374,201 +354,163 @@ const circuits2026: CircuitData[] = [
     city: 'Abu Dhabi',
     circuitLength: 5.281,
   },
+  {
+    externalId: 'madring',
+    name: 'Madring',
+    country: 'Spain',
+    city: 'Madrid',
+  },
+  {
+    externalId: 'sepang',
+    name: 'Sepang International Circuit',
+    country: 'Malaysia',
+    city: 'Kuala Lumpur',
+  },
 ];
 
 // ───────────────────────────────────────────────────────────────────────────
-// Datos — primeras carreras del campeonato 2026
+// Datos — calendario 2026, tal cual lo publica Jolpica (relevado el 2026-09-21).
+// Re-sincronizable con POST /api/v1/admin/sync/races?year=2026.
 // ───────────────────────────────────────────────────────────────────────────
 
 const races2026: RaceData[] = [
   {
     round: 1,
-    name: 'Bahrain Grand Prix',
-    date: '2026-03-08T15:00:00Z',
-    circuitExternalId: 'bahrain',
-  },
-  {
-    round: 2,
-    name: 'Saudi Arabian Grand Prix',
-    date: '2026-03-21T17:00:00Z',
-    circuitExternalId: 'jeddah',
-  },
-  {
-    round: 3,
     name: 'Australian Grand Prix',
-    date: '2026-04-05T05:00:00Z',
+    date: '2026-03-08T04:00:00Z',
     circuitExternalId: 'albert_park',
   },
   {
-    round: 4,
-    name: 'Japanese Grand Prix',
-    date: '2026-04-19T05:00:00Z',
-    circuitExternalId: 'suzuka',
-  },
-  {
-    round: 5,
+    round: 2,
     name: 'Chinese Grand Prix',
-    date: '2026-05-03T07:00:00Z',
+    date: '2026-03-15T07:00:00Z',
     circuitExternalId: 'shanghai',
   },
   {
-    round: 6,
+    round: 3,
+    name: 'Japanese Grand Prix',
+    date: '2026-03-29T05:00:00Z',
+    circuitExternalId: 'suzuka',
+  },
+  {
+    round: 4,
     name: 'Miami Grand Prix',
-    date: '2026-05-10T19:30:00Z',
+    date: '2026-05-03T20:00:00Z',
     circuitExternalId: 'miami',
   },
   {
-    round: 7,
-    name: 'Emilia Romagna Grand Prix',
-    date: '2026-05-24T13:00:00Z',
-    circuitExternalId: 'imola',
+    round: 5,
+    name: 'Canadian Grand Prix',
+    date: '2026-05-24T20:00:00Z',
+    circuitExternalId: 'villeneuve',
   },
   {
-    round: 8,
+    round: 6,
     name: 'Monaco Grand Prix',
     date: '2026-06-07T13:00:00Z',
     circuitExternalId: 'monaco',
   },
   {
-    round: 9,
-    name: 'Spanish Grand Prix',
+    round: 7,
+    name: 'Barcelona Grand Prix',
     date: '2026-06-14T13:00:00Z',
-    circuitExternalId: 'barcelona',
+    circuitExternalId: 'catalunya',
   },
   {
-    round: 10,
-    name: 'Canadian Grand Prix',
-    date: '2026-06-28T18:00:00Z',
-    circuitExternalId: 'montreal',
-  },
-  {
-    round: 11,
+    round: 8,
     name: 'Austrian Grand Prix',
-    date: '2026-07-05T13:00:00Z',
+    date: '2026-06-28T13:00:00Z',
     circuitExternalId: 'red_bull_ring',
   },
   {
-    round: 12,
+    round: 9,
     name: 'British Grand Prix',
-    date: '2026-07-19T14:00:00Z',
+    date: '2026-07-05T14:00:00Z',
     circuitExternalId: 'silverstone',
   },
   {
-    round: 13,
-    name: 'Hungarian Grand Prix',
-    date: '2026-08-02T13:00:00Z',
-    circuitExternalId: 'hungaroring',
-  },
-  {
-    round: 14,
+    round: 10,
     name: 'Belgian Grand Prix',
-    date: '2026-08-23T13:00:00Z',
+    date: '2026-07-19T13:00:00Z',
     circuitExternalId: 'spa',
   },
   {
-    round: 15,
+    round: 11,
+    name: 'Hungarian Grand Prix',
+    date: '2026-07-26T13:00:00Z',
+    circuitExternalId: 'hungaroring',
+  },
+  {
+    round: 12,
     name: 'Dutch Grand Prix',
-    date: '2026-09-06T13:00:00Z',
+    date: '2026-08-23T13:00:00Z',
     circuitExternalId: 'zandvoort',
   },
   {
-    round: 16,
+    round: 13,
     name: 'Italian Grand Prix',
-    date: '2026-09-13T13:00:00Z',
+    date: '2026-09-06T13:00:00Z',
     circuitExternalId: 'monza',
   },
   {
-    round: 17,
+    round: 14,
+    name: 'Spanish Grand Prix',
+    date: '2026-09-13T13:00:00Z',
+    circuitExternalId: 'madring',
+  },
+  {
+    round: 15,
     name: 'Azerbaijan Grand Prix',
-    date: '2026-09-27T11:00:00Z',
+    date: '2026-09-26T11:00:00Z',
     circuitExternalId: 'baku',
   },
   {
-    round: 18,
+    round: 16,
+    name: 'Bahrain Grand Prix in Malaysia',
+    date: '2026-10-04T07:00:00Z',
+    circuitExternalId: 'sepang',
+  },
+  {
+    round: 17,
     name: 'Singapore Grand Prix',
-    date: '2026-10-04T12:00:00Z',
+    date: '2026-10-11T12:00:00Z',
     circuitExternalId: 'marina_bay',
   },
   {
-    round: 19,
+    round: 18,
     name: 'United States Grand Prix',
-    date: '2026-10-25T19:00:00Z',
-    circuitExternalId: 'cota',
+    date: '2026-10-25T20:00:00Z',
+    circuitExternalId: 'americas',
   },
   {
-    round: 20,
+    round: 19,
     name: 'Mexico City Grand Prix',
     date: '2026-11-01T20:00:00Z',
     circuitExternalId: 'rodriguez',
   },
   {
-    round: 21,
-    name: 'São Paulo Grand Prix',
+    round: 20,
+    name: 'Brazilian Grand Prix',
     date: '2026-11-08T17:00:00Z',
     circuitExternalId: 'interlagos',
   },
   {
-    round: 22,
+    round: 21,
     name: 'Las Vegas Grand Prix',
-    date: '2026-11-21T06:00:00Z',
-    circuitExternalId: 'las_vegas',
+    date: '2026-11-22T04:00:00Z',
+    circuitExternalId: 'vegas',
+  },
+  {
+    round: 22,
+    name: 'Qatar Grand Prix',
+    date: '2026-11-29T16:00:00Z',
+    circuitExternalId: 'losail',
   },
   {
     round: 23,
-    name: 'Qatar Grand Prix',
-    date: '2026-11-29T17:00:00Z',
-    circuitExternalId: 'lusail',
-  },
-  {
-    round: 24,
     name: 'Abu Dhabi Grand Prix',
     date: '2026-12-06T13:00:00Z',
     circuitExternalId: 'yas_marina',
-  },
-];
-
-type RaceResultData = {
-  round: number;
-  // externalIds de pilotos, el ganador primero. La posicion sale del indice y los puntos
-  // de F1_POINTS. Los que no figuran acá ni en `dnf` no corrieron esa carrera.
-  finishOrder: string[];
-  // Abandonos: position null, 0 puntos, status DNF. Sirven para que el detalle de piloto
-  // tenga un caso donde `position` es null y `bestFinish` tiene que ignorarlo.
-  dnf?: string[];
-};
-
-// Sistema de puntos vigente: del 1ro al 10mo. Del 11vo para abajo, cero.
-const F1_POINTS = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1];
-
-// Resultados de las 3 primeras fechas. Sin esto, /drivers/:id renderiza vacio contra un seed
-// fresco (24 carreras, 0 resultados) y Slice 9 no tiene con que calcular standings.
-// Inventados: no son resultados reales de 2026.
-const results2026: RaceResultData[] = [
-  {
-    round: 1, // Bahrain
-    finishOrder: [
-      'max_verstappen', 'norris', 'leclerc', 'russell', 'piastri', 'hamilton', 'antonelli',
-      'sainz', 'albon', 'gasly', 'hadjar', 'lawson', 'alonso', 'stroll', 'ocon', 'bearman',
-      'hulkenberg', 'bortoleto', 'colapinto', 'lindblad',
-    ],
-    dnf: ['perez', 'bottas'],
-  },
-  {
-    round: 2, // Jeddah
-    finishOrder: [
-      'norris', 'piastri', 'max_verstappen', 'leclerc', 'hamilton', 'russell', 'sainz',
-      'antonelli', 'gasly', 'alonso', 'albon', 'hadjar', 'bearman', 'ocon', 'stroll',
-      'lawson', 'bottas', 'perez', 'hulkenberg', 'bortoleto', 'colapinto',
-    ],
-    dnf: ['lindblad'],
-  },
-  {
-    round: 3, // Albert Park
-    finishOrder: [
-      'leclerc', 'max_verstappen', 'hamilton', 'norris', 'antonelli', 'piastri', 'russell',
-      'albon', 'alonso', 'sainz', 'colapinto', 'gasly', 'lawson', 'stroll', 'hadjar',
-      'bearman', 'bortoleto', 'perez', 'bottas', 'hulkenberg', 'lindblad', 'ocon',
-    ],
   },
 ];
 
@@ -599,27 +541,47 @@ const teamLogos: Record<string, string> = {
 // El `2col` del path es el escalon de tamano: 1col=93px, 2col=206px, 3col=319px, 4col=432px.
 // Falta Hadjar, que OpenF1 no devuelve.
 const driverHeadshots: Record<string, string> = {
-  albon: 'https://media.formula1.com/content/dam/fom-website/drivers/A/ALEALB01_Alexander_Albon/alealb01.png.transform/2col/image.png',
-  alonso: 'https://media.formula1.com/content/dam/fom-website/drivers/F/FERALO01_Fernando_Alonso/feralo01.png.transform/2col/image.png',
-  antonelli: 'https://media.formula1.com/content/dam/fom-website/drivers/K/ANDANT01_Kimi_Antonelli/andant01.png.transform/2col/image.png',
-  bearman: 'https://media.formula1.com/content/dam/fom-website/drivers/O/OLIBEA01_Oliver_Bearman/olibea01.png.transform/2col/image.png',
-  bortoleto: 'https://media.formula1.com/content/dam/fom-website/drivers/G/GABBOR01_Gabriel_Bortoleto/gabbor01.png.transform/2col/image.png',
-  bottas: 'https://media.formula1.com/content/dam/fom-website/drivers/V/VALBOT01_Valtteri_Bottas/valbot01.png.transform/2col/image.png',
-  colapinto: 'https://media.formula1.com/content/dam/fom-website/drivers/F/FRACOL01_Franco_Colapinto/fracol01.png.transform/2col/image.png',
-  gasly: 'https://media.formula1.com/content/dam/fom-website/drivers/P/PIEGAS01_Pierre_Gasly/piegas01.png.transform/2col/image.png',
-  hamilton: 'https://media.formula1.com/content/dam/fom-website/drivers/L/LEWHAM01_Lewis_Hamilton/lewham01.png.transform/2col/image.png',
-  hulkenberg: 'https://media.formula1.com/content/dam/fom-website/drivers/N/NICHUL01_Nico_Hulkenberg/nichul01.png.transform/2col/image.png',
-  lawson: 'https://media.formula1.com/content/dam/fom-website/drivers/L/LIALAW01_Liam_Lawson/lialaw01.png.transform/2col/image.png',
-  leclerc: 'https://media.formula1.com/content/dam/fom-website/drivers/C/CHALEC01_Charles_Leclerc/chalec01.png.transform/2col/image.png',
-  lindblad: 'https://media.formula1.com/content/dam/fom-website/drivers/A/ARVLIN01_Arvid_Lindblad/arvlin01.png.transform/2col/image.png',
-  max_verstappen: 'https://media.formula1.com/content/dam/fom-website/drivers/M/MAXVER01_Max_Verstappen/maxver01.png.transform/2col/image.png',
-  norris: 'https://media.formula1.com/content/dam/fom-website/drivers/L/LANNOR01_Lando_Norris/lannor01.png.transform/2col/image.png',
+  albon:
+    'https://media.formula1.com/content/dam/fom-website/drivers/A/ALEALB01_Alexander_Albon/alealb01.png.transform/2col/image.png',
+  alonso:
+    'https://media.formula1.com/content/dam/fom-website/drivers/F/FERALO01_Fernando_Alonso/feralo01.png.transform/2col/image.png',
+  antonelli:
+    'https://media.formula1.com/content/dam/fom-website/drivers/K/ANDANT01_Kimi_Antonelli/andant01.png.transform/2col/image.png',
+  bearman:
+    'https://media.formula1.com/content/dam/fom-website/drivers/O/OLIBEA01_Oliver_Bearman/olibea01.png.transform/2col/image.png',
+  bortoleto:
+    'https://media.formula1.com/content/dam/fom-website/drivers/G/GABBOR01_Gabriel_Bortoleto/gabbor01.png.transform/2col/image.png',
+  bottas:
+    'https://media.formula1.com/content/dam/fom-website/drivers/V/VALBOT01_Valtteri_Bottas/valbot01.png.transform/2col/image.png',
+  colapinto:
+    'https://media.formula1.com/content/dam/fom-website/drivers/F/FRACOL01_Franco_Colapinto/fracol01.png.transform/2col/image.png',
+  gasly:
+    'https://media.formula1.com/content/dam/fom-website/drivers/P/PIEGAS01_Pierre_Gasly/piegas01.png.transform/2col/image.png',
+  hamilton:
+    'https://media.formula1.com/content/dam/fom-website/drivers/L/LEWHAM01_Lewis_Hamilton/lewham01.png.transform/2col/image.png',
+  hulkenberg:
+    'https://media.formula1.com/content/dam/fom-website/drivers/N/NICHUL01_Nico_Hulkenberg/nichul01.png.transform/2col/image.png',
+  lawson:
+    'https://media.formula1.com/content/dam/fom-website/drivers/L/LIALAW01_Liam_Lawson/lialaw01.png.transform/2col/image.png',
+  leclerc:
+    'https://media.formula1.com/content/dam/fom-website/drivers/C/CHALEC01_Charles_Leclerc/chalec01.png.transform/2col/image.png',
+  arvid_lindblad:
+    'https://media.formula1.com/content/dam/fom-website/drivers/A/ARVLIN01_Arvid_Lindblad/arvlin01.png.transform/2col/image.png',
+  max_verstappen:
+    'https://media.formula1.com/content/dam/fom-website/drivers/M/MAXVER01_Max_Verstappen/maxver01.png.transform/2col/image.png',
+  norris:
+    'https://media.formula1.com/content/dam/fom-website/drivers/L/LANNOR01_Lando_Norris/lannor01.png.transform/2col/image.png',
   ocon: 'https://media.formula1.com/content/dam/fom-website/drivers/E/ESTOCO01_Esteban_Ocon/estoco01.png.transform/2col/image.png',
-  perez: 'https://media.formula1.com/content/dam/fom-website/drivers/S/SERPER01_Sergio_Perez/serper01.png.transform/2col/image.png',
-  piastri: 'https://media.formula1.com/content/dam/fom-website/drivers/O/OSCPIA01_Oscar_Piastri/oscpia01.png.transform/2col/image.png',
-  russell: 'https://media.formula1.com/content/dam/fom-website/drivers/G/GEORUS01_George_Russell/georus01.png.transform/2col/image.png',
-  sainz: 'https://media.formula1.com/content/dam/fom-website/drivers/C/CARSAI01_Carlos_Sainz/carsai01.png.transform/2col/image.png',
-  stroll: 'https://media.formula1.com/content/dam/fom-website/drivers/L/LANSTR01_Lance_Stroll/lanstr01.png.transform/2col/image.png',
+  perez:
+    'https://media.formula1.com/content/dam/fom-website/drivers/S/SERPER01_Sergio_Perez/serper01.png.transform/2col/image.png',
+  piastri:
+    'https://media.formula1.com/content/dam/fom-website/drivers/O/OSCPIA01_Oscar_Piastri/oscpia01.png.transform/2col/image.png',
+  russell:
+    'https://media.formula1.com/content/dam/fom-website/drivers/G/GEORUS01_George_Russell/georus01.png.transform/2col/image.png',
+  sainz:
+    'https://media.formula1.com/content/dam/fom-website/drivers/C/CARSAI01_Carlos_Sainz/carsai01.png.transform/2col/image.png',
+  stroll:
+    'https://media.formula1.com/content/dam/fom-website/drivers/L/LANSTR01_Lance_Stroll/lanstr01.png.transform/2col/image.png',
 };
 
 // ───────────────────────────────────────────────────────────────────────────
@@ -725,91 +687,9 @@ async function main() {
     });
   }
 
-  // 5. RaceResults + ConstructorResults -------------------------------------
-  // Solo las fechas que figuran en results2026; el resto de las carreras queda UPCOMING.
-  const driverIdByExternalId = new Map(
-    (await prisma.driver.findMany({ select: { id: true, externalId: true } })).map((d) => [
-      d.externalId,
-      d.id,
-    ]),
-  );
-  // driverId -> constructorId de esta temporada, para derivar los ConstructorResult.
-  const constructorIdByDriverId = new Map(
-    (await prisma.driverSeason.findMany({ where: { seasonId: season.id } })).map((ds) => [
-      ds.driverId,
-      ds.constructorId,
-    ]),
-  );
-
-  for (const r of results2026) {
-    const race = await prisma.race.findUnique({
-      where: { seasonId_round: { seasonId: season.id, round: r.round } },
-    });
-    if (!race) throw new Error(`results2026 referencia la fecha ${r.round}, que no existe`);
-
-    const resolve = (externalId: string) => {
-      const driverId = driverIdByExternalId.get(externalId);
-      if (!driverId) {
-        throw new Error(`results2026 (fecha ${r.round}) referencia al piloto "${externalId}"`);
-      }
-      return driverId;
-    };
-
-    const rows = [
-      ...r.finishOrder.map((externalId, index) => ({
-        driverId: resolve(externalId),
-        position: index + 1,
-        points: F1_POINTS[index] ?? 0,
-        status: 'CLASSIFIED' as const,
-      })),
-      ...(r.dnf ?? []).map((externalId) => ({
-        driverId: resolve(externalId),
-        position: null,
-        points: 0,
-        status: 'DNF' as const,
-      })),
-    ];
-
-    for (const row of rows) {
-      await prisma.raceResult.upsert({
-        where: { raceId_driverId: { raceId: race.id, driverId: row.driverId } },
-        update: {},
-        create: { raceId: race.id, ...row },
-      });
-    }
-
-    // El upsert de la carrera usa `update: {}`, asi que en una DB ya seedeada nunca aplicaria
-    // el COMPLETED. Hace falta este update explicito (idempotente por naturaleza).
-    await prisma.race.update({ where: { id: race.id }, data: { status: 'COMPLETED' } });
-
-    // ConstructorResults derivados, con la misma regla que loadResults (Slice 8):
-    // driver1Points es el mayor de los dos. Sin esto la DB de dev queda en un estado que
-    // Slice 8 nunca produciria y que Slice 9 leeria mal.
-    const pointsByConstructor = new Map<number, number[]>();
-    for (const row of rows) {
-      const constructorId = constructorIdByDriverId.get(row.driverId);
-      if (!constructorId) continue;
-      pointsByConstructor.set(constructorId, [
-        ...(pointsByConstructor.get(constructorId) ?? []),
-        row.points,
-      ]);
-    }
-
-    for (const [constructorId, points] of pointsByConstructor) {
-      const [driver1Points = 0, driver2Points = 0] = [...points].sort((a, b) => b - a);
-      await prisma.constructorResult.upsert({
-        where: { raceId_constructorId: { raceId: race.id, constructorId } },
-        update: {},
-        create: {
-          raceId: race.id,
-          constructorId,
-          driver1Points,
-          driver2Points,
-          totalPoints: driver1Points + driver2Points,
-        },
-      });
-    }
-  }
+  // 5. Resultados: el seed NO los inventa. Las fechas ya corridas se traen de Jolpica con
+  // POST /api/v1/admin/sync/races/:id/results (o el boton "Importar de Jolpica" en
+  // /admin/results). Jolpica es la fuente de verdad del calendario y de los resultados (BOX-9).
 
   // 6. Summary --------------------------------------------------------------
   const counts = {
