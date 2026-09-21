@@ -1,5 +1,6 @@
 import type { DraftStatus, League } from '../models/league';
 import type { LeagueMember } from '../models/league-member';
+import type { LeagueStandings } from '../models/standing';
 import { apiClient } from './api-client';
 
 export interface CreateLeagueInput {
@@ -16,6 +17,8 @@ export const leaguesService = {
   join: (inviteCode: string) => apiClient.post<LeagueMember>('/leagues/join', { inviteCode }),
   get: (id: number) => apiClient.get<League>(`/leagues/${id}`),
   members: (id: number) => apiClient.get<LeagueMember[]>(`/leagues/${id}/members`),
+  // Sin ?raceId: el backend devuelve la ultima carrera con standings de esta liga.
+  standings: (id: number) => apiClient.get<LeagueStandings>(`/leagues/${id}/standings`),
   leave: (id: number) => apiClient.post<LeagueMember>(`/leagues/${id}/leave`),
   kick: (id: number, userId: number) => apiClient.delete(`/leagues/${id}/members/${userId}`),
   startDraft: (id: number) =>
