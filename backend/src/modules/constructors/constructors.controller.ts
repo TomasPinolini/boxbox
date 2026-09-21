@@ -1,10 +1,22 @@
 import { Request, Response, NextFunction } from 'express';
 import * as constructorsService from './constructors.service';
+import type { StandingsQuery } from './constructors.schema';
 
 export async function getAll(_req: Request, res: Response, next: NextFunction) {
   try {
     const constructors = await constructorsService.findAll();
     res.json({ data: constructors });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getStandings(req: Request, res: Response, next: NextFunction) {
+  try {
+    // validateQuery deja el resultado en req.validatedQuery, no en req.query (Express 5).
+    const { seasonId } = (req.validatedQuery ?? {}) as StandingsQuery;
+    const standings = await constructorsService.findStandings(seasonId);
+    res.json({ data: standings });
   } catch (err) {
     next(err);
   }
