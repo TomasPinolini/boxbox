@@ -66,6 +66,8 @@ _(El carril Draft — Slices 4, 5, 6 — está completo. Lo que sigue es el carr
 - **Blocked by**: ~~acceso a las APIs~~ — **desbloqueado**. Verificado el 2026-09-11: `api.jolpi.ca/ergast/f1/2026/drivers.json` y `api.openf1.org/v1/drivers` responden 200 sin credenciales.
 - **⚠️ Trampa de datos**: Jolpica devuelve **32 pilotos para 2026** (`"total": "32"`), no 22 — incluye suplentes y reservas que corrieron alguna sesión. Si el sync los escribe todos como `DriverSeason`, `maxMembersForSeason = floor(32/2) = 16` en vez de 11, se rompe la regla "un miembro por equipo de la grilla" de ADR-0006 y vuelve el bug de BOX-14 por otra puerta. Filtrar a titulares antes de escribir `DriverSeason`.
 - **Alcance mínimo para el 12/10**: es la pata de "fetch desde APIs externas" del Epic 2 de Aprobación. Con `12a` (drivers + constructors) alcanza para demostrarlo; `12b` y `12c` son upside.
+- **Estado 2026-09-21 — `12b` + `12c` hechos** (rama `12/sync-results`; orden real `12b → 12c → 12a`, ver BOX-9). Decisión: **Jolpica es la fuente de verdad del calendario** — el seed trae las 23 fechas reales y ya no inventa resultados; `round` es la clave de emparejamiento y `Race` no necesita `externalId`. `modules/sync/` + `shared/jolpica.ts` (`fetch` nativo, timeout 10 s, respuestas validadas con Zod). El status se mapea por `positionText`, **no** por `status` (en 2026 hay `Retired` clasificados y `Lapped` con `R`). Deuda P2002 cerrada: `RACE_RESULTS_ALREADY_EXIST`. Queda `12a` como upside.
+- **Limitación conocida**: `DriverSeason` es un constructor por temporada. En las 3 fechas de 2026 donde Lawson corrió para Red Bull, sus puntos se acreditan a RB; Tsunoda (suplente, sin `Driver`) sale `skipped`.
 
 ---
 

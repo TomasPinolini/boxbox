@@ -275,15 +275,16 @@ Si el timer llega a 0 sin que nadie pickee, el servidor auto-asigna **al azar** 
 
 ---
 
-## Admin — Sync [🚧 planned]
+## Admin — Sync [12b + 12c ✅ · 12a 🚧 planned]
 
-| Método | Endpoint                   | Acceso | Notas                               |
-| ------ | -------------------------- | ------ | ----------------------------------- |
-| POST   | `/admin/sync/drivers`      | Admin  | Sync desde Jolpica/OpenF1           |
-| POST   | `/admin/sync/constructors` | Admin  |                                     |
-| POST   | `/admin/sync/circuits`     | Admin  |                                     |
-| POST   | `/admin/sync/races`        | Admin  |                                     |
-| POST   | `/admin/sync/season`       | Admin  | Calendario completo de la temporada |
+Todo el router va detrás de `requireAuth → requireAdmin`. Cada corrida deja un `SyncLog` (`SUCCESS` / `PARTIAL` / `FAILED`).
+
+| Método | Endpoint                        | Acceso | Notas |
+| ------ | ------------------------------- | ------ | ----- |
+| POST   | `/admin/sync/races?year=2026`   | Admin  | ✅ Upsert de `Circuit` por `externalId` (solo crea) y de `Race` por `(seasonId, round)`. No pisa una fecha que ya tiene resultados de otro circuito → `skipped`. |
+| POST   | `/admin/sync/races/:id/results` | Admin  | ✅ Trae los resultados de esa carrera y los carga con `loadResults`. `?dryRun=true` devuelve el mapeo **sin escribir** (vista previa de `/admin/results`). Pilotos sin `Driver`/`DriverSeason` → `skipped` + `PARTIAL`, nunca se crean. |
+| POST   | `/admin/sync/drivers`           | Admin  | 🚧 12a |
+| POST   | `/admin/sync/constructors`      | Admin  | 🚧 12a |
 | GET    | `/admin/sync/log`          | Admin  | Historial de syncs con resultados   |
 
 ---
