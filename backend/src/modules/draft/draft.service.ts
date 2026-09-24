@@ -164,19 +164,36 @@ export async function getDraftState(leagueId: number) {
 }
 
 // getAvailablePicks: drivers/constructors sin drafted en ESTA liga (otras ligas no cuentan —
-// el mismo Driver puede estar tomado en la liga A y libre en la liga B). La relacion
-// draftsAsPick solo matchea filas donde driverId/constructorId ya esta seteado (una fila
-// placeholder con driverId null no referencia a ningun Driver via la relacion), asi que
-// `none: { leagueId }` alcanza sin filtrar explicitamente por driverId/constructorId not null.
+// el mismo Driver puede estar tomado en la liga A y libre en la liga B), Y que corren en la
+// temporada de la liga (via DriverSeason). La relacion draftsAsPick solo matchea filas donde
+// driverId/constructorId ya esta seteado (una fila placeholder con driverId null no referencia
+// a ningun Driver via la relacion), asi que `none: { leagueId }` alcanza sin filtrar
+// explicitamente por driverId/constructorId not null.
 export async function getAvailablePicks(leagueId: number) {
+  const league = await prisma.league.findUnique({
+    where: { id: leagueId },
+    select: { seasonId: true },
+  });
+  if (!league) {
+    throw new NotFoundError('League');
+  }
+
   const [drivers, constructors] = await Promise.all([
     prisma.driver.findMany({
-      where: { deletedAt: null, draftsAsPick: { none: { leagueId } } },
+      where: {
+        deletedAt: null,
+        draftsAsPick: { none: { leagueId } },
+        seasons: { some: { seasonId: league.seasonId } },
+      },
       select: driverAvailableSelect,
       orderBy: { lastName: 'asc' },
     }),
     prisma.constructor.findMany({
-      where: { deletedAt: null, draftsAsPick: { none: { leagueId } } },
+      where: {
+        deletedAt: null,
+        draftsAsPick: { none: { leagueId } },
+        seasons: { some: { seasonId: league.seasonId } },
+      },
       select: constructorAvailableSelect,
       orderBy: { name: 'asc' },
     }),
