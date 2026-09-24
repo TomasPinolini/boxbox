@@ -3,7 +3,12 @@ import { Link } from 'react-router-dom';
 import { Alert, Button, Card, PageShell } from '../../components/ui';
 import type { RaceResultStatus } from '../../models/driver';
 import { useDrivers } from '../drivers/drivers.queries';
-import { useActiveSeasonRaces, useJolpicaPreview, useProcessRace } from './admin.queries';
+import {
+  useActiveSeasonRaces,
+  useJolpicaPreview,
+  useProcessRace,
+  useRecalculateStandings,
+} from './admin.queries';
 import { buildResultsPayload, entriesFromPreview, pointsFor, type Entry } from './results-payload';
 
 const STATUSES: RaceResultStatus[] = ['CLASSIFIED', 'DNF', 'DSQ', 'DNS'];
@@ -20,6 +25,7 @@ export function RaceResultsPage() {
   const drivers = useDrivers();
   const process = useProcessRace();
   const preview = useJolpicaPreview();
+  const recalc = useRecalculateStandings();
   const [notes, setNotes] = useState<string[]>([]);
   const [raceId, setRaceId] = useState<number | null>(null);
   const [entries, setEntries] = useState<Record<number, Entry>>({});
@@ -28,8 +34,10 @@ export function RaceResultsPage() {
   const loadable = (races.data ?? []).filter(
     (r) => r.status === 'UPCOMING' || r.status === 'QUALIFYING_LOCKED',
   );
+  const completed = (races.data ?? []).filter((r) => r.status === 'COMPLETED');
   // Solo pilotos con escuderia en la temporada: el backend rechaza al resto (DRIVER_NOT_IN_SEASON).
   const grid = (drivers.data ?? []).filter((d) => d.constructor !== null);
+  const selectedRace = races.data?.find((r) => r.id === raceId) ?? null;
   const loadError = races.error ?? drivers.error;
 
   function update(driverId: number, patch: Partial<Entry>) {
@@ -42,6 +50,7 @@ export function RaceResultsPage() {
     setErrors([]);
     setNotes([]);
     preview.reset();
+    recalc.reset();
   }
 
   function importFromJolpica() {
@@ -117,15 +126,42 @@ export function RaceResultsPage() {
             onChange={(e) => selectRace(e.target.value ? Number(e.target.value) : null)}
           >
             <option value="">Elegí una carrera…</option>
-            {loadable.map((r) => (
-              <option key={r.id} value={r.id}>
-                Fecha {r.round} — {r.name}
-              </option>
-            ))}
+            {loadable.length > 0 && (
+              <optgroup label="Cargar resultados">
+                {loadable.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    Fecha {r.round} — {r.name}
+                  </option>
+                ))}
+              </optgroup>
+            )}
+            {completed.length > 0 && (
+              <optgroup label="Recalcular standings">
+                {completed.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    Fecha {r.round} — {r.name}
+                  </option>
+                ))}
+              </optgroup>
+            )}
           </select>
         </label>
 
-        {raceId !== null && (
+        {raceId !== null && selectedRace?.status === 'COMPLETED' ? (
+          <>
+            {recalc.error && <Alert code={recalc.error.code} message={recalc.error.message} />}
+            {recalc.isSuccess && (
+              <p role="status" className="mb-3 rounded bg-green-50 px-3 py-2 text-sm text-green-800">
+                Standings recalculados: {recalc.data.standings} en {recalc.data.leagues} ligas.
+              </p>
+            )}
+            <div className="mt-4">
+              <Button disabled={recalc.isPending} onClick={() => recalc.mutate(raceId)}>
+                {recalc.isPending ? 'Recalculando…' : 'Recalcular'}
+              </Button>
+            </div>
+          </>
+        ) : raceId !== null ? (
           <>
             <div className="mb-4 flex flex-wrap items-center gap-3">
               <Button variant="secondary" disabled={preview.isPending} onClick={importFromJolpica}>
@@ -211,7 +247,7 @@ export function RaceResultsPage() {
               </Button>
             </div>
           </>
-        )}
+        ) : null}
       </Card>
     </PageShell>
   );
