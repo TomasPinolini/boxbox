@@ -2,9 +2,9 @@
   "mcpServers": {
     "prisma": {
       "type": "stdio",
-      "command": "cmd",
+      "command": "bash",
       "args": [
-        "/c",
+        "-c",
         "cd backend && npx prisma mcp"
       ],
       "env": {}

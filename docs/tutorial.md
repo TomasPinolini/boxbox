@@ -195,6 +195,67 @@ npm run e2e           # playwright — necesita backend + frontend corriendo y D
 
 ---
 
+## 9. Supabase (para deployment y demostración)
+
+BoxBox tiene dos bases Postgres hosteadas en Supabase: `boxbox-dev` (us-west-2) y `boxbox-prod` (us-east-1). El Postgres local sigue siendo la base para tests y desarrollo offline — **los tests nunca apuntan a Supabase**.
+
+### Conectar a boxbox-dev
+
+Si sos parte del equipo y necesitás acceder a la base de demostración:
+
+1. **Conseguir el password**. Pediselo al dueño del proyecto (quien lo creó en Supabase). El password se genera con `openssl rand -hex 32` y **no se guarda en el repo**.
+
+2. **Crear `.env.supabase-dev.local`** en `backend/`:
+
+   ```bash
+   cp .env.example .env.supabase-dev.local
+   ```
+
+   Editá la variable `DATABASE_URL` con los datos de Supabase:
+   - **Host**: en la interfaz de Supabase → Settings → Database → Connection info → Host (URL tipo `xxxx.supabase.co`)
+   - **Port**: 5432 (session pooler port, **no** 6543)
+   - **User**: `postgres`
+   - **Password**: la que recibiste
+   - **Database**: `postgres`
+   - **Sufijo**: `?schema=public` (obligatorio)
+
+   Ejemplo:
+   ```
+   DATABASE_URL="postgresql://postgres:[PASSWORD]@[HOST]:5432/postgres?schema=public"
+   ```
+
+   ⚠️ Si el password tiene caracteres especiales (`@`, `#`, `:`), tienen que ir URL-encodados en la string (`@` → `%40`, `#` → `%23`, `:` → `%3A`).
+
+3. **Correr migraciones** (solo dev, prod ya está migrado):
+
+   ```bash
+   NODE_ENV=development DATABASE_URL="..." npx prisma migrate status
+   npx prisma migrate deploy
+   ```
+
+   Si es la primera vez, `migrate deploy` aplica todas las migraciones de una vez. Verificá que siga el resultado "Database schema is up to date!".
+
+4. **NO loadear seed a prod**. El seed crea un admin con password pública (`admin@boxbox.test` / `admin1234`). Está bien en dev (hay que tener datos para probar), pero **prod nunca debe seedearse** — la única forma de crear un admin en prod es vía `POST /auth/register` desde la UI con credenciales nuevas.
+
+### Importante: tests siempre locales
+
+Tu archivo `.env` (para dev local) y `.env.supabase-*.local` (para Supabase) se usan según cómo levantes el server:
+
+```bash
+# Usa .env (Postgres local)
+npm run dev
+
+# Usa .env.supabase-dev.local (Supabase dev)
+NODE_ENV=development npm run dev
+
+# Usa .env.supabase-prod.local (Supabase prod) — ⚠️ solo en deployment
+NODE_ENV=production npm run dev
+```
+
+Los **tests nunca consultan Supabase**. `npm test` siempre usa la DB local definida en `.env`, y `src/tests/setup.ts` hace `TRUNCATE ... CASCADE` de todas las tablas antes de cada test.
+
+---
+
 ## Próximos pasos
 
 Una vez que veas la data en TablePlus, entrá por la puerta principal de la documentación:
