@@ -6,19 +6,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 BoxBox is a Formula 1 Fantasy League web app — a university project (TP) for Desarrollo de Software at UTN FRRO. Users create/join private leagues, participate in a live snake draft to build a team (2 drivers, 1 constructor — no reserve driver, see ADR-0006), and compete across the F1 season with real race results.
 
-Backend Slices 1–8 are shipped (auth, leagues, membership, fantasy teams, snake draft over REST + Socket.io, race-result ingestion with per-constructor totals). Frontend Slice 13a is also shipped (auth + leagues screens, e2e tests, responsive pass); draft realtime UI is still Slice 13b, not built. Scoring (Slice 9), predictions (Slice 10) and external sync (Slice 12) are still **planned, not built**. When in doubt about what is actually implemented, trust the source, not the docs.
+Backend Slices 1–8 are shipped (auth, leagues, membership, fantasy teams, snake draft over REST + Socket.io, race-result ingestion with per-constructor totals). Frontend Slice 13a is also shipped (auth + leagues screens, e2e tests, responsive pass), and Slice 13b (draft realtime UI — connect to the `/draft` socket, show live `draft:state`, submit picks, timer countdown) is fully shipped. Scoring (Slice 9), predictions (Slice 10) and external sync (Slice 12) are still **planned, not built**. When in doubt about what is actually implemented, trust the source, not the docs.
 
 ## Repository Layout
 
 ```
-backend/      Express 5 + Socket.io + TypeScript API
-frontend/     Vite + React 19 + TypeScript + Tailwind v4 SPA (auth + leagues shipped, incl. e2e; draft UI pending — Slice 13b)
+backend/      Express 5 + Socket.io + TypeScript API (+ docs/roadmap.md — backend lane)
+frontend/     Vite + React 19 + TypeScript + Tailwind v4 SPA (+ docs/roadmap.md — frontend lane) (auth + leagues + draft UI shipped, incl. e2e)
 docs/         Design docs (proposal, ER diagram, API spec, architecture) + local setup tutorial
 ```
 
 ## Current Implementation Status
 
-Built (one slice = one PR; full log in `docs/roadmap.md` → "Completados"):
+Built (one slice = one PR; full log in `backend/docs/roadmap.md` and `frontend/docs/roadmap.md` → "Completados"):
 
 - Backend scaffold (Express 5, TypeScript, Prisma 7, Postgres) + Zod validation + centralized errors + Vitest integration tests against a real Postgres DB (206 tests across 10 files).
 - CRUD modules: `drivers`, `constructors`, `circuits`, `seasons`, `races`.
@@ -30,15 +30,22 @@ Built (one slice = one PR; full log in `docs/roadmap.md` → "Completados"):
 - **Draft realtime (Slice 6)**: Socket.io namespace `/draft` in `modules/draft/draft.gateway.ts`, attached in `server.ts` (not `app.ts`). Handshake `auth: { token, leagueId }`; rejected unless ACTIVE member. Rooms `league:<id>`. Events out: `draft:state|update|timer|complete|error`; in: `draft:pick`. 60s `setTimeout` auto-pick (in-memory, lost on restart). REST controllers broadcast the same events through the `shared/socket.ts` singleton (`getIo()` is `null` in supertest tests → no-op). Gateway tests bind a real port and override `pickTimeoutMs` to 300ms.
 - **RaceResult ingestion (Slice 7)**: `GET /races/:id/results` (public), `POST /races/:id/results` (`requireAuth → requireAdmin`), transitions the race to `COMPLETED`. `middleware/admin.ts` reads `role` from the JWT — no DB hit, stale until token expiry.
 - **ConstructorResult (Slice 8)**: `loadResults` also derives one `ConstructorResult` per constructor (driver → constructor via `DriverSeason` of the race's season; `buildConstructorResults` is a pure grouping function) inside the same `$transaction` — every pre-check now runs on `tx`. 409 `DRIVER_NOT_IN_SEASON` / `CONSTRUCTOR_TOO_MANY_DRIVERS`. No endpoint; Slice 9 reads the table.
-- **Frontend bootstrap (Slice 13a)**: `frontend/` — Vite + React 19 + TypeScript + Tailwind v4. `services/api-client.ts` (axios singleton with dedup'd token-refresh interceptor via `refreshOnce()`), `store/auth.store.ts` (Zustand, token kept in memory only — no `persist`), React Query hooks per feature (`features/*/[...].queries.ts`, invalidated on every mutation), React Router v7 with layout-route guards (`RequireAuth`, `GuestOnly`), `react-hook-form` + Zod forms mirroring the backend schemas, and a handful of `components/ui/` primitives (`Alert`, `Badge`, `Button`, `Card`, `Field`, `PageShell`). Screens shipped: `/login`, `/register`, `/leagues` (list + create + join by invite code), `/leagues/:id` (members, invite code, start draft, leave/kick — respecting `ROSTER_LOCKED` once the draft is LIVE). E2E coverage with Playwright (`frontend/e2e/leagues.spec.ts`, `npm run e2e`) plus a verified responsive pass (375/768/1024px, no horizontal overflow) round out the slice. Draft realtime UI is **Slice 13b, not built yet**.
+- **Frontend bootstrap (Slice 13a)**: `frontend/` — Vite + React 19 + TypeScript + Tailwind v4. `services/api-client.ts` (axios singleton with dedup'd token-refresh interceptor via `refreshOnce()`), `store/auth.store.ts` (Zustand, token kept in memory only — no `persist`), React Query hooks per feature (`features/*/[...].queries.ts`, invalidated on every mutation), React Router v7 with layout-route guards (`RequireAuth`, `GuestOnly`), `react-hook-form` + Zod forms mirroring the backend schemas, and a handful of `components/ui/` primitives (`Alert`, `Badge`, `Button`, `Card`, `Field`, `PageShell`). Screens shipped: `/login`, `/register`, `/leagues` (list + create + join by invite code), `/leagues/:id` (members, invite code, start draft, leave/kick — respecting `ROSTER_LOCKED` once the draft is LIVE). E2E coverage with Playwright (`frontend/e2e/leagues.spec.ts`, `npm run e2e`) plus a verified responsive pass (375/768/1024px, no horizontal overflow) round out the slice.
+- **Draft realtime UI (Slice 13b)**: `features/draft/` — `draft-socket.ts` (the one place that opens the `/draft` namespace socket, `connectDraftSocket(leagueId, token)`, mirroring `ApiClient` as the single door for HTTP), `useDraftState.ts` (hook: connects on mount, stores the initial `draft:state`, keeps merging `draft:update`/`draft:complete` while the screen stays open, exposes `submitPick(input)` which emits `draft:pick`, tracks `secondsRemaining`/`pickError`/`pickPending`), `DraftPage.tsx` (route `/leagues/:id/draft` — status badge, round + whose turn it is + countdown, a `<select>` + confirm button when it's your turn, picks made so far with names resolved via `useMembers`/`useDrivers`/`useConstructors`). The countdown is client-side: the server sends `draft:timer` once per round, and a `setInterval` decrements it locally — the hook splits a `timerTick` counter (bumped only on a new timer event) from `secondsRemaining` (decremented every second) specifically to satisfy `eslint-plugin-react-hooks` v7's purity rules, which reject both recreating the interval every tick and deriving the displayed value from `Date.now()` during render.
+- **Drivers list + detail (Slice 14)**: `GET /drivers` includes `constructor` (`{id, name, color, logoUrl}`, `null` when the driver has no `DriverSeason` in the resolved season); `GET /drivers/:id` adds `stats` and a `results` history ordered by `round`. The service splits `findById` (lean, **not exported**, existence checks only) from `findDetail` (public endpoint), so `update`/`softDelete` never pay for the joins. The constructor is fetched with **three flat queries + a merge in TS**, never an `include`/`select` on the `constructor` relation — that name collides with `Object.prototype` (Slices 4 and 5). `middleware/validate.ts` gained `validateQuery`, which writes to `req.validatedQuery`: **`req.query` is a getter without a setter in Express 5**, so assigning to it throws at runtime under `"strict"` and `tsc` will not catch it. `?constructorId=` is now season-scoped. Frontend: `features/drivers/`, routes `/drivers` and `/drivers/:id` **public, outside `RequireAuth`**, server-side filter whose value lives in the URL. The team badge is painted with `Constructor.color` — pick the text colour that **maximises** contrast, not by a luminance threshold, and use pure black: 4 of the 11 grid colours fail WCAG otherwise (see `features/drivers/team-color.ts`). `Driver.headshotUrl` (21/22, remote URLs from OpenF1) and `Constructor.logoUrl` (8/11, static files under `frontend/public/logos/`, licences in `CREDITS.md`) are populated by the seed.
 
-Not yet built — **intentionally deferred**. Do not suggest implementing any of these without an explicit ask from the user; ordering and blockers live in `docs/roadmap.md`:
+**Required for the 12/10 delivery** — these gate the cátedra's rubric, verified against the code on 2026-09-11. Full breakdown in `backend/docs/roadmap.md` / `frontend/docs/roadmap.md` → "Now"; the rubric table and epic split live in the hub, `docs/roadmap.md`:
 
-- Slice 9 LeagueStanding (scoring), Slice 10 Predictions. Slice 11 DriverSwap was **dropped** (ADR-0006) — do not reintroduce a reserve driver or swaps.
-- Slice 12 external API sync (Jolpica, OpenF1)
-- Slice 13b Frontend: draft realtime UI (Socket.io client)
-- Transfer ownership of leagues — owner trying to leave gets 409 `OWNER_CANNOT_LEAVE`
-- Refresh-token rotation / server-side revocation, CI workflow, structured logging (tracked in local-only `docs/known-debt.md`, gitignored)
+- ~~Slice 15 — frontend route protection by role~~ — done, PR #33.
+- ~~Slice 13b — draft realtime UI~~ — done (tramo 1 PR #35, tramo 2 branch `13b/draft-picks`). The Regularidad epic.
+- **Slices 9 + 12 — LeagueStanding and Jolpica sync**. Together they are the second Aprobación epic ("procesar resultados de carrera y actualizar standings"). Jolpica returns **32 drivers for 2026**, not 22 — filter to race seats before writing `DriverSeason` or `maxMembersForSeason` breaks (see roadmap).
+
+Not yet built — **intentionally deferred**. Do not suggest implementing any of these without an explicit ask from the user:
+
+- Slice 10 Predictions — Alcance Adicional Voluntario in `docs/proposal.md`, no impact on the grade. Slice 11 DriverSwap was **dropped** (ADR-0006) — do not reintroduce a reserve driver or swaps.
+- Transfer ownership of leagues — owner trying to leave gets 409 `OWNER_CANNOT_LEAVE` (Linear BOX-31)
+- Refresh-token rotation / server-side revocation — `docs/roadmap.md` (the hub) lists this under "Out of scope para este TP (post-cursada)". That section outranks Linear (Linear BOX-32).
+- CI workflow (BOX-33), structured logging (BOX-34)
 
 ## Development Commands
 
@@ -65,10 +72,11 @@ npx prisma db seed            # populate DB with F1 dev data (idempotent)
 
 npx tsc --noEmit              # type-check — NOT run by lint or vitest; run before a PR (Slice 5 found a latent TS error this way)
 npx knip                      # unused exports/deps (config in package.json)
-SMOKE=1 npm run smoke:slice-4 # manual end-to-end script against a running server (src/scripts/)
+SMOKE=1 npm run smoke:slice-4 # end-to-end smoke against a running server (src/scripts/)
+SMOKE=1 npm run smoke:slice-9 # ídem, scoring: draft completo → resultados → standings
+SMOKE_KEEP=1 SMOKE=1 npm run smoke:slice-9       # ...y DEJA sus fixtures para inspeccionarlos
 ```
 
-`smoke:slice-7` in `package.json` points at `src/scripts/smoke-slice-7.ts`, which does not exist — dangling script.
 
 Health check: `GET /api/v1/health`.
 
@@ -184,9 +192,26 @@ Frontend (`frontend/`):
 - E2E: Playwright (`frontend/playwright.config.ts`, `frontend/e2e/*.spec.ts`, `npm run e2e`). Needs the backend running (`npm run dev` in `backend/`, DB migrated + seeded) — `webServer` in the config only starts the frontend. `frontend/e2e/leagues.spec.ts` covers register → create league → see it as owner, plus the `/leagues` → `/login` redirect when logged out. The cátedra requires at least one automated browser test — don't let this suite regress to zero tests even mid-refactor.
 - Beyond the automated suite, the standing convention on this project (per the user) is to also manually click through the affected flow against a real `npm run dev` (backend + frontend) before pushing — either with a throwaway Playwright script or by hand in the browser. Don't claim a frontend task is "done" from `lint`/`test`/`build` passing alone.
 
+### Smoke tests (`src/scripts/smoke-slice-*.ts`)
+
+Scripts que ejercitan un slice **de punta a punta contra un servidor y una DB de desarrollo reales**, por HTTP, como lo haría un cliente. Complementan a Vitest, no lo reemplazan.
+
+**Por qué existen, más allá de "probar a mano".** La suite corre sobre una DB truncada y construye su propio mundo: cada archivo crea su temporada, sus pilotos y su liga, así que *todo lo que existe* pertenece al test. Un smoke corre sobre la base que existe de verdad, con el seed cargado y datos de corridas anteriores. Esa diferencia encuentra cosas que la suite no puede ver: **BOX-39** (el draft ofrece pilotos de cualquier temporada) apareció así, con 231 tests en verde.
+
+Reglas al escribir uno nuevo, todas aprendidas a los golpes:
+
+- **Repetible.** Todo fixture lleva un `runId = Date.now()` en su clave única. Sin eso, la segunda corrida choca contra un `externalId` duplicado y falla de forma confusa — y peor, el soft delete conserva la fila, así que el nombre queda reservado para siempre.
+- **Aislado.** Usar una `Season` propia con un año fuera del rango real de F1 (`smoke-slice-9.ts` deriva el año del `runId`). Así no ensucia los datos del seed 2026 que se usan para la demo.
+- **Limpia por defecto.** `SMOKE_KEEP=1` los deja, para inspeccionar. El default tiene que ser el seguro: con la limpieza como opt-in, cinco corridas dejaron 20 pilotos inventados visibles en `/drivers`, al lado de los 22 reales.
+- **Verifica números, no status codes.** Un `200` no prueba que el cálculo esté bien. Comparar el total contra la suma de sus partes y contra el valor de la corrida anterior.
+- **El fixture tiene que poder fallar.** La primera versión de `smoke-slice-9` repartía los mismos puntos en las dos fechas: los totales empataban por construcción, el `positionChange` nunca se movía y el script pasaba en verde **sin haber probado lo que decía probar**. Si una aserción tiene una rama "no pasó nada", asegurate de que el fixture no la tome siempre.
+- **Fail-fast** con `exit(1)` y el diff impreso.
+
+`smoke:slice-4` no sigue todas estas reglas (es anterior); `smoke:slice-9` es la referencia.
+
 ## Browser automation (agent-browser)
 
-The `agent-browser` CLI is installed (see `~/.claude/skills/agent-browser/`). Useful now that **Slice 13a (Frontend bootstrap)** shipped a real UI to inspect — login, ligas, detalle de liga. El draft en vivo todavía no tiene UI (Slice 13b).
+The `agent-browser` CLI is installed (see `~/.claude/skills/agent-browser/`). Useful now that **Slice 13a (Frontend bootstrap)** shipped a real UI to inspect — login, ligas, detalle de liga, pilotos, draft en vivo con picks (Slice 13b).
 
 **Core loop** — repetir en este orden:
 
@@ -225,3 +250,5 @@ agent-browser snapshot -i           # 4. RE-SNAPSHOT tras cualquier navegación 
 - `docs/data-model.mmd` — full planned ER diagram (many tables are not yet in `schema.prisma`)
 - `docs/api-endpoints.md` — full planned API surface (most endpoints not yet implemented)
 - `docs/tutorial.md` — local setup walkthrough for new contributors (clone → DB → seed)
+- `docs/roadmap.md` — roadmap hub: rubric status, epic ownership, out of scope. Holds nothing lane-specific.
+- `backend/docs/roadmap.md`, `frontend/docs/roadmap.md` — the actual slices, one file per lane. **Slice numbers are one global sequence shared by both files** and are never renumbered, so a higher number implies nothing about dependency — only `Blocked by` does.

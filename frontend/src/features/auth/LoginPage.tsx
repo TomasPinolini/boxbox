@@ -65,6 +65,13 @@ export function LoginPage() {
             Registrate
           </Link>
         </p>
+        {/* El catalogo de pilotos es publico: se puede mirar sin cuenta. */}
+        <p className="mt-2 text-sm text-slate-600">
+          O mirá{' '}
+          <Link to="/drivers" className="font-semibold text-red-600">
+            los pilotos de la temporada
+          </Link>
+        </p>
       </Card>
     </div>
   );

@@ -75,6 +75,19 @@ Códigos de error tipados que la API puede devolver en el envelope `{ error: { c
 | `CONSTRUCTOR_TOO_MANY_DRIVERS` | 409  | `races.service.ts` (buildConstructorResults)           | Slice 8. Tres o más pilotos del payload pertenecen a la misma escudería en esa temporada — en F1 corren 2 por equipo; es un DriverSeason mal cargado. Rollback total. |
 
 > Nota: los endpoints de Races que validan la existencia de `Season` o `Circuit` referenciados también pueden lanzar `SEASON_NOT_FOUND` o `CIRCUIT_NOT_FOUND` (create/update).
+| `RACE_RESULTS_ALREADY_EXIST`   | 409  | `races.service.ts` (loadResults — catch P2002)         | Slice 12. La Race no está `COMPLETED` pero ya tiene `RaceResult` de alguno de esos pilotos (status reabierto por PATCH, o dos cargas concurrentes). Antes escalaba a 500. |
+
+## Sync (Slice 12)
+
+Cada corrida deja un `SyncLog`; las que terminan en error quedan `FAILED` con `CODE: message` en `SyncLog.error`. Los errores de `loadResults` (tabla de arriba) se propagan tal cual.
+
+| Código                       | HTTP | Origen                                 | Cuándo |
+| ---------------------------- | ---- | -------------------------------------- | ------ |
+| `JOLPICA_UNAVAILABLE`        | 502  | `shared/jolpica.ts`                    | Timeout (10 s), red caída, HTTP no-2xx (incluye 429) o JSON roto. |
+| `JOLPICA_BAD_RESPONSE`       | 502  | `shared/jolpica.ts`, `sync.service.ts` | La respuesta no pasa el schema Zod, o los resultados no entran en `loadRaceResultsSchema` (p. ej. medios puntos: `RaceResult.points` es `Int`). Cargar esa carrera a mano. |
+| `SEASON_NOT_FOUND`           | 404  | `sync.service.ts` (syncRaces)          | `?year=` sin `Season`. El sync no crea temporadas. |
+| `SYNC_RESULTS_NOT_AVAILABLE` | 409  | `sync.service.ts` (syncResults)        | Jolpica todavía no tiene resultados de esa fecha. |
+| `SYNC_RACE_MISMATCH`         | 409  | `sync.service.ts` (syncResults)        | El `round` local y el de Jolpica apuntan a circuitos distintos (calendario desfasado). Correr primero `POST /admin/sync/races`. |
 
 ## Auth
 
@@ -112,7 +125,7 @@ Códigos de error tipados que la API puede devolver en el envelope `{ error: { c
 
 ## Códigos planeados (todavía no implementados)
 
-Estos van a aparecer cuando se construyan los slices del [`roadmap.md`](./roadmap.md). Documentados acá para que el equipo no invente variantes inconsistentes:
+Estos van a aparecer cuando se construyan los slices del [`backend/docs/roadmap.md`](../backend/docs/roadmap.md). Documentados acá para que el equipo no invente variantes inconsistentes:
 
 ### Slice 10 — Predictions
 

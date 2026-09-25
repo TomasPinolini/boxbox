@@ -16,7 +16,7 @@ Las convenciones del backend (request lifecycle, módulos, errores, Prisma) vive
 3. [`data-model.mmd`](./data-model.mmd) — diagrama ER completo del dominio (renderealo en VS Code con la extensión Mermaid, o en [mermaid.live](https://mermaid.live)).
 4. [`domain-entities.md`](./domain-entities.md) — narrativa: qué representa cada entidad, qué atributos importan, cómo se relaciona, ciclo de vida, por qué existe.
 5. [`api-endpoints.md`](./api-endpoints.md) — surface de la API, con tags `[✅ shipped]` / `[🚧 planned]` / `[🔒 outlier]` por sección.
-6. [`roadmap.md`](./roadmap.md) — qué falta construir, en qué orden, qué bloquea qué.
+6. [`roadmap.md`](./roadmap.md) — hub: estado contra la rúbrica, reparto de epics, fuera de alcance. El detalle por slice está en [`backend/docs/roadmap.md`](../backend/docs/roadmap.md) y [`frontend/docs/roadmap.md`](../frontend/docs/roadmap.md).
 
 Al terminar este pasaje deberías poder responder: *qué hace BoxBox, qué entidades viven en el modelo, qué endpoints están vivos hoy y qué slice viene después*.
 
@@ -24,7 +24,7 @@ Al terminar este pasaje deberías poder responder: *qué hace BoxBox, qué entid
 
 ## Construir una feature (en orden)
 
-1. [`roadmap.md`](./roadmap.md) — encontrá tu slice, leé `Goal` / `Touches` / `Done when` / `Blocked by`.
+1. El roadmap de tu carril — [`backend/docs/roadmap.md`](../backend/docs/roadmap.md) o [`frontend/docs/roadmap.md`](../frontend/docs/roadmap.md) — encontrá tu slice, leé `Goal` / `Touches` / `Done when` / `Blocked by`. El [`roadmap.md`](./roadmap.md) de acá es el hub y no lista slices.
 2. [`recipes/add-a-module.md`](./recipes/add-a-module.md) — si tu slice agrega un módulo nuevo, esta es la receta paso a paso (clonando `drivers/`).
 3. [`adr/`](./adr/) — leé las ADRs relevantes a tu área (ej: si tocás tests, leé la ADR de "real-DB integration tests, no mocks"). Te ahorrás reabrir decisiones cerradas.
 4. [`error-codes.md`](./error-codes.md) — si tu slice agrega errores nuevos, agregalos acá también.
@@ -82,7 +82,9 @@ Detalles + envelope shape: ver [`../CLAUDE.md`](../CLAUDE.md) sección *Backend 
 | [`domain-entities.md`](./domain-entities.md) | Referencia | Dominio |
 | [`api-endpoints.md`](./api-endpoints.md) | Referencia | API |
 | [`error-codes.md`](./error-codes.md) | Referencia | API |
-| [`roadmap.md`](./roadmap.md) | Planificación | Build |
+| [`roadmap.md`](./roadmap.md) | Planificación (hub) | Build |
+| [`backend/docs/roadmap.md`](../backend/docs/roadmap.md) | Planificación (backend) | Build |
+| [`frontend/docs/roadmap.md`](../frontend/docs/roadmap.md) | Planificación (frontend) | Build |
 | [`recipes/add-a-module.md`](./recipes/add-a-module.md) | How-to | Build |
 | [`adr/`](./adr/) | Decisiones | Historia |
 | [`proposal.md`](./proposal.md) | Académico (congelado) | Entrega |
@@ -94,5 +96,6 @@ Detalles + envelope shape: ver [`../CLAUDE.md`](../CLAUDE.md) sección *Backend 
 - **Si agregás una entidad nueva**: actualizá `data-model.mmd` + `glossary.md` + agregá una entrada en `domain-entities.md`. Sin eso, drift garantizado.
 - **Si agregás un endpoint**: actualizá `api-endpoints.md` con su tag. Si tira un código de error nuevo, agregalo a `error-codes.md`.
 - **Si tomás una decisión técnica que será difícil de revertir y sorprendente sin contexto**: escribí una ADR en `adr/` con `/draft-adr`.
-- **El roadmap se mueve, no se reescribe**: cuando completás un slice, marcalo `done` y movelo al final del archivo o a un `done/` log; no lo borres.
+- **El roadmap se mueve, no se reescribe**: cuando completás un slice, marcalo `done` y movelo a "Completados" al final del roadmap de su carril; no lo borres.
+- **La numeración de slices es global a los dos carriles**: no se renumera al partir, ni al eliminar un slice. Un número más alto no implica dependencia — eso lo dice `Blocked by`.
 - **`CLAUDE.md` es la fuente de convenciones**, no estos docs. Si hay drift, gana CLAUDE.md y se actualiza el doc que sobra.

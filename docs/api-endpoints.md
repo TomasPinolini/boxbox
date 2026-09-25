@@ -8,8 +8,8 @@
 Cada sección está taggeada con su estado actual:
 
 - **[✅ shipped]** — implementado en `main`, con tests verdes
-- **[🚧 planned]** — diseñado acá pero todavía no construido (ver [`roadmap.md`](./roadmap.md) para orden)
-- **[🔒 outlier]** — implementación parcial / divergente del diseño (típicamente en-memoria sin Prisma); ver el roadmap para el reemplazo
+- **[🚧 planned]** — diseñado acá pero todavía no construido (ver [`backend/docs/roadmap.md`](../backend/docs/roadmap.md) para orden)
+- **[🔒 outlier]** — implementación parcial / divergente del diseño (típicamente en-memoria sin Prisma); ver el roadmap del backend para el reemplazo
 
 ---
 
@@ -66,13 +66,53 @@ Cada sección está taggeada con su estado actual:
 
 | Método | Endpoint       | Acceso | Notas                                          |
 | ------ | -------------- | ------ | ---------------------------------------------- |
-| GET    | `/drivers`     | Public | Soporta `?constructorId=X&seasonId=Y`          |
-| GET    | `/drivers/:id` | Public |                                                |
+| GET    | `/drivers`     | Public | Soporta `?constructorId=X&seasonId=Y`. Cada piloto incluye `constructor` (ver abajo) |
+| GET    | `/drivers/:id` | Public | Incluye `constructor`, `stats` e historial de `results` (ver abajo) |
+| GET    | `/drivers/standings` | Public | Slice 16 (fuera de la rúbrica). Campeonato de pilotos: `[{position, points, wins, driver}]`. Soporta `?seasonId=Y`, default temporada activa. Incluye a los de 0 puntos; orden puntos → victorias → apellido |
 | POST   | `/drivers`     | Admin  |                                                |
 | PATCH  | `/drivers/:id` | Admin  |                                                |
 | DELETE | `/drivers/:id` | Admin  | Soft delete. 409 si tiene dependencias activas |
 
 ---
+
+### Escudería, estadísticas e historial (Slice 14)
+
+Ambos `GET` públicos resuelven la escudería contra **la temporada activa**, salvo que se pase
+`?seasonId=`. Si no hay temporada activa ni `seasonId`, `constructor` es `null` y el detalle
+devuelve estadísticas en cero — un endpoint público de catálogo no puede fallar porque no haya
+temporada cargada.
+
+`?constructorId=` también queda acotado a esa temporada: sin eso, un piloto que corrió para
+Ferrari en 2025 aparecía al filtrar Ferrari en 2026 mostrando su escudería actual en la fila.
+
+Query params inválidos (`?constructorId=abc`) devuelven **400 `VALIDATION_ERROR`**, no 500.
+
+```jsonc
+// GET /drivers → cada item
+{
+  "id": 1, "firstName": "Max", "lastName": "Verstappen", "number": 1, "code": "VER",
+  "constructor": { "id": 3, "name": "Red Bull Racing", "color": "#3671C6" }  // null si no corre
+}
+
+// GET /drivers/:id → lo anterior, más:
+{
+  "seasonId": 1,
+  "stats": {
+    "races": 3, "points": 58, "wins": 1,
+    "podiums": 3,        // incluye las victorias (convención F1)
+    "bestFinish": 1,     // null si nunca clasificó
+    "dnfs": 0
+  },
+  "results": [           // ordenado por `round` asc (cronológico), no por posición
+    { "raceId": 1, "raceName": "Bahrain Grand Prix", "round": 1,
+      "raceDate": "2026-03-08T15:00:00.000Z", "position": 1, "points": 25,
+      "gridPosition": null, "fastestLap": false, "status": "CLASSIFIED" }
+  ]
+}
+```
+
+`stats` y `results` se acotan a la temporada resuelta: no acumulan la carrera completa del
+piloto, porque eso mezclaría temporadas y `round` dejaría de ser un orden total.
 
 ## Constructors (CRUD Simple 2) [✅ shipped]
 
@@ -80,6 +120,7 @@ Cada sección está taggeada con su estado actual:
 | ------ | ------------------- | ------ | ---------------------------------------------- |
 | GET    | `/constructors`     | Public |                                                |
 | GET    | `/constructors/:id` | Public |                                                |
+| GET    | `/constructors/standings` | Public | Slice 16 (fuera de la rúbrica). Campeonato de escuderías: `[{position, points, constructor}]`. Soporta `?seasonId=Y`, default temporada activa. Incluye a las de 0 puntos |
 | POST   | `/constructors`     | Admin  |                                                |
 | PATCH  | `/constructors/:id` | Admin  |                                                |
 | DELETE | `/constructors/:id` | Admin  | Soft delete. 409 si tiene dependencias activas |
@@ -234,15 +275,16 @@ Si el timer llega a 0 sin que nadie pickee, el servidor auto-asigna **al azar** 
 
 ---
 
-## Admin — Sync [🚧 planned]
+## Admin — Sync [12b + 12c ✅ · 12a 🚧 planned]
 
-| Método | Endpoint                   | Acceso | Notas                               |
-| ------ | -------------------------- | ------ | ----------------------------------- |
-| POST   | `/admin/sync/drivers`      | Admin  | Sync desde Jolpica/OpenF1           |
-| POST   | `/admin/sync/constructors` | Admin  |                                     |
-| POST   | `/admin/sync/circuits`     | Admin  |                                     |
-| POST   | `/admin/sync/races`        | Admin  |                                     |
-| POST   | `/admin/sync/season`       | Admin  | Calendario completo de la temporada |
+Todo el router va detrás de `requireAuth → requireAdmin`. Cada corrida deja un `SyncLog` (`SUCCESS` / `PARTIAL` / `FAILED`).
+
+| Método | Endpoint                        | Acceso | Notas |
+| ------ | ------------------------------- | ------ | ----- |
+| POST   | `/admin/sync/races?year=2026`   | Admin  | ✅ Upsert de `Circuit` por `externalId` (solo crea) y de `Race` por `(seasonId, round)`. No pisa una fecha que ya tiene resultados de otro circuito → `skipped`. |
+| POST   | `/admin/sync/races/:id/results` | Admin  | ✅ Trae los resultados de esa carrera y los carga con `loadResults`. `?dryRun=true` devuelve el mapeo **sin escribir** (vista previa de `/admin/results`). Pilotos sin `Driver`/`DriverSeason` → `skipped` + `PARTIAL`, nunca se crean. |
+| POST   | `/admin/sync/drivers`           | Admin  | 🚧 12a |
+| POST   | `/admin/sync/constructors`      | Admin  | 🚧 12a |
 | GET    | `/admin/sync/log`          | Admin  | Historial de syncs con resultados   |
 
 ---

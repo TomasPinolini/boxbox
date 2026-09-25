@@ -4,16 +4,23 @@
 
 import { Router } from 'express';
 import * as driversController from './drivers.controller';
-import { validate, validateParams } from '../../middleware/validate';
+import { validate, validateParams, validateQuery } from '../../middleware/validate';
 import { idParamSchema } from '../../shared/params';
 import { requireAuth } from '../../middleware/auth';
 import { requireAdmin } from '../../middleware/admin';
-import { createDriverSchema, updateDriverSchema } from './drivers.schema';
+import {
+  createDriverSchema,
+  listDriversQuerySchema,
+  standingsQuerySchema,
+  updateDriverSchema,
+} from './drivers.schema';
 
 const router = Router();
 
 // GET y DELETE no reciben body → no necesitan validación
-router.get('/', driversController.getAll);
+router.get('/', validateQuery(listDriversQuerySchema), driversController.getAll);
+// /standings va ANTES de /:id: si no, Express lo matchea como id y validateParams da 400.
+router.get('/standings', validateQuery(standingsQuerySchema), driversController.getStandings);
 router.get('/:id', validateParams(idParamSchema), driversController.getById);
 
 // POST y PATCH reciben body → validate() corre primero como middleware.

@@ -19,6 +19,7 @@ const MESSAGES: Record<string, string> = {
   OWNER_CANNOT_LEAVE: 'El owner no puede salir de su liga',
   DRAFT_ALREADY_STARTED: 'El draft ya había arrancado',
   TOO_MANY_MEMBERS_FOR_DRAFT: 'Hay más miembros que pilotos disponibles para el draft',
+  DRIVER_NOT_FOUND: 'Ese piloto no existe',
   NETWORK_ERROR: 'No se pudo conectar con el servidor',
   INTERNAL_ERROR: 'Algo salió mal, probá de nuevo',
 };

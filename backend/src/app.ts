@@ -12,6 +12,7 @@ import circuitsRoutes from './modules/circuits/circuits.routes';
 import seasonsRoutes from './modules/seasons/seasons.routes';
 import racesRoutes from './modules/races/races.routes';
 import leaguesRoutes from './modules/leagues/leagues.routes';
+import syncRoutes from './modules/sync/sync.routes';
 
 const app = express();
 
@@ -40,6 +41,7 @@ app.use('/api/v1/circuits', circuitsRoutes);
 app.use('/api/v1/seasons', seasonsRoutes);
 app.use('/api/v1/races', racesRoutes);
 app.use('/api/v1/leagues', leaguesRoutes);
+app.use('/api/v1/admin/sync', syncRoutes);
 
 // 404 JSON para cualquier ruta que ningun router atendio. Sin esto Express responde su pagina
 // HTML "Cannot GET /..." — el frontend espera siempre el envelope { error } (A3 / BOX-13).

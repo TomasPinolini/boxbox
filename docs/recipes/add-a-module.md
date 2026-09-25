@@ -215,4 +215,4 @@ Si tu entidad debería tener data de seed, agregala a [`backend/prisma/seed.ts`]
 - [ ] Tests verdes con `npm test -- src/modules/<nuevo>/<nuevo>.test.ts --run`.
 - [ ] `npm run lint` limpio.
 - [ ] Los 5 docs sincronizados (data-model, glossary, domain-entities, api-endpoints, error-codes).
-- [ ] PR referencia el número de slice del `roadmap.md`.
+- [ ] PR referencia el número de slice del roadmap de su carril (`backend/docs/roadmap.md` o `frontend/docs/roadmap.md`).

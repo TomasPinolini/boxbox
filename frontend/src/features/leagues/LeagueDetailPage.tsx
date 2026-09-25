@@ -4,7 +4,15 @@ import { Alert, Badge, Button, Card, PageShell } from '../../components/ui';
 import { useAuthStore } from '../../store/auth.store';
 import { DRAFT_LABEL } from './draft-label';
 import { MembersTable } from './MembersTable';
-import { useKick, useLeague, useLeave, useMembers, useStartDraft } from './leagues.queries';
+import { StandingsTable } from './StandingsTable';
+import {
+  useKick,
+  useLeague,
+  useLeave,
+  useMembers,
+  useStandings,
+  useStartDraft,
+} from './leagues.queries';
 
 export function LeagueDetailPage() {
   const id = Number(useParams().id);
@@ -12,6 +20,7 @@ export function LeagueDetailPage() {
   const me = useAuthStore((s) => s.user);
   const league = useLeague(id);
   const members = useMembers(id);
+  const standings = useStandings(id);
   const startDraft = useStartDraft(id);
   const leave = useLeave(id);
   const kick = useKick(id);
@@ -53,24 +62,34 @@ export function LeagueDetailPage() {
       }
     >
       <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
-        <Card>
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-semibold">
-              Miembros ({members.data?.length ?? 0}/{l.maxMembers})
-            </h2>
-            <Badge tone={draft.tone}>{draft.text}</Badge>
-          </div>
-          {actionError && (
-            <div className="mb-3">
-              <Alert code={actionError.code} message={actionError.message} />
+        <div className="flex flex-col gap-6">
+          <Card>
+            <h2 className="mb-4 text-lg font-semibold">Posiciones</h2>
+            {standings.error ? (
+              <Alert code={standings.error.code} message={standings.error.message} />
+            ) : (
+              <StandingsTable standings={standings.data?.standings ?? []} />
+            )}
+          </Card>
+          <Card>
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-semibold">
+                Miembros ({members.data?.length ?? 0}/{l.maxMembers})
+              </h2>
+              <Badge tone={draft.tone}>{draft.text}</Badge>
             </div>
-          )}
-          <MembersTable
-            members={members.data ?? []}
-            canKick={isOwner && rosterOpen}
-            onKick={(userId) => kick.mutate(userId)}
-          />
-        </Card>
+            {actionError && (
+              <div className="mb-3">
+                <Alert code={actionError.code} message={actionError.message} />
+              </div>
+            )}
+            <MembersTable
+              members={members.data ?? []}
+              canKick={isOwner && rosterOpen}
+              onKick={(userId) => kick.mutate(userId)}
+            />
+          </Card>
+        </div>
 
         <aside className="flex flex-col gap-4">
           <Card>
@@ -86,6 +105,14 @@ export function LeagueDetailPage() {
 
           <Card>
             <h2 className="mb-2 text-lg font-semibold">Draft</h2>
+            {l.draftStatus !== 'PENDING' && (
+              <Link
+                to={`/leagues/${id}/draft`}
+                className="mb-3 block text-sm font-semibold text-red-600 hover:underline"
+              >
+                Ver draft en vivo →
+              </Link>
+            )}
             {isOwner ? (
               <>
                 <p className="mb-3 text-sm text-slate-600">

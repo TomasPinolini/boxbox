@@ -190,7 +190,69 @@ npm run lint          # eslint .
 npm test              # vitest run (un solo run, no watch)
 npm run test:watch    # vitest en watch mode
 npm run e2e           # playwright — necesita backend + frontend corriendo y DB seedeada
+                      # (el spec de pilotos depende de las 3 fechas COMPLETED del seed)
 ```
+
+---
+
+## 9. Supabase (para deployment y demostración)
+
+BoxBox tiene dos bases Postgres hosteadas en Supabase: `boxbox-dev` (us-west-2) y `boxbox-prod` (us-east-1). El Postgres local sigue siendo la base para tests y desarrollo offline — **los tests nunca apuntan a Supabase**.
+
+### Conectar a boxbox-dev
+
+Si sos parte del equipo y necesitás acceder a la base de demostración:
+
+1. **Conseguir el password**. Pediselo al dueño del proyecto (quien lo creó en Supabase). El password se genera con `openssl rand -hex 32` y **no se guarda en el repo**.
+
+2. **Crear `.env.supabase-dev.local`** en `backend/`:
+
+   ```bash
+   cp .env.example .env.supabase-dev.local
+   ```
+
+   Editá la variable `DATABASE_URL` con los datos de Supabase:
+   - **Host**: en la interfaz de Supabase → Settings → Database → Connection info → Host (URL tipo `xxxx.supabase.co`)
+   - **Port**: 5432 (session pooler port, **no** 6543)
+   - **User**: `postgres`
+   - **Password**: la que recibiste
+   - **Database**: `postgres`
+   - **Sufijo**: `?schema=public` (obligatorio)
+
+   Ejemplo:
+   ```
+   DATABASE_URL="postgresql://postgres:[PASSWORD]@[HOST]:5432/postgres?schema=public"
+   ```
+
+   ⚠️ Si el password tiene caracteres especiales (`@`, `#`, `:`), tienen que ir URL-encodados en la string (`@` → `%40`, `#` → `%23`, `:` → `%3A`).
+
+3. **Correr migraciones** (solo dev, prod ya está migrado):
+
+   ```bash
+   NODE_ENV=development DATABASE_URL="..." npx prisma migrate status
+   npx prisma migrate deploy
+   ```
+
+   Si es la primera vez, `migrate deploy` aplica todas las migraciones de una vez. Verificá que siga el resultado "Database schema is up to date!".
+
+4. **NO loadear seed a prod**. El seed crea un admin con password pública (`admin@boxbox.test` / `admin1234`). Está bien en dev (hay que tener datos para probar), pero **prod nunca debe seedearse** — la única forma de crear un admin en prod es vía `POST /auth/register` desde la UI con credenciales nuevas.
+
+### Importante: tests siempre locales
+
+Tu archivo `.env` (para dev local) y `.env.supabase-*.local` (para Supabase) se usan según cómo levantes el server:
+
+```bash
+# Usa .env (Postgres local)
+npm run dev
+
+# Usa .env.supabase-dev.local (Supabase dev)
+NODE_ENV=development npm run dev
+
+# Usa .env.supabase-prod.local (Supabase prod) — ⚠️ solo en deployment
+NODE_ENV=production npm run dev
+```
+
+Los **tests nunca consultan Supabase**. `npm test` siempre usa la DB local definida en `.env`, y `src/tests/setup.ts` hace `TRUNCATE ... CASCADE` de todas las tablas antes de cada test.
 
 ---
 
@@ -204,14 +266,14 @@ Una vez que veas la data en TablePlus, entrá por la puerta principal de la docu
 - [`docs/data-model.mmd`](./data-model.mmd) — diagrama ER completo. Abrilo con la extensión Mermaid de VS Code o en [mermaid.live](https://mermaid.live).
 - [`docs/domain-entities.md`](./domain-entities.md) — narrativa: qué representa cada entidad, ciclo de vida, por qué existe.
 - [`docs/api-endpoints.md`](./api-endpoints.md) — endpoints (con tags `[✅ shipped]` / `[🚧 planned]` / `[🔒 outlier]`).
-- [`docs/roadmap.md`](./roadmap.md) — slices ordenadas por dependencia; acá encontrás qué falta construir y cuál tomar.
+- [`backend/docs/roadmap.md`](../backend/docs/roadmap.md) y [`frontend/docs/roadmap.md`](../frontend/docs/roadmap.md) — slices ordenados por dependencia; acá encontrás qué falta construir y cuál tomar. El [`docs/roadmap.md`](./roadmap.md) de arriba es el hub: rúbrica, epics y fuera de alcance.
 - [`docs/recipes/add-a-module.md`](./recipes/add-a-module.md) — receta paso a paso para agregar un módulo nuevo (la mayoría de los slices del roadmap son módulos nuevos).
 - [`docs/adr/`](./adr/) — decisiones cerradas (por qué Prisma y no MikroORM, por qué no Repository pattern, etc.). Leelas cuando una decisión te parezca rara.
 - [`CLAUDE.md`](../CLAUDE.md) (raíz) — convenciones de código y request lifecycle. Fuente de verdad de "cómo se programa acá".
 
 ## Tu primer PR
 
-1. Tomá un slice del [`roadmap.md`](./roadmap.md) (probablemente el **Slice 1 — Auth**, que bloquea todo lo demás).
+1. Tomá un slice del roadmap de tu carril ([backend](../backend/docs/roadmap.md) o [frontend](../frontend/docs/roadmap.md)).
 2. Creá una branch con nombre descriptivo: `git checkout -b slice-1-auth-register`.
 3. Trabajá. Cuando termines, abrí PR en GitHub — el template ([`.github/pull_request_template.md`](../.github/pull_request_template.md)) te aparece auto-cargado con un checklist.
 4. **Convenciones**: commits en español, imperativo, sin emojis. Código + identificadores en inglés. Sin atribución de IA en commits ni en PR (preferencia del profe).

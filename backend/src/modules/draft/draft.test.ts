@@ -30,7 +30,7 @@ async function seedSeason() {
 }
 
 let driverCounter = 0;
-async function seedDriver() {
+async function seedDriver(seasonId?: number) {
   const n = ++driverCounter;
   // El CRUD de catalogo es admin-only (A5 / BOX-15): cada seed pide su propio admin.
   const { accessToken } = await createTestAdmin();
@@ -45,11 +45,22 @@ async function seedDriver() {
     externalId: `draft-driver-${n}`,
   });
   if (res.status !== 201) throw new Error(`seedDriver fallo: ${JSON.stringify(res.body)}`);
-  return res.body.data.id as number;
+  const driverId = res.body.data.id as number;
+
+  // Si se pasa seasonId, crea un DriverSeason (necesario para filtrar disponibles por temporada).
+  // Si no, asume que es un test antiguo que no le importa la temporada.
+  if (seasonId !== undefined) {
+    const constructorId = await seedConstructor(seasonId);
+    await prisma.driverSeason.create({
+      data: { driverId, constructorId, seasonId },
+    });
+  }
+
+  return driverId;
 }
 
 let constructorCounter = 0;
-async function seedConstructor() {
+async function seedConstructor(seasonId?: number) {
   const n = ++constructorCounter;
   const { accessToken } = await createTestAdmin();
   const res = await request(app)
@@ -91,7 +102,7 @@ async function setupLeague(count: number) {
     return { ...u, leagueMemberId: m.id as number };
   });
 
-  return { leagueId, owner: members[0], members };
+  return { leagueId, seasonId: season.id, owner: members[0], members };
 }
 
 type Member = { userId: number; token: string; leagueMemberId: number };
@@ -255,10 +266,14 @@ describe('GET /api/v1/leagues/:id/draft/state', () => {
 
 describe('GET /api/v1/leagues/:id/draft/available', () => {
   it('devuelve todos los drivers/constructors no drafteados en esta liga', async () => {
-    const { leagueId, owner } = await setupLeague(1);
-    await seedDriver();
-    await seedDriver();
-    await seedConstructor();
+    const { leagueId, seasonId, owner } = await setupLeague(1);
+    const c1 = await seedConstructor(seasonId);
+    await prisma.driverSeason.create({
+      data: { driverId: await seedDriver(), constructorId: c1, seasonId },
+    });
+    await prisma.driverSeason.create({
+      data: { driverId: await seedDriver(), constructorId: c1, seasonId },
+    });
 
     const res = await request(app)
       .get(`/api/v1/leagues/${leagueId}/draft/available`)
@@ -270,9 +285,9 @@ describe('GET /api/v1/leagues/:id/draft/available', () => {
   });
 
   it('excluye los ya drafteados en ESTA liga', async () => {
-    const { leagueId, owner } = await setupLeague(1);
-    const d1 = await seedDriver();
-    await seedDriver();
+    const { leagueId, seasonId, owner } = await setupLeague(1);
+    const d1 = await seedDriver(seasonId);
+    await seedDriver(seasonId);
     await startDraft(owner.token, leagueId);
 
     await submitPick(owner.token, leagueId, { driverId: d1 });

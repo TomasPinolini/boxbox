@@ -1,6 +1,7 @@
 import { prisma } from '../../shared/prisma';
 import { NotFoundError, ConflictError } from '../../shared/errors';
 import { CreateConstructorInput, UpdateConstructorInput } from './constructors.schema';
+import { resolveSeasonId, type ConstructorRef } from '../drivers/drivers.service';
 
 const notDeleted = { deletedAt: null };
 
@@ -9,6 +10,49 @@ export async function findAll() {
     where: notDeleted,
     orderBy: { name: 'asc' },
   });
+}
+
+// GET /constructors/standings — campeonato de escuderias de la temporada resuelta (Slice 16).
+// Misma resolucion de temporada que GET /drivers (explicita -> activa -> ninguna = []).
+// Entran todas las escuderias con DriverSeason en la temporada, tambien las de 0 puntos.
+export async function findStandings(seasonId?: number) {
+  const resolvedSeasonId = await resolveSeasonId(seasonId);
+  if (!resolvedSeasonId) return [];
+
+  // Fila entera, sin select/include: la relacion `constructor` colisiona con
+  // Object.prototype (ver drivers.service.ts, findAll).
+  const links = await prisma.driverSeason.findMany({ where: { seasonId: resolvedSeasonId } });
+  const constructors = await prisma.constructor.findMany({
+    where: { id: { in: links.map((l) => l.constructorId) }, ...notDeleted },
+  });
+
+  const pointRows = await prisma.constructorResult.groupBy({
+    by: ['constructorId'],
+    where: { race: { seasonId: resolvedSeasonId } },
+    _sum: { totalPoints: true },
+  });
+  const points = new Map(pointRows.map((r) => [r.constructorId, r._sum.totalPoints ?? 0]));
+
+  // Se pasa por ConstructorRef ANTES de ordenar. El tipo de fila que genera Prisma para este
+  // modelo queda intersectado con Function (el delegate se llama `constructor`, igual que
+  // Object.prototype.constructor), y ahi `name` choca con Function.name y tipa como `never`:
+  // `c.name.localeCompare` no compila. Asignarlo a un campo `string` si (never es asignable
+  // a todo) — es la misma razon por la que drivers.service.ts mapea a ConstructorRef.
+  const refs: ConstructorRef[] = constructors.map((c) => ({
+    id: c.id,
+    name: c.name,
+    color: c.color,
+    logoUrl: c.logoUrl,
+  }));
+
+  return refs
+    .map((ref) => ({ ref, points: points.get(ref.id) ?? 0 }))
+    .sort((a, b) => b.points - a.points || a.ref.name.localeCompare(b.ref.name))
+    .map(({ ref, points: total }, index) => ({
+      position: index + 1,
+      points: total,
+      constructor: ref,
+    }));
 }
 
 export async function findById(id: number) {
