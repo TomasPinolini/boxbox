@@ -9,6 +9,27 @@ Las convenciones del backend (request lifecycle, módulos, errores, Prisma) vive
 
 ---
 
+## Para la cátedra — dónde está cada entregable
+
+Mapa directo de lo que pide la consigna ([utnfrrodsw/tp](https://github.com/utnfrrodsw/tp), `docs.md`) al archivo que lo contiene:
+
+| Entregable | Dónde |
+|---|---|
+| Propuesta actualizada | [`proposal.md`](./proposal.md) — incluye la sección *Desvíos respecto de esta propuesta* |
+| Links a PR | [`proposal.md` § Pull Requests](./proposal.md#pull-requests) — listado completo y desglose por entregable |
+| Instrucciones de instalación | [`tutorial.md`](./tutorial.md) |
+| Minutas de reunión y avance | [`gestion-del-proyecto.md`](./gestion-del-proyecto.md) — metodología, coordinación y bitácora |
+| Tracking de features, bugs e issues | [`gestion-del-proyecto.md`](./gestion-del-proyecto.md#tracking-de-features-bugs-e-issues) + [Linear](https://linear.app/pinolini/team/BOX/all) |
+| Documentación de la API | [`api-endpoints.md`](./api-endpoints.md) y [`error-codes.md`](./error-codes.md) |
+| Evidencia de ejecución de tests | [`test-evidence/`](./test-evidence/) |
+| Deployment (links y credenciales) | `entrega/deployment.md` — *pendiente* |
+| Video demo | *pendiente* |
+
+Las decisiones de diseño con alternativas reales están en [`adr/`](./adr/) (7 ADR). El estado
+contra la rúbrica, en [`roadmap.md`](./roadmap.md).
+
+---
+
 ## Onboarding (en orden)
 
 1. [`tutorial.md`](./tutorial.md) — clonar repo, levantar Postgres, correr seed, ver data en TablePlus. **15-20 min.**
@@ -87,7 +108,9 @@ Detalles + envelope shape: ver [`../CLAUDE.md`](../CLAUDE.md) sección *Backend 
 | [`frontend/docs/roadmap.md`](../frontend/docs/roadmap.md) | Planificación (frontend) | Build |
 | [`recipes/add-a-module.md`](./recipes/add-a-module.md) | How-to | Build |
 | [`adr/`](./adr/) | Decisiones | Historia |
-| [`proposal.md`](./proposal.md) | Académico (congelado) | Entrega |
+| [`proposal.md`](./proposal.md) | Académico (congelado + desvíos) | Entrega |
+| [`gestion-del-proyecto.md`](./gestion-del-proyecto.md) | Académico | Entrega |
+| [`test-evidence/`](./test-evidence/) | Evidencia | Entrega |
 
 ---
 
