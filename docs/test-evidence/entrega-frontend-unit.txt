@@ -1,0 +1,13 @@
+
+> frontend@0.0.0 test
+> vitest run
+
+
+ RUN  v4.1.11 /home/pinola/UTN/DSW/boxbox/frontend
+
+
+ Test Files  15 passed (15)
+      Tests  65 passed (65)
+   Start at  08:29:09
+   Duration  5.27s (transform 1.93s, setup 4.11s, import 5.28s, tests 5.92s, environment 28.92s)
+

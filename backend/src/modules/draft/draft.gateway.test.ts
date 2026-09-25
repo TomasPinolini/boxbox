@@ -68,7 +68,7 @@ async function seedSeason() {
 }
 
 let driverCounter = 0;
-async function seedDriver() {
+async function seedDriver(seasonId?: number) {
   const n = ++driverCounter;
   // El CRUD de catalogo es admin-only (A5 / BOX-15): cada seed pide su propio admin.
   const { accessToken } = await createTestAdmin();
@@ -77,7 +77,17 @@ async function seedDriver() {
     .set('Authorization', `Bearer ${accessToken}`)
     .send({ firstName: 'GW', lastName: `D${n}`, number: n, code: `G${String(n).padStart(2, '0')}`, externalId: `gw-driver-${n}` });
   if (res.status !== 201) throw new Error(`seedDriver fallo: ${JSON.stringify(res.body)}`);
-  return res.body.data.id as number;
+  const driverId = res.body.data.id as number;
+
+  // BOX-39 filtra los disponibles por temporada (draft.service.ts: seasons.some.seasonId).
+  // Sin DriverSeason el piloto no entra al pool y el auto-pick se queda sin candidatos.
+  // Mismo patron que draft.test.ts, que BOX-39 si actualizo.
+  if (seasonId !== undefined) {
+    const constructorId = await seedConstructor();
+    await prisma.driverSeason.create({ data: { driverId, constructorId, seasonId } });
+  }
+
+  return driverId;
 }
 
 let constructorCounter = 0;
@@ -120,7 +130,7 @@ async function setupLeague(count: number) {
     return { ...u, leagueMemberId: m.id as number };
   });
 
-  return { leagueId, owner: members[0], members };
+  return { leagueId, owner: members[0], members, season };
 }
 
 async function discoverOrder(leagueId: number, members: Member[]): Promise<Member[]> {
@@ -285,8 +295,8 @@ describe('draft namespace — timer y auto-pick', () => {
   });
 
   it('auto-pickea al expirar el timer si nadie pickeo a tiempo', async () => {
-    const { leagueId, owner } = await setupLeague(1);
-    await seedDriver(); // unico driver disponible para la ronda 1 -> el auto-pick lo elige a el
+    const { leagueId, owner, season } = await setupLeague(1);
+    await seedDriver(season.id); // unico driver disponible para la ronda 1 -> el auto-pick lo elige a el
 
     const { socket } = await connectMember(owner.token, leagueId);
 

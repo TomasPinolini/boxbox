@@ -28,13 +28,14 @@ test('pilotos: filtrar por escuderia y abrir el detalle', async ({ page }) => {
   await expect(page.getByRole('heading', { name: /Leclerc/ })).toBeVisible();
 
   // "Puntos" aparece dos veces en la pantalla (etiqueta de la estadistica y encabezado de la
-  // tabla), asi que se apunta al <dt>/<dd> por su rol. El 52 sale del seed: 3ro en Bahrain (15),
-  // 4to en Jeddah (12) y 1ro en Albert Park (25).
+  // tabla), asi que se apunta al <dt>/<dd> por su rol.
+  //
+  // Se asserta la ESTRUCTURA, no un valor concreto: desde 3b19816 el seed carga el calendario
+  // real de 2026 sin resultados (Jolpica es la fuente de verdad, BOX-9 — los resultados entran
+  // por el sync). Atar el test a un total de puntos lo volveria a romper con cada import.
   const puntos = page.getByRole('term').filter({ hasText: 'Puntos' });
   await expect(puntos).toBeVisible();
-  await expect(puntos.locator('+ dd')).toHaveText('52');
-
-  await expect(page.getByText('Bahrain Grand Prix')).toBeVisible();
+  await expect(puntos.locator('+ dd')).toHaveText(/^\d+$/);
 });
 
 // El par simetrico de "sin sesion, /leagues redirige a /login" en leagues.spec.ts: prueba que
