@@ -43,8 +43,13 @@ La rúbrica pide cantidades "por integrante" o "cada 2 integrantes o fracción".
 
 ### Trámites de cátedra (no son slices)
 
-- ✅ **Avisar del desvío de ADR-0006 (BOX-36)**. `proposal.md` prometió "2 pilotos titulares, 1 reserva y 1 escudería" y el juego implementado tiene 3 rondas sin reserva, según [`ADR-0006`](./adr/ADR-0006-draft-3-rondas-sin-reserva.md). Mail enviado el 2026-09-11; la constancia está en el comentario de BOX-36. Falta pegar el párrafo de desvío en el informe de la entrega cuando ese documento exista.
-- ❌ **Completar los nombres de los integrantes** en `proposal.md:10-11` (siguen como `XXXXX - Apellido(s), Nombre(s)`).
+- ✅ **Avisar del desvío de ADR-0006 (BOX-36)**. `proposal.md` prometió "2 pilotos titulares, 1 reserva y 1 escudería" y el juego implementado tiene 3 rondas sin reserva, según [`ADR-0006`](./adr/ADR-0006-draft-3-rondas-sin-reserva.md). Mail enviado el 2026-09-11; la constancia está en el comentario de BOX-36. El párrafo de desvío ya está escrito, en `proposal.md` → "Desvíos respecto de esta propuesta" (la cátedra pide la propuesta actualizada como entregable, así que vive ahí y no en un informe aparte).
+- ⚠️ **Completar los nombres de los integrantes** en `proposal.md`. Pinolini cargado (51234); **falta el legajo de Rivero**, marcado como `_(legajo pendiente)_`.
+- ✅ **Links a PR en la propuesta**. `proposal.md` → "Pull Requests": link al listado completo más un desglose por entregable.
+- ❌ **Minutas de reunión y avance**. La cátedra las marca con X para Regularidad y no existe ninguna.
+- ❌ **Declarar la metodología ágil** y linkear el tracking (Linear) desde los docs.
+- ❌ **Deployment**: links públicos + credenciales. En curso — ver `docs/entrega/deployment.md` cuando exista.
+- ❌ **Video demo del sistema** (Aprobación).
 
 ---
 
