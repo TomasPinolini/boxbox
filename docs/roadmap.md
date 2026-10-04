@@ -50,7 +50,7 @@ La rúbrica pide cantidades "por integrante" o "cada 2 integrantes o fracción".
 - ✅ **Declarar la metodología ágil** y linkear el tracking. Ídem archivo: Kanban con slicing vertical (no Scrum — no hubo sprints), taxonomía de etiquetas de Linear y la práctica de auditoría `[A1]`–`[C7]`.
 - ✅ **Participación por integrante**. `.mailmap` en la raíz canonicaliza las 5 identidades de git en 2 personas: Pinolini 98 commits, Rivero 32. Sin esto, 51 commits de Pinolini figuraban como un genérico "Developer", y la participación es criterio de evaluación.
 - ✅ **Punto de entrada de la documentación**. [`docs/README.md`](./README.md) abre con un mapa entregable → archivo, que es lo que la cátedra pide de ese archivo.
-- ❌ **Deployment**: links públicos + credenciales. En curso — ver `docs/entrega/deployment.md` cuando exista.
+- ✅ **Deployment**: backend en Render (https://boxbox-api.onrender.com), frontend en Vercel (https://boxbox-tomas-pinolinis-projects.vercel.app), base `boxbox-dev`. Runbook, credenciales y verificación en [`entrega/deployment.md`](./entrega/deployment.md). Falta el ADR-0008 con la decisión de hosting.
 - ❌ **Video demo del sistema** (Aprobación).
 
 ---

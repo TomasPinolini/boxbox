@@ -5,7 +5,7 @@ Runbook del deploy de BoxBox y datos de acceso para la defensa.
 **Arquitectura:** backend en [Render](https://render.com), frontend en [Vercel](https://vercel.com),
 base Postgres en Supabase (`boxbox-dev`).
 
-> **Estado: backend desplegado y verificado (2026-10-04). Frontend pendiente.**
+> **Estado: desplegado y verificado de punta a punta (2026-10-04).**
 
 ---
 
@@ -93,10 +93,10 @@ o el server no arranca — lo valida `src/config/env.ts` con Zod al bootear.
 ## 2. Verificar el backend
 
 ```bash
-curl https://TODO-render-url/api/v1/health
+curl https://boxbox-api.onrender.com/api/v1/health
 # esperado: {"status":"ok","timestamp":"..."}
 
-curl https://TODO-render-url/api/v1/drivers | head -c 200
+curl https://boxbox-api.onrender.com/api/v1/drivers | head -c 200
 # esperado: los 22 pilotos de 2026 — confirma que pega contra boxbox-dev
 ```
 
@@ -116,8 +116,8 @@ curl https://TODO-render-url/api/v1/drivers | head -c 200
 
 | Variable | Valor |
 | :------- | :---- |
-| `VITE_API_URL` | `https://TODO-render-url/api/v1` |
-| `VITE_SOCKET_URL` | `https://TODO-render-url` |
+| `VITE_API_URL` | `https://boxbox-api.onrender.com/api/v1` |
+| `VITE_SOCKET_URL` | `https://boxbox-api.onrender.com` |
 
 Vite **incrusta** las variables en tiempo de build, no las lee en runtime. Y
 `frontend/src/config/env.ts` tira excepción en el import si falta alguna. Si las cargás
@@ -126,6 +126,17 @@ después de buildear, el build sale verde y la app explota al abrirse.
 El rewrite SPA ya está en `frontend/vercel.json` — sin él, un refresh en `/drivers/5`
 devolvería 404 porque Vercel buscaría un archivo y React Router maneja esa ruta del lado
 del cliente.
+
+**Desactivar Deployment Protection.** Los proyectos nuevos en cuentas con team nacen con
+*Vercel Authentication* encendida: la URL responde `302` hacia `vercel.com/sso-api` y exige
+una cuenta de Vercel para ver la app. **El profesor se come esa pantalla y no ve nada.**
+Se apaga en Settings → Deployment Protection → Vercel Authentication → `Disabled` (o
+`Only Preview Deployments`, si querés conservarla en los previews). Verificación:
+
+```bash
+curl -s -o /dev/null -w '%{http_code}\n' https://boxbox-tomas-pinolinis-projects.vercel.app/
+# 200 = público. 302 = sigue protegido.
+```
 
 ---
 
@@ -141,19 +152,36 @@ gateway de Socket.io (`draft.gateway.ts:244`), que necesita la suya propia porqu
 
 ## 5. Verificación
 
-Todo contra la URL pública, no contra localhost:
+Todo contra la URL pública, no contra localhost.
 
-- [ ] `/api/v1/health` devuelve `{"status":"ok"}`
-- [ ] La URL de Vercel carga el login sin errores en la consola
-- [ ] Login con el admin → entra a `/leagues`
-- [ ] **Refresh de sesión**: borrar el access token del store en devtools y navegar → tiene que refrescar solo, sin echarte. Valida el fix de `sameSite`
-- [ ] Hard-refresh en `/drivers/5` → renderiza, no 404. Valida el rewrite
-- [ ] `/drivers` muestra los 22 pilotos → confirma la conexión a `boxbox-dev`
-- [ ] `/standings` muestra el campeonato con datos de las 14 fechas importadas
-- [ ] Crear liga → iniciar draft → el socket conecta y llega `draft:state`. Valida el CORS del gateway, que es distinto del de Express
+### Verificado por API el 2026-10-04
 
-Los últimos dos son los que **no se pueden probar en local**. Son la razón de deployar
-con anticipación.
+- [x] `/api/v1/health` → `{"status":"ok"}`
+- [x] `/drivers` → 22 pilotos, todos con escudería. Confirma la conexión a `boxbox-dev`
+- [x] `/drivers/standings` y `/constructors/standings` → suman **1413** por caminos
+      independientes, y cada escudería equivale a la suma de sus pilotos (Mercedes 123 =
+      Antonelli 68 + Russell 55)
+- [x] `/leagues/1/standings` → los `driverPoints` guardados coinciden con la suma de los
+      `race_results` de los pilotos realmente drafteados
+- [x] **CORS**: con el origen de Vercel devuelve ese origen y `allow-credentials: true`
+- [x] **Cookie del refresh**: `HttpOnly; Secure; SameSite=None; Path=/api/v1/auth`
+- [x] **Refresh cross-site**: login → `POST /auth/refresh` sólo con la cookie → token nuevo
+      → `/auth/me` responde. Es el fix que evita el logout a los 15 minutos
+- [x] **Socket del draft**: handshake al namespace `/draft` por WebSocket y `draft:state`
+      recibido, con 6 picks y 18/9 disponibles. Valida el CORS del gateway, que es distinto
+      del de Express
+- [x] La URL de Vercel responde `200` y sirve el bundle de Vite
+
+Los dos últimos del bloque de arriba **no se pueden probar en local**. Son la razón de
+deployar con anticipación.
+
+### Pendiente de clic en el browser
+
+- [ ] La pantalla de login carga sin errores en la consola
+- [ ] Login con `demo1@boxbox.test` → ver la Liga Demo y su tabla de posiciones
+- [ ] Hard-refresh en `/drivers/5` → renderiza, no 404. Valida el rewrite SPA
+- [ ] `/standings` muestra el campeonato con las 14 fechas
+- [ ] Responsive a 375 / 768 / 1024 px sobre la URL pública
 
 ---
 
@@ -163,7 +191,7 @@ con anticipación.
 | :-- | :---- |
 | API | **https://boxbox-api.onrender.com** |
 | Health check | https://boxbox-api.onrender.com/api/v1/health |
-| Frontend | `TODO` — pendiente de deployar en Vercel |
+| Frontend | **https://boxbox-tomas-pinolinis-projects.vercel.app** |
 | Usuario admin | `admin@boxbox.test` / `admin1234` |
 | Miembro de liga 1 | `demo1@boxbox.test` / `demo1234` |
 | Miembro de liga 2 | `demo2@boxbox.test` / `demo1234` |
