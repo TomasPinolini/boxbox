@@ -1,0 +1,10 @@
+# Canonicaliza las identidades de git sin reescribir historia.
+# Hacen falta porque a lo largo del TP se commiteó desde distintos entornos
+# (un user.name por defecto "Developer", la UI web de GitHub, y el cliente local),
+# y eso repartía los commits de una misma persona en varios autores aparentes.
+# `git shortlog -sne` y GitHub aplican este archivo automáticamente.
+
+Tomás Pinolini <tomaspinolini2003@gmail.com> Developer <tomaspinolini2003@gmail.com>
+Tomás Pinolini <tomaspinolini2003@gmail.com> Tomas Pinolini <tomaspinolini2003@gmail.com>
+Tomás Pinolini <tomaspinolini2003@gmail.com> tomaspinolini <85297264+TomasPinolini@users.noreply.github.com>
+Tomás Rivero <tomasrivero16@gmail.com> Tomás Rivero <159054443+tmsrivero@users.noreply.github.com>

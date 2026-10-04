@@ -1,0 +1,13 @@
+
+> backend@1.0.0 test
+> vitest --run
+
+
+ RUN  v4.1.4 /home/pinola/UTN/DSW/boxbox/backend
+
+
+ Test Files  12 passed (12)
+      Tests  260 passed (260)
+   Start at  08:32:47
+   Duration  50.72s (transform 370ms, setup 1.52s, import 2.13s, tests 45.82s, environment 1ms)
+

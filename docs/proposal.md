@@ -14,6 +14,24 @@
 
 - [fullstack app](https://github.com/TomasPinolini/boxbox)
 
+### Pull Requests
+
+El trabajo se integró por PR. Hubo una única excepción: el commit [`1f5278b`](https://github.com/TomasPinolini/boxbox/commit/1f5278b), directo a `main`, que corrigió los legajos en este mismo documento.
+Listado completo: **[PRs mergeados](https://github.com/TomasPinolini/boxbox/pulls?q=is%3Apr+is%3Amerged)** (37 a la fecha).
+
+Desglose por entregable, para la defensa:
+
+| Entregable | Pull Requests |
+| :--------- | :------------ |
+| Auth (login + 2 niveles de acceso) | [#3](https://github.com/TomasPinolini/boxbox/pull/3), [#15](https://github.com/TomasPinolini/boxbox/pull/15) |
+| CRUDs de catálogo y ligas | [#5](https://github.com/TomasPinolini/boxbox/pull/5), [#7](https://github.com/TomasPinolini/boxbox/pull/7) |
+| **Epic 1 — Draft en vivo** (Rivero) | [#9](https://github.com/TomasPinolini/boxbox/pull/9), [#12](https://github.com/TomasPinolini/boxbox/pull/12), [#14](https://github.com/TomasPinolini/boxbox/pull/14), [#35](https://github.com/TomasPinolini/boxbox/pull/35), [#38](https://github.com/TomasPinolini/boxbox/pull/38) |
+| **Epic 2 — Resultados y standings** (Pinolini) | [#4](https://github.com/TomasPinolini/boxbox/pull/4), [#17](https://github.com/TomasPinolini/boxbox/pull/17), [#32](https://github.com/TomasPinolini/boxbox/pull/32), [#34](https://github.com/TomasPinolini/boxbox/pull/34), [#37](https://github.com/TomasPinolini/boxbox/pull/37), [#39](https://github.com/TomasPinolini/boxbox/pull/39) |
+| Frontend — bootstrap y pantallas base | [#18](https://github.com/TomasPinolini/boxbox/pull/18), [#20](https://github.com/TomasPinolini/boxbox/pull/20), [#22](https://github.com/TomasPinolini/boxbox/pull/22), [#25](https://github.com/TomasPinolini/boxbox/pull/25) |
+| Listado con filtro + detalle | [#30](https://github.com/TomasPinolini/boxbox/pull/30) |
+| Protección de rutas por rol | [#33](https://github.com/TomasPinolini/boxbox/pull/33) |
+| Hardening y correcciones de review | [#13](https://github.com/TomasPinolini/boxbox/pull/13), [#16](https://github.com/TomasPinolini/boxbox/pull/16), [#24](https://github.com/TomasPinolini/boxbox/pull/24), [#27](https://github.com/TomasPinolini/boxbox/pull/27), [#36](https://github.com/TomasPinolini/boxbox/pull/36) |
+
 ## Tema
 
 ### Descripción
@@ -188,3 +206,44 @@ Adicionales para Aprobación:
 | CUU/Epic | 1. Sistema de predicciones pre-carrera (predicción de ganador, pole position y equipo con más puntos, con puntaje bonus por acierto, lock antes de la clasificación)<br>2. Resúmenes de carrera (desglose de puntos por piloto, resultado de predicciones, cambio de posición en standings, comparación vs promedio de la liga) |
 | Listados | 1. Standings históricos filtrado por carrera, muestra posición, puntos totales y cambio de posición<br>2. Historial de swaps de pilotos filtrado por carrera                                                                                                                                                                    |
 | Otros    | 1. Integración con APIs externas de F1 (Jolpica, OpenF1) para sincronización de datos reales<br>2. Draft en tiempo real via WebSocket con reconexión y pausa                                                                                                                                                                    |
+
+---
+
+## Desvíos respecto de esta propuesta
+
+Esta propuesta quedó congelada en su versión de entrega. Durante la construcción hubo
+un desvío de alcance que se decidió y documentó formalmente, y que se comunicó a la
+cátedra por mail el **2026-09-11**.
+
+### Draft de 3 rondas, sin piloto reserva
+
+**Lo propuesto.** El draft seleccionaba "2 pilotos titulares, 1 reserva y 1 escudería"
+(4 rondas), y el alcance voluntario incluía un historial de swaps de pilotos.
+
+**Lo implementado.** El draft tiene **3 rondas**: 2 pilotos y 1 escudería. No hay piloto
+reserva y no hay swaps.
+
+**Por qué.** La decisión y sus alternativas están en
+[`ADR-0006`](./adr/ADR-0006-draft-3-rondas-sin-reserva.md). La reserva sólo tenía sentido
+acompañada de un mecanismo de swap, y ese mecanismo agregaba una máquina de estados
+completa (cuándo se puede swapear, contra qué carrera, con qué lock) sin aportar nada a
+ninguno de los requisitos de la rúbrica.
+
+**Consecuencias en el código**, para que la defensa cierre con lo que se ve:
+
+- El tope de miembros por liga pasó a ser `floor(driverCount / 2)` — 11 para 2026 — porque
+  cada integrante se lleva 2 pilotos. Excederlo devuelve `409 MAX_MEMBERS_EXCEEDS_SEASON`.
+- El ítem "Historial de swaps de pilotos" del Alcance Adicional Voluntario queda sin efecto.
+
+### Estado del Alcance Adicional Voluntario
+
+El alcance voluntario se entregó de forma parcial, que es la naturaleza de ser voluntario:
+
+| Ítem | Estado |
+| :--- | :----- |
+| Integración con APIs externas de F1 (Jolpica) | **Entregado** — sync de calendario y resultados |
+| Standings históricos por carrera | **Entregado** — `LeagueStanding` por fecha, con cambio de posición |
+| Sistema de predicciones pre-carrera | No construido |
+| Resúmenes de carrera | No construido |
+| Historial de swaps de pilotos | Sin efecto — ver ADR-0006 |
+| Draft con reconexión y pausa | No construido — fuera de alcance, ver [`roadmap.md`](./roadmap.md) |

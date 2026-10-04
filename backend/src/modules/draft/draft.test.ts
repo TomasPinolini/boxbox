@@ -50,7 +50,7 @@ async function seedDriver(seasonId?: number) {
   // Si se pasa seasonId, crea un DriverSeason (necesario para filtrar disponibles por temporada).
   // Si no, asume que es un test antiguo que no le importa la temporada.
   if (seasonId !== undefined) {
-    const constructorId = await seedConstructor(seasonId);
+    const constructorId = await seedConstructor();
     await prisma.driverSeason.create({
       data: { driverId, constructorId, seasonId },
     });
@@ -60,7 +60,7 @@ async function seedDriver(seasonId?: number) {
 }
 
 let constructorCounter = 0;
-async function seedConstructor(seasonId?: number) {
+async function seedConstructor() {
   const n = ++constructorCounter;
   const { accessToken } = await createTestAdmin();
   const res = await request(app)
@@ -267,7 +267,7 @@ describe('GET /api/v1/leagues/:id/draft/state', () => {
 describe('GET /api/v1/leagues/:id/draft/available', () => {
   it('devuelve todos los drivers/constructors no drafteados en esta liga', async () => {
     const { leagueId, seasonId, owner } = await setupLeague(1);
-    const c1 = await seedConstructor(seasonId);
+    const c1 = await seedConstructor();
     await prisma.driverSeason.create({
       data: { driverId: await seedDriver(), constructorId: c1, seasonId },
     });

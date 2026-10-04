@@ -11,7 +11,10 @@ import * as authService from './auth.service';
 const REFRESH_COOKIE_NAME = 'refreshToken';
 const refreshCookieOptions: CookieOptions = {
   httpOnly: true, // JS del browser no puede leer la cookie — defense vs XSS
-  sameSite: 'lax', // se manda en navegaciones top-level pero no en cross-site requests POST
+  // 'lax' NO viaja en cross-site POST, y POST /auth/refresh es cross-site cuando el front
+  // (Vercel) y el back (Render) estan en dominios distintos: sin 'none' el refresh falla y
+  // echa al usuario al expirar el access token de 15m. 'none' exige secure: true.
+  sameSite: env.NODE_ENV === 'production' ? 'none' : 'lax',
   secure: env.NODE_ENV === 'production', // solo HTTPS en prod; en dev permitimos HTTP para localhost
   path: '/api/v1/auth', // la cookie solo viaja a endpoints de auth — minimiza superficie
   maxAge: 7 * 24 * 60 * 60 * 1000, // 7 dias en ms; debe matchear con REFRESH_TOKEN_EXPIRES_IN
