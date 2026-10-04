@@ -8,6 +8,13 @@
         "cd backend && npx prisma mcp"
       ],
       "env": {}
+    },
+    "render": {
+      "type": "http",
+      "url": "https://mcp.render.com/mcp",
+      "headers": {
+        "Authorization": "Bearer ${RENDER_API_KEY}"
+      }
     }
   }
 }
