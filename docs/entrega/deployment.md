@@ -25,6 +25,21 @@ Detalle de la decisión y alternativas descartadas: `../adr/ADR-0008-render-back
 
 ---
 
+## Los dos servicios buildean desde `main`
+
+Render y Vercel están configurados sobre la rama **`main`**, con auto-deploy en cada push.
+El trabajo diario va en `dev`, así que **nada llega a producción hasta mergear `dev` → `main`**.
+
+Ya costó dos veces: el primer deploy de Render falló porque `main` no tenía todavía el fix
+de `prisma generate`, y un cambio al `<title>` no apareció en la app hasta mergearlo. Si
+tocaste algo y la URL pública sigue igual, lo primero a revisar es:
+
+```bash
+git log origin/main..origin/dev --oneline   # si imprime algo, producción está atrasada
+```
+
+---
+
 ## Orden de ejecución
 
 Backend y frontend se necesitan mutuamente la URL, así que hay un huevo-y-gallina. Se
