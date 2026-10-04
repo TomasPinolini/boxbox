@@ -7,8 +7,8 @@
 
 ### Integrantes
 
-- 51234 - Pinolini, Tomás
-- _(legajo pendiente)_ - Rivero, Tomás
+- 52265 - Pinolini, Tomás
+- 51070 - Rivero, Tomás
 
 ### Repositorios
 
@@ -16,7 +16,7 @@
 
 ### Pull Requests
 
-El trabajo se integró siempre por PR, nunca con commits directos a `main`.
+El trabajo se integró por PR. Hubo una única excepción: el commit [`1f5278b`](https://github.com/TomasPinolini/boxbox/commit/1f5278b), directo a `main`, que corrigió los legajos en este mismo documento.
 Listado completo: **[PRs mergeados](https://github.com/TomasPinolini/boxbox/pulls?q=is%3Apr+is%3Amerged)** (37 a la fecha).
 
 Desglose por entregable, para la defensa:

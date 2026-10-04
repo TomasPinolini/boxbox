@@ -44,7 +44,7 @@ La rúbrica pide cantidades "por integrante" o "cada 2 integrantes o fracción".
 ### Trámites de cátedra (no son slices)
 
 - ✅ **Avisar del desvío de ADR-0006 (BOX-36)**. `proposal.md` prometió "2 pilotos titulares, 1 reserva y 1 escudería" y el juego implementado tiene 3 rondas sin reserva, según [`ADR-0006`](./adr/ADR-0006-draft-3-rondas-sin-reserva.md). Mail enviado el 2026-09-11; la constancia está en el comentario de BOX-36. El párrafo de desvío ya está escrito, en `proposal.md` → "Desvíos respecto de esta propuesta" (la cátedra pide la propuesta actualizada como entregable, así que vive ahí y no en un informe aparte).
-- ⚠️ **Completar los nombres de los integrantes** en `proposal.md`. Pinolini cargado (51234); **falta el legajo de Rivero**, marcado como `_(legajo pendiente)_`.
+- ✅ **Completar los nombres de los integrantes** en `proposal.md`. Los dos legajos cargados: Pinolini 52265, Rivero 51070. Rivero ya los había puesto el 2026-09-21 en un commit directo a `main` (`1f5278b`), que apareció como conflicto al mergear y de paso corrigió un legajo mal dictado.
 - ✅ **Links a PR en la propuesta**. `proposal.md` → "Pull Requests": link al listado completo más un desglose por entregable.
 - ✅ **Minutas de reunión y avance**. En [`gestion-del-proyecto.md`](./gestion-del-proyecto.md) → "Bitácora de avance". No hubo reuniones formales, así que se declara la coordinación asíncrona y la bitácora se reconstruye desde git + PR + Linear, diciendo que es reconstruida. Actas de reuniones que no ocurrieron no se inventan.
 - ✅ **Declarar la metodología ágil** y linkear el tracking. Ídem archivo: Kanban con slicing vertical (no Scrum — no hubo sprints), taxonomía de etiquetas de Linear y la práctica de auditoría `[A1]`–`[C7]`.

@@ -44,7 +44,7 @@ registrada en artefactos verificables en vez de en minutas:
 
 - **Linear** — asignación de issues, estados y comentarios largos con el contexto de cada
   decisión. Un issue por unidad de trabajo, con una sola tarea en curso por persona.
-- **Pull Requests** — la revisión ocurrió en el PR. Nada entró a `main` sin pasar por uno.
+- **Pull Requests** — la revisión ocurrió en el PR; 37 mergeados a la fecha. La única excepción es el commit [`1f5278b`](https://github.com/TomasPinolini/boxbox/commit/1f5278b), directo a `main`, que corrigió los legajos en `proposal.md`.
 - **Los ADR y los roadmaps** — donde una decisión afectaba al otro integrante, se escribió.
 
 Se declara así, explícitamente, porque el registro honesto de una coordinación asíncrona es más
