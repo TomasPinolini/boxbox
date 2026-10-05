@@ -32,6 +32,53 @@ Desglose por entregable, para la defensa:
 | Protección de rutas por rol | [#33](https://github.com/TomasPinolini/boxbox/pull/33) |
 | Hardening y correcciones de review | [#13](https://github.com/TomasPinolini/boxbox/pull/13), [#16](https://github.com/TomasPinolini/boxbox/pull/16), [#24](https://github.com/TomasPinolini/boxbox/pull/24), [#27](https://github.com/TomasPinolini/boxbox/pull/27), [#36](https://github.com/TomasPinolini/boxbox/pull/36) |
 
+## Stack tecnológico
+
+> **Declaración de uso de tecnologías alternativas**, según lo que pide el
+> [`FAQ.md`](https://github.com/utnfrrodsw/tp/blob/main/FAQ.md) de la cátedra:
+> *"Es bienvenido que los alumnos opten por el uso de otras tecnologías equivalentes por
+> motivos de aprendizaje, curiosidad o motivación propia, deberán informarlo claramente en
+> la proposal y ser aprobado por el profesor."*
+>
+> **Se solicita la aprobación del profesor para este stack.**
+
+| Capa | Lo enseñado en la cátedra | Lo que usa BoxBox |
+| :--- | :------------------------ | :---------------- |
+| Backend | Express + TypeScript | **Express 5 + TypeScript** (igual) |
+| ORM | MikroORM | **Prisma 7** |
+| Base de datos | MySQL | **PostgreSQL** (hosteado en Supabase) |
+| Frontend | Angular | **React 19 + Vite + Tailwind CSS v4** |
+| Realtime | — | **Socket.io** (para el draft en vivo) |
+| Tests | — | **Vitest + Supertest** (backend), **Vitest + Testing Library + Playwright** (frontend) |
+
+**Motivo.** Aprendizaje. Los dos integrantes querían trabajar con el ecosistema que domina
+el mercado en 2026 y que ninguno había usado antes en un proyecto de esta escala. La
+elección de Prisma sobre MikroORM está documentada con sus alternativas y consecuencias en
+[`ADR-0001`](./adr/ADR-0001-prisma-over-mikroorm.md); la de Postgres en Supabase sobre
+self-hosting, en [`ADR-0007`](./adr/ADR-0007-supabase-postgres-hosting.md).
+
+**Responsabilidad asumida.** La FAQ aclara que *"la cátedra no puede asegurar que sea capaz
+de proveer soporte para estas tecnologías"*. Se asume esa responsabilidad: la obligación de
+cumplir todos los requisitos técnicos queda del lado del grupo.
+
+**Cumplimiento de los requisitos técnicos con este stack.** Se verificó punto por punto
+contra la FAQ:
+
+| Requisito | Cómo lo cumple |
+| :-------- | :------------- |
+| Framework web con soporte de middleware | Express 5, con cadena de middlewares (`helmet → cors → json → cookieParser → routers → errorHandler`) |
+| API REST para comunicarse con el frontend | REST sobre `/api/v1`, con envelope `{ data }` / `{ error }` |
+| Base de datos **como servicio independiente**, no embebida | PostgreSQL en Supabase. No es SQLite ni ninguna embebida |
+| Persistencia en disco, concurrente, no local | Servicio hosteado, accesible por red, con conexiones concurrentes |
+| Acceso mediante **ORM** (o patrón repository si no existe ORM) | Prisma 7, con driver adapter `@prisma/adapter-pg`. Al existir ORM, no se implementa Repository — decisión documentada en [`ADR-0002`](./adr/ADR-0002-no-repository-pattern.md) |
+| Arquitectura en capas | `routes → controller → service → Prisma`, una carpeta por módulo de dominio |
+| Validación de entrada y manejo de errores por API | Zod en cada endpoint; errores centralizados en un `errorHandler` con códigos de dominio |
+| Dependencias declaradas | `backend/package.json` y `frontend/package.json` |
+| CSS mediante framework o preprocesador, mobile-first | Tailwind CSS v4, que es mobile-first por defecto (los prefijos `sm:`/`md:`/`lg:` suben, no bajan) |
+| Definición de ambientes | `.env` validado con Zod al bootear (`src/config/env.ts`); el server no arranca si falta algo |
+
+---
+
 ## Tema
 
 ### Descripción

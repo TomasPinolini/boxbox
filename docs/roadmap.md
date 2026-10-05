@@ -52,6 +52,8 @@ La rúbrica pide cantidades "por integrante" o "cada 2 integrantes o fracción".
 - ✅ **Punto de entrada de la documentación**. [`docs/README.md`](./README.md) abre con un mapa entregable → archivo, que es lo que la cátedra pide de ese archivo.
 - ✅ **Deployment**: backend en Render (https://boxbox-api.onrender.com), frontend en Vercel (https://boxbox-tomas-pinolinis-projects.vercel.app), base `boxbox-dev`. Runbook, credenciales y verificación en [`entrega/deployment.md`](./entrega/deployment.md). Decisión documentada en [`ADR-0008`](./adr/ADR-0008-render-backend-vercel-frontend.md).
 - ❌ **Video demo del sistema** (Aprobación).
+- ⚠️ **Declarar el stack alternativo en la propuesta**. Escrito: `proposal.md` → "Stack tecnológico", con la tabla cátedra-vs-BoxBox, el motivo, la responsabilidad asumida y el cumplimiento punto por punto de los requisitos técnicos de la FAQ. **Falta la aprobación del profesor**, que la [FAQ](https://github.com/utnfrrodsw/tp/blob/main/FAQ.md) exige explícitamente: *"deberán informarlo claramente en la proposal y ser aprobado por el profesor"*.
+- ❌ **El repo no está en la red de forks de `utnfrrodsw/tp`**. La FAQ pide: *"El repo debe ser creado a partir de un Fork del TP y deberán realizar un PR/MR para su entrega."* `TomasPinolini/boxbox` tiene `isFork: false`. **GitHub sólo permite abrir un PR entre repos de la misma red de forks, así que hoy la entrega no se puede abrir.** Verificado el 2026-10-05 contra 5 repos que entregaron (`electroservice`, `Critio`, `TP_Menu_inclusivo`, `DSW-303-2026`, `lucastisocco/tp`): los 5 son forks, y los nombres distintos son forks renombrados. Pendiente de consultar al profesor antes de migrar historia.
 
 ---
 
