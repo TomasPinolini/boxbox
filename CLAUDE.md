@@ -247,7 +247,7 @@ agent-browser snapshot -i           # 4. RE-SNAPSHOT tras cualquier navegación 
 ## Key Docs
 
 - `docs/proposal.md` — TP scope
-- `docs/data-model.mmd` — full planned ER diagram (many tables are not yet in `schema.prisma`)
+- `docs/data-model.mmd` — ER diagram. Verified field-by-field against `schema.prisma` on 2026-10-05: all 16 entities and every column match. Its header comment carries the one design decision worth knowing — `RaceResult` has no `constructorId`, the driver→constructor relation is owned by `DriverSeason` — and the limitation that follows from it.
 - `docs/api-endpoints.md` — full planned API surface (most endpoints not yet implemented)
 - `docs/tutorial.md` — local setup walkthrough for new contributors (clone → DB → seed)
 - `docs/roadmap.md` — roadmap hub: rubric status, epic ownership, out of scope. Holds nothing lane-specific.
