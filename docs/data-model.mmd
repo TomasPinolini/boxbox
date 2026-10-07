@@ -1,15 +1,3 @@
-%% Modelo de datos de BoxBox. Refleja backend/prisma/schema.prisma — si cambia uno,
-%% cambia el otro. Verificado campo por campo el 2026-10-05.
-%%
-%% Decision de diseno a tener presente: RaceResult NO guarda constructorId. La relacion
-%% piloto->escuderia es propiedad de DriverSeason, que tiene @@unique([driverId, seasonId]),
-%% o sea una escuderia por piloto por temporada. ConstructorResult se deriva de ahi al
-%% cargar resultados (buildConstructorResults).
-%%
-%% Limitacion conocida, encontrada con datos reales de Jolpica: un piloto que cambia de
-%% equipo a mitad de temporada (Lawson 2026: Racing Bulls y Red Bull) acredita todos sus
-%% puntos a una sola escuderia. El arreglo seria mover constructorId a RaceResult o dar
-%% rango de fechas a DriverSeason. No se hizo: no afecta ningun requisito. Ver BOX-9.
 erDiagram
     User {
         int id PK
@@ -193,6 +181,18 @@ erDiagram
         int triggeredById FK "nullable — null for cron-triggered syncs (no user)"
         datetime createdAt
     }
+
+    %% Verificado campo por campo contra backend/prisma/schema.prisma el 2026-10-05.
+    %% Si cambia uno, cambia el otro.
+    %%
+    %% Decision de diseno: RaceResult NO guarda constructorId. La relacion piloto->escuderia
+    %% es propiedad de DriverSeason, que tiene @@unique([driverId, seasonId]) — una escuderia
+    %% por piloto por temporada. ConstructorResult se deriva de ahi al cargar resultados.
+    %%
+    %% Limitacion conocida, encontrada con datos reales de Jolpica: un piloto que cambia de
+    %% equipo a mitad de temporada (Lawson 2026: Racing Bulls y Red Bull) acredita todos sus
+    %% puntos a una sola escuderia. El arreglo seria mover constructorId a RaceResult o dar
+    %% rango de fechas a DriverSeason. No se hizo: no afecta ningun requisito. Ver BOX-9.
 
     %% Multi-column unique constraints (cannot express in Mermaid field syntax):
     %% DraftPick:    @@unique([leagueId, pickNumber])
