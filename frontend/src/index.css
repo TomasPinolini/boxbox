@@ -18,11 +18,19 @@
    keyframes y sin JS. Si el navegador no lo soporta, el elemento aparece de golpe — que
    es exactamente el comportamiento que habia antes, asi que degrada solo. */
 .enter-top,
-.enter-scale,
 .enter-bottom {
   transition:
     opacity 180ms var(--ease-out),
     transform 180ms var(--ease-out);
+}
+
+/* El panel de turno se ve 3 veces por draft, no decenas por dia. La regla de frecuencia
+   dice que ahi vive el presupuesto de movimiento, asi que lleva mas escala y mas duracion
+   que las entradas frecuentes: es el instante en que el sistema te dice "ahora vos". */
+.enter-scale {
+  transition:
+    opacity 280ms var(--ease-out),
+    transform 280ms var(--ease-out);
 }
 
 @starting-style {
@@ -34,7 +42,7 @@
   /* Paneles que crecen en su lugar. Nunca desde scale(0): nada aparece de la nada */
   .enter-scale {
     opacity: 0;
-    transform: scale(0.97);
+    transform: scale(0.95);
   }
   /* Items que se agregan al final de una lista: suben desde abajo */
   .enter-bottom {
