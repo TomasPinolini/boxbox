@@ -23,6 +23,12 @@ Checkpoint frequency: Frequent
 Question style: Open-ended
 Implementation style: AI writes code
 
+Después de cada implementación, dar una **guía de smoke test** — pedido del learner el
+2026-10-07. No alcanza con reportar qué se cambió y que los tests pasan: hay que decir
+cómo lo comprueba él, paso por paso, y separar lo que se puede verificar en la máquina de
+lo que necesita hardware real. Incluir qué significa "está mal" en cada chequeo, no sólo
+qué significa "está bien".
+
 Cómo plantear una pregunta — corrección del learner, 2026-10-05: *"Vas derecho a puntos de los cuales me agarrás desprevenido. Necesito que amplíes un poquito más la ventana de contexto cuando me escribís."* Antes de preguntar hay que **armar la escena**: quién pregunta, sobre qué pantalla, en qué situación. Citar una pregunta textual de un profesor sacada de un PR ajeno, sin contexto, no se entiende. Pasó con *"¿cómo sabés de quién es?"*, que el learner no pudo interpretar.
 
 ## Strong Concepts
