@@ -102,7 +102,7 @@ export function DraftPage() {
             )}
 
             {isMyTurn && state.available && (
-              <div className="mt-4 border-t border-slate-200 pt-4">
+              <div className="enter-scale mt-4 border-t border-slate-200 pt-4">
                 <p className="mb-2 text-sm font-semibold text-slate-900">¡Te toca a vos!</p>
                 {pickError && (
                   <div className="mb-3">
@@ -147,7 +147,7 @@ export function DraftPage() {
             ) : (
               <ul className="divide-y divide-slate-200">
                 {state.picks.map((pick) => (
-                  <li key={pick.id} className="flex items-center justify-between py-2 text-sm">
+                  <li key={pick.id} className="enter-bottom flex items-center justify-between py-2 text-sm">
                     <span className="text-slate-500">Ronda {pick.round}</span>
                     <span className="font-medium">{memberName(pick.leagueMemberId)}</span>
                     <span>{pickLabel(pick)}</span>
