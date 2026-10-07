@@ -6,6 +6,24 @@
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
 }
 
+/* Indicador de foco, global.
+   Va aca y no en cada componente porque :focus-visible alcanza a todo lo enfocable:
+   botones, inputs, selects y los <Link> repartidos por las paginas. Una regla en vez de
+   una edicion por archivo.
+
+   :focus-visible y NO :focus. La diferencia importa: :focus tambien dispara al hacer click
+   con el mouse, asi que aparecia un anillo cada vez que apretas un boton — ruido visual que
+   nadie quiere. :focus-visible lo muestra solo cuando el navegador juzga que hace falta un
+   indicador, que en la practica es al navegar con teclado.
+
+   outline y no box-shadow/ring: el outline no participa del layout, asi que no corre nada
+   de lugar. El offset lo despega 2px del borde para que se lea incluso sobre el rojo de
+   la variante primaria del boton. */
+:focus-visible {
+  outline: 2px solid var(--color-red-600);
+  outline-offset: 2px;
+}
+
 /* Feedback de presion, usado por Button.
    Deliberadamente NO redefine `transition`: la clase `transition` de Tailwind que Button
    ya tiene cubre transform, y pisarla aca romperia el transicionado del color en hover. */
