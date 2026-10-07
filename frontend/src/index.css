@@ -24,10 +24,47 @@
   outline-offset: 2px;
 }
 
-/* Feedback de presion, usado por Button.
+/* Capa de plataforma tactil.
+   NO hace falta tocar -webkit-tap-highlight-color ni -webkit-text-size-adjust: el preflight
+   de Tailwind v4 ya los pone en `html,:host`. Verificado en el bundle el 2026-10-07.
+
+   touch-action: manipulation le dice al navegador que estos elementos nunca hacen zoom por
+   doble tap, asi que puede disparar el click de inmediato en vez de esperar ~300ms para ver
+   si viene un segundo toque.
+   user-select: none solo en controles. NUNCA en body: el texto de contenido —un codigo de
+   invitacion, un mensaje de error— tiene que poder copiarse. */
+button,
+a,
+[role='button'] {
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* iOS Safari hace zoom cuando el foco cae en un input con tipografia menor a 16px, y NO
+   vuelve atras al salir. La tentacion es poner maximum-scale=1, que rompe el pinch-zoom y
+   es una falla de accesibilidad. Esto arregla la causa en vez del sintoma.
+   Solo en punteros gruesos: en desktop la tipografia del input sigue la del diseno. */
+@media (pointer: coarse) {
+  input,
+  textarea,
+  select {
+    font-size: 16px;
+  }
+}
+
+/* Feedback de presion.
+   Antes era una clase `.press` aplicada a mano en Button, pero la necesidad es universal:
+   al matar el tap-highlight de arriba le quitamos a TODO lo tocable su unica senal de
+   respuesta. Los links que funcionan como accion principal —"Ver liga", "Ver piloto",
+   "Echar"— quedarian muertos al tacto. Una regla global los alcanza a todos.
+
    Deliberadamente NO redefine `transition`: la clase `transition` de Tailwind que Button
    ya tiene cubre transform, y pisarla aca romperia el transicionado del color en hover. */
-.press:active:not(:disabled) {
+button:active:not(:disabled),
+a:active,
+[role='button']:active:not([aria-disabled='true']) {
   transform: scale(0.97);
 }
 
@@ -72,7 +109,9 @@
 /* Movimiento reducido. Se conserva el fade y se descarta el desplazamiento: mas suave,
    no cero. Quitar todo tambien quita la pista de que algo cambio en la pantalla. */
 @media (prefers-reduced-motion: reduce) {
-  .press:active:not(:disabled) {
+  button:active:not(:disabled),
+  a:active,
+  [role='button']:active:not([aria-disabled='true']) {
     transform: none;
   }
 

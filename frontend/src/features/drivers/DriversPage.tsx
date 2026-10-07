@@ -24,7 +24,7 @@ export function DriversPage() {
     <PageShell
       title="Pilotos"
       actions={
-        <div className="flex items-center gap-3 text-sm">
+        <div className="flex flex-wrap items-center gap-3 text-sm">
           <Link to="/standings" className="font-semibold text-red-600 hover:underline">
             Campeonato
           </Link>

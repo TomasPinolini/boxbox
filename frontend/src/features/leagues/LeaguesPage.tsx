@@ -36,7 +36,7 @@ export function LeaguesPage() {
     <PageShell
       title="Mis ligas"
       actions={
-        <div className="flex items-center gap-3 text-sm text-slate-600">
+        <div className="flex flex-wrap items-center gap-3 text-sm text-slate-600">
           <Link to="/drivers" className="font-semibold text-red-600 hover:underline">
             Pilotos
           </Link>
