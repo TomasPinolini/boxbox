@@ -22,7 +22,7 @@ Slice 15 no dependen de 13b. La dependencia real está en el `Blocked by` de cad
 
 ## Now — lo que bloquea la entrega del 12/10
 
-_(Backend Slices 1–8 completos. Frontend 13a completo. Lo de abajo sale de cruzar la rúbrica de la cátedra contra el código el 2026-09-11 — no de lo que dicen los docs.)_
+_(Estado verificado contra el código y contra producción el 2026-10-07 — no contra lo que dicen los docs. La fila de los epics estuvo marcada "sin empezar" durante tres semanas después de que los dos slices se mergearan.)_
 
 ### Estado contra la rúbrica (2 integrantes)
 
@@ -34,7 +34,7 @@ La rúbrica pide cantidades "por integrante" o "cada 2 integrantes o fracción".
 | CRUD dependiente ×1                                     | Regularidad | ✅ Race (depende de Circuit + Season)                                            |
 | Listado con filtro + detalle ×1                          | Regularidad | ✅ **Slice 14**, los dos carriles — `/drivers` y `/drivers/:id`, públicas        |
 | CUU/epic ×1                                             | Regularidad | ✅ **Slice 13b** — draft en vivo, conectar + ver estado + pickear + timer         |
-| CUU/epic ×2 (uno por integrante), mínimo 2 relacionados | Aprobación  | ⚠️ Epic 1 = draft (13b), done. **Epic 2 = Slices 9 + 12, sin empezar**           |
+| CUU/epic ×2 (uno por integrante), mínimo 2 relacionados | Aprobación  | ✅ Epic 1 = draft (13b). Epic 2 = **Slices 9 + 12, shippeados**: `modules/standings/` y `modules/sync/`, 31 tests, `smoke:slice-9`, y los endpoints respondiendo en producción |
 | 1 test automatizado por integrante + 1 de integración   | Aprobación  | ✅ 206 tests contra Postgres real                                                |
 | Backend: login 2 niveles + rutas protegidas             | Aprobación  | ✅ `requireAuth` + `requireAdmin`                                                |
 | Frontend: mobile-first, 3 breakpoints                   | Regularidad | ✅ Tailwind, verificado a 375/768/1024                                           |
@@ -61,10 +61,10 @@ La rúbrica pide cantidades "por integrante" o "cada 2 integrantes o fracción".
 
 La rúbrica pide un CUU/epic **por integrante**, así que cada uno es dueño de uno y lo defiende en el oral:
 
-| Epic                                           | Slices | Dueño    |
-| :--------------------------------------------- | :----- | :------- |
-| 1 — Draft en vivo                              | 13b    | Rivero   |
-| 2 — Procesar resultados y actualizar standings | 9 + 12 | Pinolini |
+| Epic                                           | Slices | Dueño    | Estado |
+| :--------------------------------------------- | :----- | :------- | :----- |
+| 1 — Draft en vivo                              | 13b    | Rivero   | ✅ shippeado |
+| 2 — Procesar resultados y actualizar standings | 9 + 12 | Pinolini | ✅ shippeado |
 
 Los dos se relacionan solos, que es el otro requisito: el draft arma el equipo que el scoring puntúa.
 
