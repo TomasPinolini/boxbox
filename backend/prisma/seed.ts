@@ -544,6 +544,8 @@ const teamLogos: Record<string, string> = {
   // No deben sobrevivir a un lanzamiento real.
   ferrari: '/logos/temporales/ferrari.png',
   audi: '/logos/temporales/audi.png',
+  red_bull: '/logos/temporales/red-bull-racing.png',
+  aston_martin: '/logos/temporales/aston-martin.png',
 };
 
 // Fotos de pilotos: se guarda la URL, NO el archivo. Son imagenes de prensa de F1 alojadas en
