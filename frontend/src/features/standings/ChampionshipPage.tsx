@@ -56,7 +56,7 @@ function DriversTable({ rows }: { rows: DriverStanding[] }) {
                 to={`/drivers/${driver.id}`}
                 className="flex items-center gap-2 font-medium hover:underline"
               >
-                <DriverAvatar driver={driver} size={32} />
+                <DriverAvatar driver={driver} size={24} />
                 {driver.firstName} {driver.lastName}
               </Link>
             </td>
@@ -105,10 +105,15 @@ export function ChampionshipPage() {
     <PageShell
       title="Campeonato"
     >
-      <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
-        <StandingsCard title="Pilotos" query={drivers}>
-          {(rows) => <DriversTable rows={rows} />}
-        </StandingsCard>
+      {/* 3 columnas y no 2: la tabla de pilotos tiene 5 columnas y 22 filas, la de escuderias
+          3 y 11. Partiendo la pantalla por la mitad, 7 de las 22 filas de pilotos envolvian el
+          nombre o la escuderia en dos lineas. Con 2/3 del ancho entran en una. */}
+      <div className="grid gap-6 lg:grid-cols-3 lg:items-start">
+        <div className="lg:col-span-2">
+          <StandingsCard title="Pilotos" query={drivers}>
+            {(rows) => <DriversTable rows={rows} />}
+          </StandingsCard>
+        </div>
         <StandingsCard title="Escuderías" query={constructors}>
           {(rows) => <ConstructorsTable rows={rows} />}
         </StandingsCard>

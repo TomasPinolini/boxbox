@@ -119,3 +119,23 @@ Dos cosas abiertas, las dos esperando al learner:
 - Medir antes de arreglar. El número de 20px no se estimó: salió de
   `getBoundingClientRect()` en el navegador, y es lo que convierte "se ve apretado" en un
   defecto con un umbral concreto. Pendiente que el learner pida la medición por su cuenta.
+
+## Medir el peor caso, no el primero
+
+**Introduced** (2026-10-07, error de Claude corregido por la captura)
+- Al bajar el avatar del campeonato de 32 a 24px, la medicion dijo "fila: 41px, listo".
+  Estaba tomada de `rows[0]` — Albon / Williams, el nombre mas corto y la escuderia mas
+  corta. La **captura de pantalla** mostro que 7 de las 22 filas envolvian en dos lineas.
+- La leccion: **en una lista, la fila representativa no es la primera, es la mas larga.**
+  La medicion correcta es `Math.max` sobre todas las filas, o directamente contar cuantas
+  superan el alto esperado. Medir una muestra de tamano 1 y llamarlo verificado es el mismo
+  defecto que un smoke test cuyo fixture no puede fallar (ver `CLAUDE.md`, seccion de smokes).
+- La causa real no era el avatar: era que `lg:grid-cols-2` le daba a la tabla de pilotos
+  (5 columnas, 22 filas) exactamente el mismo ancho que a la de escuderias (3 columnas, 11
+  filas). Con `lg:grid-cols-3` + `lg:col-span-2` la de pilotos se lleva 2/3 y nada envuelve.
+- Generalizable: **cuando dos cosas de peso distinto comparten un grid partido en partes
+  iguales, el ancho se decidio por la sintaxis, no por el contenido.**
+
+**Needs reinforcement**
+- Pendiente que el learner pida la captura, no solo el numero. El numero dijo "41px" y era
+  cierto; la pantalla dijo que el problema seguia ahi.
