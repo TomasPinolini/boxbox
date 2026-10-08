@@ -1,4 +1,4 @@
-import { Badge } from '../../components/ui';
+import { Badge, Position } from '../../components/ui';
 import type { DriverRaceResult } from '../../models/driver';
 import { RESULT_STATUS_LABEL } from './result-status-label';
 
@@ -25,10 +25,14 @@ export function DriverResultsTable({ results }: { results: DriverRaceResult[] })
             const status = RESULT_STATUS_LABEL[r.status];
             return (
               <tr key={r.raceId} className="block border-b border-slate-100 py-3 sm:table-row">
-                <td className="py-1 pr-3 font-mono text-slate-500 sm:py-2">{r.round}</td>
+                <td className="py-1 pr-3 font-display tabular-nums text-slate-500 sm:py-2">
+                  {r.round}
+                </td>
                 <td className="py-1 pr-3 font-medium sm:py-2">{r.raceName}</td>
-                <td className="py-1 pr-3 sm:py-2">{r.position ?? '—'}</td>
-                <td className="py-1 pr-3 font-mono sm:py-2">{r.points}</td>
+                <td className="py-1 pr-3 sm:py-2">
+                  <Position value={r.position} />
+                </td>
+                <td className="py-1 pr-3 font-display tabular-nums sm:py-2">{r.points}</td>
                 <td className="py-1 sm:py-2">
                   <Badge tone={status.tone}>{status.text}</Badge>
                 </td>

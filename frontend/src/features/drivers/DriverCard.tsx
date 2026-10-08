@@ -21,7 +21,13 @@ import { TeamBadge } from './TeamBadge';
 // contenido de frase, y <Card> renderiza un <section>. Anidarlo seria HTML invalido.
 export function DriverCard({ driver, onOpen }: { driver: Driver; onOpen: (id: number) => void }) {
   return (
-    <Card className="relative transition-shadow hover:shadow-md">
+    <Card
+      // Franja del equipo al borde izquierdo, el patron de los timing screens de F1. Sin
+      // escuderia cae a un gris neutro y no a "sin borde": si la franja desapareciera, esa
+      // tarjeta mediria 4px menos de ancho que las demas y la grilla se desalinearia.
+      className="relative border-l-4 transition-shadow hover:shadow-md"
+      style={{ borderLeftColor: driver.constructor?.color ?? '#e2e8f0' }}
+    >
       <div className="flex items-center gap-3">
         <DriverAvatar driver={driver} size={48} />
         <div className="min-w-0 flex-1">
@@ -31,7 +37,7 @@ export function DriverCard({ driver, onOpen }: { driver: Driver; onOpen: (id: nu
           {/* flex-wrap y no una linea fija: "Racing Bulls" al lado de "#30 - LAW" no entra en
               320px, y bajar de linea es mejor que desbordar. */}
           <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-slate-500">
-            <span className="font-mono">#{driver.number}</span>
+            <span className="font-display tabular-nums">#{driver.number}</span>
             <span>{driver.code}</span>
             <TeamBadge constructor={driver.constructor} />
           </div>

@@ -1,8 +1,9 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { Alert, Card, PageShell } from '../../components/ui';
+import { Alert, Card, PageShell, Position } from '../../components/ui';
 import type { ConstructorStanding, DriverStanding } from '../../models/championship';
 import type { ApiError } from '../../services/api-error';
+import { ConstructorLogo } from '../drivers/ConstructorLogo';
 import { DriverAvatar } from '../drivers/DriverAvatar';
 import { TeamBadge } from '../drivers/TeamBadge';
 import { useConstructorStandings, useDriverStandings } from './standings.queries';
@@ -50,7 +51,16 @@ function DriversTable({ rows }: { rows: DriverStanding[] }) {
       <tbody>
         {rows.map(({ position, points, wins, driver }) => (
           <tr key={driver.id} className="border-b border-slate-100">
-            <td className={`${TD} font-mono text-slate-500`}>{position}</td>
+            {/* La franja va como box-shadow interior y NO como border-left: el preflight de
+                Tailwind pone border-collapse: collapse, y con eso los bordes de celdas
+                vecinas se fusionan y el resultado varia entre navegadores. El box-shadow no
+                participa de ese colapso ni ocupa lugar en el layout. */}
+            <td
+              className={`${TD} pl-2`}
+              style={{ boxShadow: `inset 4px 0 0 ${driver.constructor?.color ?? '#e2e8f0'}` }}
+            >
+              <Position value={position} />
+            </td>
             <td className={TD}>
               <Link
                 to={`/drivers/${driver.id}`}
@@ -63,8 +73,8 @@ function DriversTable({ rows }: { rows: DriverStanding[] }) {
             <td className={`${TD} hidden sm:table-cell`}>
               <TeamBadge constructor={driver.constructor} />
             </td>
-            <td className={`${TD} hidden font-mono sm:table-cell`}>{wins}</td>
-            <td className="py-2 text-right font-mono font-semibold">{points}</td>
+            <td className={`${TD} hidden font-display tabular-nums sm:table-cell`}>{wins}</td>
+            <td className="py-2 text-right font-display tabular-nums font-semibold">{points}</td>
           </tr>
         ))}
       </tbody>
@@ -85,11 +95,20 @@ function ConstructorsTable({ rows }: { rows: ConstructorStanding[] }) {
       <tbody>
         {rows.map(({ position, points, constructor }) => (
           <tr key={constructor.id} className="border-b border-slate-100">
-            <td className={`${TD} font-mono text-slate-500`}>{position}</td>
             <td className={TD}>
-              <TeamBadge constructor={constructor} />
+              <Position value={position} />
             </td>
-            <td className="py-2 text-right font-mono font-semibold">{points}</td>
+            {/* El logo va aca y no dentro de TeamBadge: el badge tambien vive en la tarjeta
+                de piloto, donde a 320px ya comparte linea con el dorsal y el codigo. Esta era
+                ademas la unica tabla sin ninguna imagen, mientras la de pilotos tiene las
+                fotos — esa asimetria es lo que la hacia ver mas pobre. */}
+            <td className={TD}>
+              <div className="flex items-center gap-2">
+                <ConstructorLogo constructor={constructor} />
+                <TeamBadge constructor={constructor} />
+              </div>
+            </td>
+            <td className="py-2 text-right font-display tabular-nums font-semibold">{points}</td>
           </tr>
         ))}
       </tbody>
@@ -102,9 +121,7 @@ export function ChampionshipPage() {
   const constructors = useConstructorStandings();
 
   return (
-    <PageShell
-      title="Campeonato"
-    >
+    <PageShell title="Campeonato">
       {/* 3 columnas y no 2: la tabla de pilotos tiene 5 columnas y 22 filas, la de escuderias
           3 y 11. Partiendo la pantalla por la mitad, 7 de las 22 filas de pilotos envolvian el
           nombre o la escuderia en dos lineas. Con 2/3 del ancho entran en una. */}

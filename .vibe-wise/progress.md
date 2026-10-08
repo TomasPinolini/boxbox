@@ -139,3 +139,29 @@ Dos cosas abiertas, las dos esperando al learner:
 **Needs reinforcement**
 - Pendiente que el learner pida la captura, no solo el numero. El numero dijo "41px" y era
   cierto; la pantalla dijo que el problema seguia ahi.
+
+## El tamaño más chico es el que fija el formato del asset
+
+**Introduced** (2026-10-07, error de Claude corregido por el learner)
+- Para darle identidad de F1 a la tabla del campeonato se metieron los logos de escudería
+  que ya estaban en el repo. A 24px eran una mancha: casi todos son **wordmarks**, logos
+  apaisados con el nombre del equipo adentro. La primera reacción (equivocada) fue tratarlo
+  como un problema de layout y agrandar la caja a 64px de ancho. El learner lo corrigió: el
+  problema no era el tamaño de la caja, **era el archivo**. Lo que hacía falta era la
+  **marca** sola — el speedmark de McLaren, la estrella de Mercedes, la "A" de Alpine.
+- La regla: **el tamaño más chico en que se va a usar un asset es el que decide qué asset
+  conseguir**, no al revés. Un logo con texto adentro tiene un tamaño mínimo por debajo del
+  cual deja de ser información y pasa a ser ruido.
+- Cómo se consiguieron: la **API de Wikimedia Commons** (`action=query&generator=search`)
+  devuelve ancho, alto y licencia de cada archivo. Filtrando por relación de aspecto cercana
+  a 1 aparecen las marcas y desaparecen los wordmarks, sin abrir el navegador.
+- Resultado honesto: **6 de 11**. De Ferrari, Red Bull, Aston Martin, Audi y Racing Bulls no
+  hay versión cuadrada con licencia libre. Se documentó en `CREDITS.md` *por qué* falta cada
+  una, en vez de dejarlo como un hueco sin explicar.
+- "Dominio público" en Commons significa que el logo no alcanza el **umbral de originalidad**
+  para tener copyright propio. **No** significa libre de marca registrada: el uso acá es
+  nominativo, identificar equipos reales en un TP sin fines comerciales.
+
+**Demonstrated understanding**
+- El learner vio el problema en la captura antes que Claude y supo nombrar la solución
+  correcta mandando tres ejemplos de la marca aislada, no una descripción.

@@ -5,3 +5,4 @@ export { Badge, type BadgeTone } from './Badge';
 export { Alert } from './Alert';
 export { errorMessageFor } from './error-messages';
 export { PageShell } from './PageShell';
+export { Position } from './Position';

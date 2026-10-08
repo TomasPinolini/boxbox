@@ -76,6 +76,9 @@ export function AppLayout() {
           )}
         </div>
       </nav>
+      {/* aria-hidden: es decoracion pura, no tiene por que aparecer en el arbol de
+          accesibilidad de nadie. */}
+      <div aria-hidden="true" className="checkered h-2" />
 
       <Outlet />
     </>
