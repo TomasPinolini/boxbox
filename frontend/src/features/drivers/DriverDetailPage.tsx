@@ -41,24 +41,28 @@ export function DriverDetailPage() {
       }
     >
       <div className="flex flex-col gap-6">
-        <div className="flex flex-wrap items-center gap-4">
-          <DriverAvatar driver={d} size={88} />
-          <div className="flex flex-col gap-2 text-slate-600">
-            <div className="flex items-center gap-3">
-              <span className="font-mono text-lg">#{d.number}</span>
-              <span>{d.code}</span>
-              <TeamBadge constructor={d.constructor} />
+        {/* La cabecera pasa a Card para poder llevar la banda del equipo arriba. Antes era
+            un div suelto: el unico bloque de la pantalla sin la caja blanca del resto. */}
+        <Card className="border-t-4" style={{ borderTopColor: d.constructor?.color ?? '#e2e8f0' }}>
+          <div className="flex flex-wrap items-center gap-4">
+            <DriverAvatar driver={d} size={88} />
+            <div className="flex flex-col gap-2 text-slate-600">
+              <div className="flex items-center gap-3">
+                <span className="font-display tabular-nums text-lg">#{d.number}</span>
+                <span>{d.code}</span>
+                <TeamBadge constructor={d.constructor} />
+              </div>
+              {/* El logo solo aparece si lo tenemos: faltan Ferrari, Audi y Racing Bulls. */}
+              {d.constructor?.logoUrl && (
+                <img
+                  src={d.constructor.logoUrl}
+                  alt={d.constructor.name}
+                  className="h-10 max-w-[220px] object-contain object-left"
+                />
+              )}
             </div>
-            {/* El logo solo aparece si lo tenemos: faltan Ferrari, Audi y Racing Bulls. */}
-            {d.constructor?.logoUrl && (
-              <img
-                src={d.constructor.logoUrl}
-                alt={d.constructor.name}
-                className="h-10 max-w-[220px] object-contain object-left"
-              />
-            )}
           </div>
-        </div>
+        </Card>
 
         <Card>
           <h2 className="mb-4 text-lg font-semibold">Estadísticas</h2>
@@ -67,7 +71,9 @@ export function DriverDetailPage() {
               <div key={key}>
                 <dt className="text-sm text-slate-500">{label}</dt>
                 {/* bestFinish es null si nunca clasifico — no es un cero. */}
-                <dd className="font-mono text-2xl font-semibold">{d.stats[key] ?? '—'}</dd>
+                <dd className="font-display tabular-nums text-2xl font-semibold">
+                  {d.stats[key] ?? '—'}
+                </dd>
               </div>
             ))}
           </dl>

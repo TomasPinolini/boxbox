@@ -520,19 +520,34 @@ const races2026: RaceData[] = [
 
 // Logos de escuderia, servidos como estaticos desde frontend/public/logos/.
 // Origen y licencia de cada archivo: frontend/public/logos/CREDITS.md (todos de Wikimedia
-// Commons, dominio publico o CC0 salvo los marcados ahi).
-// Faltan Ferrari, Audi y Racing Bulls: no habia archivo usable con fondo transparente. La UI
-// cae al badge con el color del equipo, que ya alcanza para identificarlo.
+// Commons, dominio publico salvo los marcados ahi).
+//
+// Son MARCAS, no wordmarks: el speedmark de McLaren, la estrella de Mercedes, la "A" de
+// Alpine. El criterio es el tamano mas chico en que se usan, 24px en la tabla del
+// campeonato. Un logo apaisado con el nombre del equipo adentro a 24px es una mancha; una
+// marca se sigue reconociendo. Antes habia wordmarks y se veian ilegibles.
+//
+// Las 11 tienen logo, pero de dos origenes distintos y eso importa: seis vienen de Wikimedia
+// Commons con licencia declarada (ver CREDITS.md) y cinco de agregadores que NO otorgan
+// licencia, aisladas en /logos/temporales/ con su propio README. De esas cinco no hay
+// version libre: son dibujos figurativos con copyright propio, o solo existen apaisadas.
+// Si alguna cayera a null, la UI ya lo maneja: muestra un cuadrado con el color del equipo.
 // Slice 12 va a poder pisar estos valores con las URLs que devuelva la API externa.
 const teamLogos: Record<string, string> = {
   alpine: '/logos/alpine.png',
-  aston_martin: '/logos/aston-martin.png',
   cadillac: '/logos/cadillac.png',
   haas: '/logos/haas.png',
   mclaren: '/logos/mclaren.png',
   mercedes: '/logos/mercedes.png',
-  red_bull: '/logos/red-bull-racing.png',
   williams: '/logos/williams.png',
+  // TEMPORALES, sin licencia verificada. Van en su propia carpeta a proposito, con un README
+  // que explica que son y como sacarlos: frontend/public/logos/temporales/README.md.
+  // No deben sobrevivir a un lanzamiento real.
+  ferrari: '/logos/temporales/ferrari.png',
+  audi: '/logos/temporales/audi.png',
+  red_bull: '/logos/temporales/red-bull-racing.png',
+  aston_martin: '/logos/temporales/aston-martin.png',
+  rb: '/logos/temporales/racing-bulls.png',
 };
 
 // Fotos de pilotos: se guarda la URL, NO el archivo. Son imagenes de prensa de F1 alojadas en

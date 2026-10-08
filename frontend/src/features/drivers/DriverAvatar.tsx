@@ -15,7 +15,7 @@ export function DriverAvatar({ driver, size = 48 }: { driver: AvatarDriver; size
     return (
       <span
         className="flex shrink-0 items-center justify-center rounded-full bg-slate-200 font-semibold text-slate-600"
-        style={{ width: size, height: size, fontSize: size * 0.36 }}
+        style={{ width: size, height: size, fontSize: Math.max(size * 0.36, 10) }}
         aria-hidden="true"
       >
         {initials}

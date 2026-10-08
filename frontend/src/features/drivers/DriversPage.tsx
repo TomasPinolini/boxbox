@@ -1,4 +1,4 @@
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Alert, PageShell } from '../../components/ui';
 import { ConstructorFilter } from './ConstructorFilter';
 import { DriverCard } from './DriverCard';
@@ -23,16 +23,6 @@ export function DriversPage() {
   return (
     <PageShell
       title="Pilotos"
-      actions={
-        <div className="flex items-center gap-3 text-sm">
-          <Link to="/standings" className="font-semibold text-red-600 hover:underline">
-            Campeonato
-          </Link>
-          <Link to="/leagues" className="font-semibold text-red-600 hover:underline">
-            Mis ligas
-          </Link>
-        </div>
-      }
     >
       <div className="flex flex-col gap-6">
         <div className="max-w-xs">

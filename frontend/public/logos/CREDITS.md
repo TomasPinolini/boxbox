@@ -1,25 +1,36 @@
 # Logos de escuderías — origen y licencia
 
-Todos descargados de **Wikimedia Commons** y reescalados a 240 px de alto con ImageMagick.
-A `red-bull-racing.png` y `aston-martin.png` se les quitó el fondo blanco
-(`-fuzz 8% -transparent white`) porque venían opacos.
+Todos descargados de **Wikimedia Commons** y reescalados a 240 px de alto.
 
-| Archivo | Licencia declarada en Commons |
-| --- | --- |
-| `alpine.png` | CC0 1.0 |
-| `aston-martin.png` | CC BY 4.0 — requiere atribución |
-| `cadillac.png` | CC0 1.0 |
-| `haas.png` | Dominio público |
-| `mclaren.png` | Dominio público |
-| `mercedes.png` | Dominio público |
-| `red-bull-racing.png` | Dominio público |
-| `williams.png` | CC0 1.0 |
-| `clasicos/ligier.png` | CC BY-SA 4.0 — requiere atribución y compartir igual |
-| `clasicos/renault.png` | Dominio público |
-| `clasicos/tyrrell.png` | Dominio público |
+Son **marcas, no wordmarks**: el speedmark de McLaren, la estrella de Mercedes, la "A" de
+Alpine. El criterio lo fija el tamaño más chico en que se usan, 24 px en la tabla del
+campeonato. Un logo apaisado con el nombre del equipo adentro, a 24 px, es una mancha; una
+marca se sigue reconociendo. En `alpine`, `cadillac` y `haas` el archivo de Commons traía el
+wordmark debajo y se recortó para quedarse sólo con la marca. A `cadillac.png` además se le
+quitó el fondo blanco, porque el original es un WebP sin canal alfa.
 
-**Sin logo**: Ferrari, Audi F1 Team y Racing Bulls. No había archivo usable con fondo
-transparente en Commons. La interfaz cae al badge con el color del equipo.
+| Archivo | Marca | Archivo original en Commons | Licencia declarada |
+| --- | --- | --- | --- |
+| `alpine.png` | la "A" | `Alpine F1 Team Logo.svg` | Dominio público |
+| `cadillac.png` | el escudo | `Cadillac Logo 1995.webp` | Dominio público |
+| `haas.png` | la "H" | `TGR Haas F1 Team Logo (2026).svg` | Dominio público |
+| `mclaren.png` | el speedmark | `McLaren Speedmark.svg` | Dominio público |
+| `mercedes.png` | la estrella | `Mercedes-Benz Star 2022.svg` | Dominio público |
+| `williams.png` | la "W" | `Williams Racing Monogram.png` | **CC BY-SA 4.0** — atribución y compartir igual |
+| `clasicos/ligier.png` | — | — | CC BY-SA 4.0 — atribución y compartir igual |
+| `clasicos/renault.png` | — | — | Dominio público |
+| `clasicos/tyrrell.png` | — | — | Dominio público |
+
+Los tres de `clasicos/` no los referencia ni el seed ni la interfaz: quedaron de una prueba
+anterior.
+
+**Sin logo**: Ferrari, Red Bull Racing, Aston Martin, Audi F1 Team y Racing Bulls. No es un
+olvido, es una limitación de las fuentes libres: de ninguna de las cinco hay en Commons una
+versión **cuadrada** de la marca con licencia libre. Del caballo de Ferrari y de los toros de
+Red Bull sólo existen versiones con copyright; las alas de Aston Martin y los cuatro aros de
+Audi son apaisados por diseño y no sobreviven a 24 px; Racing Bulls es un equipo demasiado
+nuevo. La interfaz cae a un cuadrado con el color oficial del equipo, que ocupa exactamente
+lo mismo y lo sigue identificando.
 
 ## Aclaración importante
 

@@ -1,1 +1,154 @@
 @import 'tailwindcss';
+
+/* Tipografia de marca, SOLO para numeros.
+   Tailwind v4 es CSS-first: un token se declara en @theme y Tailwind genera la utilidad
+   sola. `--font-display` produce la clase `font-display`. Es el primer @theme del proyecto;
+   hasta aca todo heredaba el tema por defecto.
+
+   La oficial de F1 (Formula1 Display) es propietaria y no puede viajar en un repo publico.
+   Saira Condensed es la alternativa libre mas cercana al tono de un timing screen.
+
+   La regla de reparto, que antes estaba en la cabeza de nadie:
+   - NUMEROS (posiciones, puntos, victorias, dorsales, rondas) -> font-display tabular-nums
+   - CODIGOS (el inviteCode de una liga) -> siguen en font-mono. Un codigo se lee y se tipea
+     caracter por caracter; una condensada junta los trazos y lo empeora. */
+@theme {
+  --font-display: 'Saira Condensed', ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Token de movimiento. Una sola curva para todo el proyecto: sin un token compartido,
+   cada animacion inventa la suya y en tres cambios ya no se parecen entre si. */
+:root {
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+/* Bandera a cuadros, 4px, bajo la barra de navegacion.
+   repeating-conic-gradient y no una imagen: son dos declaraciones, escala a cualquier ancho
+   sin pixelarse y no agrega un request de red. El gradiente conico dibuja un tablero 2x2 en
+   cada celda de 8px, o sea cuadros de 4px. La franja mide 8px y no 4: con una sola fila de
+   cuadros el ojo lee una linea punteada, no un tablero. Hacen falta dos filas para que se
+   lea como la bandera. Verificado mirando la captura, no el CSS.
+   Es el unico guino decorativo de la app y esta puesto una sola vez: la regla de frecuencia
+   vale igual para la decoracion que para el movimiento. */
+.checkered {
+  background-image: repeating-conic-gradient(#0f172a 0% 25%, #fff 0% 50%);
+  background-size: 8px 8px;
+}
+
+/* Indicador de foco, global.
+   Va aca y no en cada componente porque :focus-visible alcanza a todo lo enfocable:
+   botones, inputs, selects y los <Link> repartidos por las paginas. Una regla en vez de
+   una edicion por archivo.
+
+   :focus-visible y NO :focus. La diferencia importa: :focus tambien dispara al hacer click
+   con el mouse, asi que aparecia un anillo cada vez que apretas un boton — ruido visual que
+   nadie quiere. :focus-visible lo muestra solo cuando el navegador juzga que hace falta un
+   indicador, que en la practica es al navegar con teclado.
+
+   outline y no box-shadow/ring: el outline no participa del layout, asi que no corre nada
+   de lugar. El offset lo despega 2px del borde para que se lea incluso sobre el rojo de
+   la variante primaria del boton. */
+:focus-visible {
+  outline: 2px solid var(--color-red-600);
+  outline-offset: 2px;
+}
+
+/* Capa de plataforma tactil.
+   NO hace falta tocar -webkit-tap-highlight-color ni -webkit-text-size-adjust: el preflight
+   de Tailwind v4 ya los pone en `html,:host`. Verificado en el bundle el 2026-10-07.
+
+   touch-action: manipulation le dice al navegador que estos elementos nunca hacen zoom por
+   doble tap, asi que puede disparar el click de inmediato en vez de esperar ~300ms para ver
+   si viene un segundo toque.
+   user-select: none solo en controles. NUNCA en body: el texto de contenido —un codigo de
+   invitacion, un mensaje de error— tiene que poder copiarse. */
+button,
+a,
+[role='button'] {
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* iOS Safari hace zoom cuando el foco cae en un input con tipografia menor a 16px, y NO
+   vuelve atras al salir. La tentacion es poner maximum-scale=1, que rompe el pinch-zoom y
+   es una falla de accesibilidad. Esto arregla la causa en vez del sintoma.
+   Solo en punteros gruesos: en desktop la tipografia del input sigue la del diseno. */
+@media (pointer: coarse) {
+  input,
+  textarea,
+  select {
+    font-size: 16px;
+  }
+}
+
+/* Feedback de presion.
+   Antes era una clase `.press` aplicada a mano en Button, pero la necesidad es universal:
+   al matar el tap-highlight de arriba le quitamos a TODO lo tocable su unica senal de
+   respuesta. Los links que funcionan como accion principal —"Ver liga", "Ver piloto",
+   "Echar"— quedarian muertos al tacto. Una regla global los alcanza a todos.
+
+   Deliberadamente NO redefine `transition`: la clase `transition` de Tailwind que Button
+   ya tiene cubre transform, y pisarla aca romperia el transicionado del color en hover. */
+button:active:not(:disabled),
+a:active,
+[role='button']:active:not([aria-disabled='true']) {
+  transform: scale(0.97);
+}
+
+/* Entradas de elementos que recien aparecen en el DOM.
+   @starting-style define el estado DEL QUE PARTE un elemento recien insertado, sin
+   keyframes y sin JS. Si el navegador no lo soporta, el elemento aparece de golpe — que
+   es exactamente el comportamiento que habia antes, asi que degrada solo. */
+.enter-top,
+.enter-bottom {
+  transition:
+    opacity 180ms var(--ease-out),
+    transform 180ms var(--ease-out);
+}
+
+/* El panel de turno se ve 3 veces por draft, no decenas por dia. La regla de frecuencia
+   dice que ahi vive el presupuesto de movimiento, asi que lleva mas escala y mas duracion
+   que las entradas frecuentes: es el instante en que el sistema te dice "ahora vos". */
+.enter-scale {
+  transition:
+    opacity 280ms var(--ease-out),
+    transform 280ms var(--ease-out);
+}
+
+@starting-style {
+  /* Mensajes de error: bajan desde arriba del contenido */
+  .enter-top {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  /* Paneles que crecen en su lugar. Nunca desde scale(0): nada aparece de la nada */
+  .enter-scale {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  /* Items que se agregan al final de una lista: suben desde abajo */
+  .enter-bottom {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+/* Movimiento reducido. Se conserva el fade y se descarta el desplazamiento: mas suave,
+   no cero. Quitar todo tambien quita la pista de que algo cambio en la pantalla. */
+@media (prefers-reduced-motion: reduce) {
+  button:active:not(:disabled),
+  a:active,
+  [role='button']:active:not([aria-disabled='true']) {
+    transform: none;
+  }
+
+  @starting-style {
+    .enter-top,
+    .enter-scale,
+    .enter-bottom {
+      transform: none;
+    }
+  }
+}

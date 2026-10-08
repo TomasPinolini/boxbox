@@ -1,10 +1,8 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { z } from 'zod';
 import { Alert, Button, Card, Field, PageShell, inputClass } from '../../components/ui';
-import { authService } from '../../services/auth.service';
-import { useAuthStore } from '../../store/auth.store';
 import { LeagueCard } from './LeagueCard';
 import { useCreateLeague, useJoinLeague, useLeagues } from './leagues.queries';
 
@@ -19,7 +17,6 @@ const joinSchema = z.object({ inviteCode: z.string().min(4, 'Mínimo 4 caractere
 
 export function LeaguesPage() {
   const navigate = useNavigate();
-  const user = useAuthStore((s) => s.user);
   const leagues = useLeagues();
   const createLeague = useCreateLeague();
   const joinLeague = useJoinLeague();
@@ -27,34 +24,9 @@ export function LeaguesPage() {
   const createForm = useForm<z.infer<typeof createSchema>>({ resolver: zodResolver(createSchema) });
   const joinForm = useForm<z.infer<typeof joinSchema>>({ resolver: zodResolver(joinSchema) });
 
-  async function logout() {
-    await authService.logout();
-    navigate('/login');
-  }
-
   return (
     <PageShell
       title="Mis ligas"
-      actions={
-        <div className="flex items-center gap-3 text-sm text-slate-600">
-          <Link to="/drivers" className="font-semibold text-red-600 hover:underline">
-            Pilotos
-          </Link>
-          <Link to="/standings" className="font-semibold text-red-600 hover:underline">
-            Campeonato
-          </Link>
-          {/* Solo ADMIN: un link muerto para un USER es peor que no tenerlo (BOX-37). */}
-          {user?.role === 'ADMIN' && (
-            <Link to="/admin/results" className="font-semibold text-red-600 hover:underline">
-              Cargar resultados
-            </Link>
-          )}
-          <span>{user?.name}</span>
-          <Button variant="secondary" onClick={logout}>
-            Salir
-          </Button>
-        </div>
-      }
     >
       <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
         <section className="flex flex-col gap-4">

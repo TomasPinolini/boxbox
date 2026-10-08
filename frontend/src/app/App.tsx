@@ -6,7 +6,7 @@ import { SessionGate } from './SessionGate';
 export function App() {
   return (
     <Providers>
-      <main className="min-h-screen bg-slate-50 text-slate-900">
+      <main className="min-h-dvh bg-slate-50 text-slate-900">
         <SessionGate>
           <RouterProvider router={router} />
         </SessionGate>

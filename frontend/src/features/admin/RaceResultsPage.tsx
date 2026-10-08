@@ -223,7 +223,7 @@ export function RaceResultsPage() {
                             ))}
                           </select>
                         </td>
-                        <td className="py-1 font-mono sm:py-2">
+                        <td className="py-1 font-display tabular-nums sm:py-2">
                           {pointsFor(e.position === '' ? undefined : Number(e.position), e.status)}
                         </td>
                       </tr>

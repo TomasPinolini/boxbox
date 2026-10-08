@@ -57,7 +57,7 @@ erDiagram
     DriverSeason {
         int id PK
         int driverId FK
-        int constructorId FK
+        int constructorId FK "una sola escuderia por piloto y temporada"
         int seasonId FK
     }
 
@@ -122,10 +122,10 @@ erDiagram
         int id PK
         int raceId FK
         int driverId FK
-        int constructorId FK
         int position
         int points
         int gridPosition
+        int laps
         boolean fastestLap
         enum status "CLASSIFIED | DNF | DSQ | DNS"
         string externalId
@@ -139,6 +139,7 @@ erDiagram
         int constructorId FK
         int driver1Points
         int driver2Points
+        int totalPoints "driver1Points + driver2Points, pre-computado"
     }
 
     Prediction {
@@ -181,6 +182,18 @@ erDiagram
         datetime createdAt
     }
 
+    %% Verificado campo por campo contra backend/prisma/schema.prisma el 2026-10-05.
+    %% Si cambia uno, cambia el otro.
+    %%
+    %% Decision de diseno: RaceResult NO guarda constructorId. La relacion piloto->escuderia
+    %% es propiedad de DriverSeason, que tiene @@unique([driverId, seasonId]) — una escuderia
+    %% por piloto por temporada. ConstructorResult se deriva de ahi al cargar resultados.
+    %%
+    %% Limitacion conocida, encontrada con datos reales de Jolpica: un piloto que cambia de
+    %% equipo a mitad de temporada (Lawson 2026: Racing Bulls y Red Bull) acredita todos sus
+    %% puntos a una sola escuderia. El arreglo seria mover constructorId a RaceResult o dar
+    %% rango de fechas a DriverSeason. No se hizo: no afecta ningun requisito. Ver BOX-9.
+
     %% Multi-column unique constraints (cannot express in Mermaid field syntax):
     %% DraftPick:    @@unique([leagueId, pickNumber])
     %%               @@unique([leagueId, leagueMemberId, round]) — one pick per round per member
@@ -221,7 +234,6 @@ erDiagram
     Race ||--o{ LeagueStanding : "snapshot at"
 
     Driver ||--o{ RaceResult : "has"
-    Constructor ||--o{ RaceResult : "has"
     Constructor ||--o{ ConstructorResult : "has"
 
     Prediction }o--|| Driver : "predicted winner"

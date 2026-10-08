@@ -1,9 +1,31 @@
 <!doctype html>
-<html lang="en">
+<html lang="es">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <!-- Saira Condensed, solo para numeros (ver --font-display en src/index.css).
+         preconnect a los DOS dominios: googleapis.com sirve el CSS, gstatic.com los .woff2.
+         Sin el segundo, el navegador recien descubre gstatic al parsear el CSS y paga un
+         handshake TLS entero de mas. crossorigin es obligatorio en el de las fuentes.
+         display=swap: el texto se dibuja ya con la fuente del sistema y cambia cuando
+         llega la otra. Si no hay red, se queda en la del sistema y la app se ve como antes. -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@400;600;700&display=swap"
+      rel="stylesheet"
+    />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Fantasy League de Fórmula 1: armá tu equipo en un draft en vivo y competí con resultados reales de la temporada."
+    />
+    <!-- Color de la barra de estado del navegador. Tiene que igualar el color de ARRIBA de
+         la pagina (bg-slate-50 en app/App.tsx), no el color de marca. -->
+    <meta name="theme-color" content="#f8fafc" />
+    <!-- La app no tiene modo oscuro. Declararlo evita que el navegador fuerce un oscurecido
+         propio sobre los controles de formulario. -->
+    <meta name="color-scheme" content="light" />
     <title>BoxBox — Fantasy League de F1</title>
   </head>
   <body>

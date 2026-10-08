@@ -1,3 +1,4 @@
+import { Position } from '../../components/ui';
 import type { Standing } from '../../models/standing';
 
 // Flecha de movimiento contra la carrera anterior. Texto ademas de color: el color solo no
@@ -36,11 +37,17 @@ export function StandingsTable({ standings }: { standings: Standing[] }) {
         <tbody>
           {standings.map((s) => (
             <tr key={s.id} className="border-b border-slate-100">
-              <td className="py-2 pr-3 font-mono">{s.position}</td>
+              <td className="py-2 pr-3">
+                <Position value={s.position} />
+              </td>
               <td className="py-2 pr-3 font-medium">{s.user.name}</td>
-              <td className="hidden py-2 pr-3 font-mono md:table-cell">{s.driverPoints}</td>
-              <td className="hidden py-2 pr-3 font-mono md:table-cell">{s.constructorPoints}</td>
-              <td className="py-2 pr-3 font-mono font-semibold">{s.totalPoints}</td>
+              <td className="hidden py-2 pr-3 font-display tabular-nums md:table-cell">
+                {s.driverPoints}
+              </td>
+              <td className="hidden py-2 pr-3 font-display tabular-nums md:table-cell">
+                {s.constructorPoints}
+              </td>
+              <td className="py-2 pr-3 font-display tabular-nums font-semibold">{s.totalPoints}</td>
               <td className="py-2">
                 <Change value={s.positionChange} />
               </td>
