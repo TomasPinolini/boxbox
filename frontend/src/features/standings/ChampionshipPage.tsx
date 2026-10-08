@@ -104,16 +104,6 @@ export function ChampionshipPage() {
   return (
     <PageShell
       title="Campeonato"
-      actions={
-        <div className="flex flex-wrap items-center gap-3 text-sm">
-          <Link to="/drivers" className="font-semibold text-red-600 hover:underline">
-            Pilotos
-          </Link>
-          <Link to="/leagues" className="font-semibold text-red-600 hover:underline">
-            Mis ligas
-          </Link>
-        </div>
-      }
     >
       <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
         <StandingsCard title="Pilotos" query={drivers}>
