@@ -527,10 +527,11 @@ const races2026: RaceData[] = [
 // campeonato. Un logo apaisado con el nombre del equipo adentro a 24px es una mancha; una
 // marca se sigue reconociendo. Antes habia wordmarks y se veian ilegibles.
 //
-// Quedan cinco sin logo, y es una limitacion de las fuentes libres, no un olvido: del
-// caballo de Ferrari, los toros de Red Bull, las alas de Aston Martin, los aros de Audi y
-// la marca de Racing Bulls no hay en Commons ninguna version cuadrada con licencia libre.
-// La UI cae al cuadrado con el color del equipo, que ocupa lo mismo y sigue identificandolo.
+// Las 11 tienen logo, pero de dos origenes distintos y eso importa: seis vienen de Wikimedia
+// Commons con licencia declarada (ver CREDITS.md) y cinco de agregadores que NO otorgan
+// licencia, aisladas en /logos/temporales/ con su propio README. De esas cinco no hay
+// version libre: son dibujos figurativos con copyright propio, o solo existen apaisadas.
+// Si alguna cayera a null, la UI ya lo maneja: muestra un cuadrado con el color del equipo.
 // Slice 12 va a poder pisar estos valores con las URLs que devuelva la API externa.
 const teamLogos: Record<string, string> = {
   alpine: '/logos/alpine.png',
@@ -546,6 +547,7 @@ const teamLogos: Record<string, string> = {
   audi: '/logos/temporales/audi.png',
   red_bull: '/logos/temporales/red-bull-racing.png',
   aston_martin: '/logos/temporales/aston-martin.png',
+  rb: '/logos/temporales/racing-bulls.png',
 };
 
 // Fotos de pilotos: se guarda la URL, NO el archivo. Son imagenes de prensa de F1 alojadas en
