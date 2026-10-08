@@ -539,6 +539,11 @@ const teamLogos: Record<string, string> = {
   mclaren: '/logos/mclaren.png',
   mercedes: '/logos/mercedes.png',
   williams: '/logos/williams.png',
+  // TEMPORALES, sin licencia verificada. Van en su propia carpeta a proposito, con un README
+  // que explica que son y como sacarlos: frontend/public/logos/temporales/README.md.
+  // No deben sobrevivir a un lanzamiento real.
+  ferrari: '/logos/temporales/ferrari.png',
+  audi: '/logos/temporales/audi.png',
 };
 
 // Fotos de pilotos: se guarda la URL, NO el archivo. Son imagenes de prensa de F1 alojadas en
