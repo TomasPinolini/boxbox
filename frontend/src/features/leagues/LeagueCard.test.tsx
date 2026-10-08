@@ -30,4 +30,11 @@ describe('LeagueCard', () => {
     await userEvent.click(screen.getByRole('button', { name: /ver liga/i }));
     expect(onOpen).toHaveBeenCalledWith(7);
   });
+
+  // El nombre accesible tiene que distinguir esta tarjeta de las otras: con varias ligas en
+  // pantalla, "Ver liga" repetido no le dice nada a un lector de pantalla.
+  it('el boton nombra la liga en su aria-label', () => {
+    render(<LeagueCard league={league} onOpen={() => {}} />);
+    expect(screen.getByRole('button', { name: 'Ver liga Liga UTN' })).toBeInTheDocument();
+  });
 });
