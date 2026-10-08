@@ -94,3 +94,28 @@ Dos cosas abiertas, las dos esperando al learner:
 2. Prioridad de los próximos días: correr la auditoría de diseño (`impeccable`, que nunca
    se usó y es la única pata de "buenas prácticas de UX/UI" sin medir) o atacar el video,
    que es requisito de Aprobación y no existe. El video depende de coordinar con Rivero.
+
+## Área táctil y el patrón "stretched link"
+
+**Introduced** (2026-10-07, explicado por Claude, aplicado en `DriverCard.tsx`)
+- Una **acción principal que es un link de texto** es el peor caso de touch: medido en el
+  navegador, "Ver piloto" tenía 20px de alto contra los ~44px que piden las guías de touch
+  de Apple y Google. El dedo tiene que apuntar.
+- **El arreglo que resuelve dos problemas con un cambio**: hacer clickeable toda la tarjeta
+  mata la línea que ocupaba el botón (densidad) y multiplica el área táctil por 4 (80px).
+  Cuando un cambio arregla dos síntomas distintos, normalmente es porque los dos salían de
+  la misma causa — acá, que el área clickeable y el área visual no coincidían.
+- **Patrón "stretched link"**: un `<button>` vacío en `absolute inset-0` dentro de un
+  contenedor `relative`. No se envuelve todo en el `<button>` porque el *content model* de
+  `<button>` es contenido de frase, y `Card` renderiza un `<section>` (contenido de
+  seccionamiento) — anidarlo sería HTML inválido.
+- Efecto lateral gratis: el `outline` global de `:focus-visible` se dibuja en el borde del
+  `inset-0`, o sea en el borde de la tarjeta. Navegando con Tab se ve la tarjeta entera
+  seleccionada, sin escribir una regla nueva.
+- El `aria-label` sigue siendo necesario y por el mismo motivo de antes: el nombre accesible
+  tiene que distinguir esa tarjeta de las otras 21.
+
+**Needs reinforcement**
+- Medir antes de arreglar. El número de 20px no se estimó: salió de
+  `getBoundingClientRect()` en el navegador, y es lo que convierte "se ve apretado" en un
+  defecto con un umbral concreto. Pendiente que el learner pida la medición por su cuenta.
