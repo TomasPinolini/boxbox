@@ -34,6 +34,17 @@ export function AppLayout() {
 
   return (
     <>
+      {/* Skip link. Lo pide la barra de navegacion de abajo: con 5 links persistentes, alguien
+          que navega con teclado tiene que pasar por todos en CADA pantalla antes de llegar al
+          contenido. Esta oculto hasta que recibe foco (sr-only + focus:not-sr-only), que es el
+          patron estandar: solo aparece para quien lo necesita, en el primer Tab de la pagina. */}
+      <a
+        href="#contenido"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-white focus:px-4 focus:py-2 focus:font-semibold focus:text-red-600 focus:shadow-md focus:ring-1 focus:ring-slate-300"
+      >
+        Saltar al contenido
+      </a>
+
       <nav aria-label="Principal" className="border-b border-slate-200 bg-white">
         {/* Mismo contenedor que PageShell (max-w-5xl px-4 md:px-6) para que la barra quede
             alineada con el contenido de la pagina. flex-wrap: en pantallas angostas los

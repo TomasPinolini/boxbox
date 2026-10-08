@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Alert, Button, Card, PageShell } from '../../components/ui';
+import { Alert, Button, Card, PageShell, Success } from '../../components/ui';
 import type { RaceResultStatus } from '../../models/driver';
 import { useDrivers } from '../drivers/drivers.queries';
 import {
@@ -112,10 +112,10 @@ export function RaceResultsPage() {
         {process.error && <Alert code={process.error.code} message={process.error.message} />}
         {preview.error && <Alert code={preview.error.code} message={preview.error.message} />}
         {process.isSuccess && (
-          <p role="status" className="mb-3 rounded bg-green-50 px-3 py-2 text-sm text-green-800">
+          <Success>
             Resultados cargados. Se recalcularon {process.data.standings} standings en{' '}
             {process.data.leagues} ligas.
-          </p>
+          </Success>
         )}
 
         <label className="mb-4 flex flex-col gap-1 text-sm font-medium">
@@ -151,9 +151,9 @@ export function RaceResultsPage() {
           <>
             {recalc.error && <Alert code={recalc.error.code} message={recalc.error.message} />}
             {recalc.isSuccess && (
-              <p role="status" className="mb-3 rounded bg-green-50 px-3 py-2 text-sm text-green-800">
+              <Success>
                 Standings recalculados: {recalc.data.standings} en {recalc.data.leagues} ligas.
-              </p>
+              </Success>
             )}
             <div className="mt-4">
               <Button disabled={recalc.isPending} onClick={() => recalc.mutate(raceId)}>

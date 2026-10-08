@@ -165,3 +165,28 @@ Dos cosas abiertas, las dos esperando al learner:
 **Demonstrated understanding**
 - El learner vio el problema en la captura antes que Claude y supo nombrar la solución
   correcta mandando tres ejemplos de la marca aislada, no una descripción.
+
+## Un landmark describe el contenido, no el envoltorio
+
+**Introduced** (2026-10-07, hallazgo al agregar el skip link)
+- Para que el skip link tuviera destino hacia falta un `<main id="contenido">`. Al buscar
+  dónde ponerlo apareció que `app/App.tsx` **ya tenía un `<main>` envolviendo TODO**,
+  incluida la barra de navegación. Eso es incorrecto: `<main>` es el contenido principal de
+  la página, y la navegación del sitio por definición no lo es.
+- El error es fácil de cometer porque **el elemento estaba haciendo dos trabajos**: dar el
+  fondo y la altura mínima (un trabajo de presentación) y declarar el landmark (un trabajo
+  semántico). Se arregló separándolos: `<div>` para el fondo en `App.tsx`, `<main>` real en
+  `PageShell`, que es lo que cada pantalla renderiza.
+- Regla: **un landmark se elige por lo que contiene, no por dónde queda cómodo ponerlo.**
+  Si un elemento existe por una razón visual, es un `div`.
+- `tabIndex={-1}` en el destino del skip link: deja que reciba foco *programáticamente* sin
+  entrar en el orden de tabulación. Sin él, varios navegadores mueven el scroll pero dejan el
+  foco donde estaba, y el siguiente Tab vuelve a la barra — el salto no sirve de nada.
+- El skip link usa `sr-only focus:not-sr-only`: invisible hasta que recibe foco. No es un
+  truco, es el patrón estándar — aparece sólo para quien lo necesita.
+
+**Needs reinforcement**
+- Yo había marcado el skip link como "fuera de alcance" en el plan, y después agregué la
+  barra de navegación, que es justo lo que lo vuelve necesario. **Cambiar las condiciones que
+  justificaban una postergación obliga a revisarla**, y no lo hice hasta que el learner
+  preguntó qué faltaba.

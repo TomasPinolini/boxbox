@@ -5,6 +5,7 @@ import { useAuthStore } from '../../store/auth.store';
 import { useDrivers, useConstructors } from '../drivers/drivers.queries';
 import { DRAFT_LABEL } from '../leagues/draft-label';
 import { useMembers } from '../leagues/leagues.queries';
+import { draftAnnouncement } from './draft-announcement';
 import { useDraftState } from './useDraftState';
 
 const CONNECTION_LABEL: Record<string, string> = {
@@ -51,6 +52,26 @@ export function DraftPage() {
     return constructor?.name ?? `escudería ${pick.constructorId}`;
   };
 
+  // Anuncio para lectores de pantalla. El draft es la unica pantalla donde el contenido
+  // cambia SOLO porque llego un mensaje de websocket: nadie navego ni apreto nada. Sin esto,
+  // un cambio de turno o el pick de otro jugador no existen para quien no ve la pantalla.
+  // El porque de cada decision esta en draft-announcement.ts.
+  const lastPick = state?.picks.at(-1);
+  const announcement = state
+    ? draftAnnouncement({
+        draftStatus: state.draftStatus,
+        round: state.round,
+        isMyTurn,
+        currentTurnName:
+          state.currentTurnLeagueMemberId !== null
+            ? memberName(state.currentTurnLeagueMemberId)
+            : null,
+        lastPick: lastPick
+          ? { memberName: memberName(lastPick.leagueMemberId), label: pickLabel(lastPick) }
+          : null,
+      })
+    : '';
+
   function confirmPick() {
     if (!selected) return;
     submitPick(
@@ -62,14 +83,29 @@ export function DraftPage() {
     <PageShell
       title="Draft en vivo"
       actions={
-        <Link to={`/leagues/${id}`} className="text-sm font-semibold text-slate-600 hover:underline">
+        <Link
+          to={`/leagues/${id}`}
+          className="text-sm font-semibold text-slate-600 hover:underline"
+        >
           ← Volver a la liga
         </Link>
       }
     >
+      {/* aria-live="polite" y no "assertive": polite espera a que el lector termine lo que
+          esta diciendo, assertive lo interrumpe. Un cambio de turno no justifica cortarle la
+          palabra a alguien que esta leyendo la lista de picks.
+          sr-only lo saca de la pantalla sin sacarlo del arbol de accesibilidad (display:none
+          lo ocultaria tambien al lector, que es justo lo contrario de lo que queremos). */}
+      <p aria-live="polite" aria-atomic="true" className="sr-only">
+        {announcement}
+      </p>
+
       {status === 'error' && (
         <div className="mb-4">
-          <Alert code="DRAFT_CONNECTION_ERROR" message={errorMessage ?? 'No se pudo conectar al draft'} />
+          <Alert
+            code="DRAFT_CONNECTION_ERROR"
+            message={errorMessage ?? 'No se pudo conectar al draft'}
+          />
         </div>
       )}
 
@@ -147,7 +183,10 @@ export function DraftPage() {
             ) : (
               <ul className="divide-y divide-slate-200">
                 {state.picks.map((pick) => (
-                  <li key={pick.id} className="enter-bottom flex items-center justify-between py-2 text-sm">
+                  <li
+                    key={pick.id}
+                    className="enter-bottom flex items-center justify-between py-2 text-sm"
+                  >
                     <span className="text-slate-500">Ronda {pick.round}</span>
                     <span className="font-medium">{memberName(pick.leagueMemberId)}</span>
                     <span>{pickLabel(pick)}</span>
