@@ -1,8 +1,4 @@
-import axios, {
-  type AxiosError,
-  type AxiosInstance,
-  type InternalAxiosRequestConfig,
-} from 'axios';
+import axios, { type AxiosError, type AxiosInstance, type InternalAxiosRequestConfig } from 'axios';
 import { env } from '../config/env';
 import type { ApiEnvelope } from '../models/api';
 import type { User } from '../models/user';
@@ -83,6 +79,11 @@ export class ApiClient {
 
   async post<T>(url: string, body?: unknown): Promise<T> {
     const res = await this.http.post<ApiEnvelope<T>>(url, body ?? {});
+    return res.data.data;
+  }
+
+  async patch<T>(url: string, body?: unknown): Promise<T> {
+    const res = await this.http.patch<ApiEnvelope<T>>(url, body ?? {});
     return res.data.data;
   }
 

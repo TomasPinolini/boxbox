@@ -1,6 +1,7 @@
 export { Button } from './Button';
 export { Field, inputClass, selectClass } from './Field';
 export { Card } from './Card';
+export { ConfirmButton } from './ConfirmButton';
 export { Badge, type BadgeTone } from './Badge';
 export { Alert } from './Alert';
 export { errorMessageFor } from './error-messages';

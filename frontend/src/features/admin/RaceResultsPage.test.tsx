@@ -120,7 +120,9 @@ describe('RaceResultsPage', () => {
     });
 
     expect(screen.queryByText('Max Verstappen')).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Cargar y recalcular standings' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Cargar y recalcular standings' }),
+    ).not.toBeInTheDocument();
   });
 
   it('calls recalculate when the Recalcular button is clicked', async () => {
@@ -155,9 +157,7 @@ describe('RaceResultsPage', () => {
     await userEvent.click(btn);
 
     await waitFor(() => {
-      expect(
-        screen.getByText(/Standings recalculados: 3 en 1 ligas/),
-      ).toBeInTheDocument();
+      expect(screen.getByText(/Standings recalculados: 3 en 1 ligas/)).toBeInTheDocument();
     });
   });
 

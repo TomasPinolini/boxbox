@@ -30,8 +30,16 @@ export function DraftPage() {
   const id = Number(useParams().id);
   const navigate = useNavigate();
   const me = useAuthStore((s) => s.user);
-  const { state, status, errorMessage, secondsRemaining, pickError, pickPending, submitPick } =
-    useDraftState(id);
+  const {
+    state,
+    leagueArchived,
+    status,
+    errorMessage,
+    secondsRemaining,
+    pickError,
+    pickPending,
+    submitPick,
+  } = useDraftState(id);
   const members = useMembers(id);
   const drivers = useDrivers();
   const constructors = useConstructors();
@@ -124,145 +132,160 @@ export function DraftPage() {
         {announcement}
       </p>
 
-      {status === 'error' && (
-        <div className="mb-4">
-          <Alert
-            code="DRAFT_CONNECTION_ERROR"
-            message={errorMessage ?? 'No se pudo conectar al draft'}
-          />
-        </div>
-      )}
-
-      {!state ? (
-        <p className="text-slate-500">{CONNECTION_LABEL[status]}</p>
+      {/* El owner archivo la liga mientras esta pantalla estaba abierta. Reemplaza todo y no
+          se suma arriba: lo que haya abajo —el reloj, el selector, los picks— ya no se puede
+          usar, y dejarlo a la vista invita a intentarlo. */}
+      {leagueArchived ? (
+        <Card>
+          <h2 className="mb-2 text-lg font-semibold">Esta liga se archivó</h2>
+          <p className="mb-4 text-slate-700">
+            Quien creó la liga la cerró mientras el draft estaba en curso. No se puede seguir.
+          </p>
+          <Button onClick={() => navigate('/leagues')}>Ir a mis ligas</Button>
+        </Card>
       ) : (
-        <div className="flex flex-col gap-4">
-          {/* Toda la tarjeta de estado es de antes y durante: badge, conexion, ronda y el
+        <>
+          {status === 'error' && (
+            <div className="mb-4">
+              <Alert
+                code="DRAFT_CONNECTION_ERROR"
+                message={errorMessage ?? 'No se pudo conectar al draft'}
+              />
+            </div>
+          )}
+
+          {!state ? (
+            <p className="text-slate-500">{CONNECTION_LABEL[status]}</p>
+          ) : (
+            <div className="flex flex-col gap-4">
+              {/* Toda la tarjeta de estado es de antes y durante: badge, conexion, ronda y el
               selector de turno. Terminado el draft el badge repetiria el <h1> y el indicador
               de conexion dejo de querer decir algo, asi que no se dibuja. */}
-          {state.draftStatus !== 'COMPLETED' && (
-            <Card>
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <Badge tone={DRAFT_LABEL[state.draftStatus].tone}>
-                  {DRAFT_LABEL[state.draftStatus].text}
-                </Badge>
-                <span className="text-xs text-slate-400">{CONNECTION_LABEL[status]}</span>
-              </div>
-              {state.draftStatus === 'LIVE' && state.round !== null && (
-                <p className="mt-3 text-sm text-slate-600">
-                  Ronda {state.round} de 3 — le toca a{' '}
-                  <span className="font-semibold text-slate-900">
-                    {state.currentTurnLeagueMemberId !== null
-                      ? memberName(state.currentTurnLeagueMemberId)
-                      : '—'}
-                  </span>
-                  {secondsRemaining !== null && (
-                    <span className="ml-2 text-slate-400">({secondsRemaining}s)</span>
-                  )}
-                </p>
-              )}
-
-              {isMyTurn && state.available && (
-                <div className="enter-scale mt-4 border-t border-slate-200 pt-4">
-                  <p className="mb-2 text-sm font-semibold text-slate-900">¡Te toca a vos!</p>
-                  {pickError && (
-                    <div className="mb-3">
-                      <Alert code={pickError.code} message={pickError.message} />
-                    </div>
-                  )}
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-                    <div className="flex-1">
-                      <Field label={category === 'DRIVER' ? 'Piloto' : 'Escudería'}>
-                        <select
-                          className={selectClass}
-                          value={selected}
-                          onChange={(e) => setSelected(e.target.value)}
-                        >
-                          <option value="">Elegí uno…</option>
-                          {category === 'DRIVER'
-                            ? state.available.drivers.map((d) => (
-                                <option key={d.id} value={d.id}>
-                                  {d.firstName} {d.lastName}
-                                </option>
-                              ))
-                            : state.available.constructors.map((c) => (
-                                <option key={c.id} value={c.id}>
-                                  {c.name}
-                                </option>
-                              ))}
-                        </select>
-                      </Field>
-                    </div>
-                    <Button disabled={!selected || pickPending} onClick={confirmPick}>
-                      {pickPending ? 'Mandando…' : 'Confirmar pick'}
-                    </Button>
+              {state.draftStatus !== 'COMPLETED' && (
+                <Card>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <Badge tone={DRAFT_LABEL[state.draftStatus].tone}>
+                      {DRAFT_LABEL[state.draftStatus].text}
+                    </Badge>
+                    <span className="text-xs text-slate-400">{CONNECTION_LABEL[status]}</span>
                   </div>
-                </div>
-              )}
-            </Card>
-          )}
+                  {state.draftStatus === 'LIVE' && state.round !== null && (
+                    <p className="mt-3 text-sm text-slate-600">
+                      Ronda {state.round} de 3 — le toca a{' '}
+                      <span className="font-semibold text-slate-900">
+                        {state.currentTurnLeagueMemberId !== null
+                          ? memberName(state.currentTurnLeagueMemberId)
+                          : '—'}
+                      </span>
+                      {secondsRemaining !== null && (
+                        <span className="ml-2 text-slate-400">({secondsRemaining}s)</span>
+                      )}
+                    </p>
+                  )}
 
-          {/* Terminado el draft, los equipos armados REEMPLAZAN la lista cruda de picks: son
+                  {isMyTurn && state.available && (
+                    <div className="enter-scale mt-4 border-t border-slate-200 pt-4">
+                      <p className="mb-2 text-sm font-semibold text-slate-900">¡Te toca a vos!</p>
+                      {pickError && (
+                        <div className="mb-3">
+                          <Alert code={pickError.code} message={pickError.message} />
+                        </div>
+                      )}
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                        <div className="flex-1">
+                          <Field label={category === 'DRIVER' ? 'Piloto' : 'Escudería'}>
+                            <select
+                              className={selectClass}
+                              value={selected}
+                              onChange={(e) => setSelected(e.target.value)}
+                            >
+                              <option value="">Elegí uno…</option>
+                              {category === 'DRIVER'
+                                ? state.available.drivers.map((d) => (
+                                    <option key={d.id} value={d.id}>
+                                      {d.firstName} {d.lastName}
+                                    </option>
+                                  ))
+                                : state.available.constructors.map((c) => (
+                                    <option key={c.id} value={c.id}>
+                                      {c.name}
+                                    </option>
+                                  ))}
+                            </select>
+                          </Field>
+                        </div>
+                        <Button disabled={!selected || pickPending} onClick={confirmPick}>
+                          {pickPending ? 'Mandando…' : 'Confirmar pick'}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </Card>
+              )}
+
+              {/* Terminado el draft, los equipos armados REEMPLAZAN la lista cruda de picks: son
               el mismo dato, agrupado por quien lo eligio en vez de por cuando se eligio. La
               lista plana sirve mientras el draft corre, no despues. */}
-          {state.draftStatus === 'COMPLETED' && teams && (
-            <>
-              {teams.mine && (
-                <Card className="enter-scale">
-                  <h2 className="mb-3 text-lg font-semibold">Tu equipo</h2>
-                  <TeamLineup
-                    drivers={driversOf(teams.mine)}
-                    constructor={constructorOf(teams.mine)}
-                  />
-                </Card>
-              )}
-
-              {teams.others.length > 0 && (
-                <Card>
-                  <h2 className="mb-1 text-lg font-semibold">
-                    {teams.mine ? 'Los demás' : 'Equipos'}
-                  </h2>
-                  <ul className="divide-y divide-slate-200">
-                    {teams.others.map((team) => (
-                      <TeamRow
-                        key={team.leagueMemberId}
-                        memberName={memberName(team.leagueMemberId)}
-                        drivers={driversOf(team)}
-                        constructor={constructorOf(team)}
+              {state.draftStatus === 'COMPLETED' && teams && (
+                <>
+                  {teams.mine && (
+                    <Card className="enter-scale">
+                      <h2 className="mb-3 text-lg font-semibold">Tu equipo</h2>
+                      <TeamLineup
+                        drivers={driversOf(teams.mine)}
+                        constructor={constructorOf(teams.mine)}
                       />
-                    ))}
-                  </ul>
+                    </Card>
+                  )}
+
+                  {teams.others.length > 0 && (
+                    <Card>
+                      <h2 className="mb-1 text-lg font-semibold">
+                        {teams.mine ? 'Los demás' : 'Equipos'}
+                      </h2>
+                      <ul className="divide-y divide-slate-200">
+                        {teams.others.map((team) => (
+                          <TeamRow
+                            key={team.leagueMemberId}
+                            memberName={memberName(team.leagueMemberId)}
+                            drivers={driversOf(team)}
+                            constructor={constructorOf(team)}
+                          />
+                        ))}
+                      </ul>
+                    </Card>
+                  )}
+
+                  <div>
+                    <Button onClick={() => navigate(`/leagues/${id}`)}>Volver a la liga</Button>
+                  </div>
+                </>
+              )}
+
+              {state.draftStatus !== 'COMPLETED' && (
+                <Card>
+                  <h2 className="mb-3 text-lg font-semibold">Picks</h2>
+                  {state.picks.length === 0 ? (
+                    <p className="text-sm text-slate-500">Todavía no se hizo ningún pick.</p>
+                  ) : (
+                    <ul className="divide-y divide-slate-200">
+                      {state.picks.map((pick) => (
+                        <li
+                          key={pick.id}
+                          className="enter-bottom flex items-center justify-between py-2 text-sm"
+                        >
+                          <span className="text-slate-500">Ronda {pick.round}</span>
+                          <span className="font-medium">{memberName(pick.leagueMemberId)}</span>
+                          <span>{pickLabel(pick)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </Card>
               )}
-
-              <div>
-                <Button onClick={() => navigate(`/leagues/${id}`)}>Volver a la liga</Button>
-              </div>
-            </>
+            </div>
           )}
-
-          {state.draftStatus !== 'COMPLETED' && (
-            <Card>
-              <h2 className="mb-3 text-lg font-semibold">Picks</h2>
-              {state.picks.length === 0 ? (
-                <p className="text-sm text-slate-500">Todavía no se hizo ningún pick.</p>
-              ) : (
-                <ul className="divide-y divide-slate-200">
-                  {state.picks.map((pick) => (
-                    <li
-                      key={pick.id}
-                      className="enter-bottom flex items-center justify-between py-2 text-sm"
-                    >
-                      <span className="text-slate-500">Ronda {pick.round}</span>
-                      <span className="font-medium">{memberName(pick.leagueMemberId)}</span>
-                      <span>{pickLabel(pick)}</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </Card>
-          )}
-        </div>
+        </>
       )}
     </PageShell>
   );

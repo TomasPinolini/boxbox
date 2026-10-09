@@ -32,10 +32,9 @@ vi.mock('socket.io-client', () => ({
 
 describe('useDraftState', () => {
   beforeEach(() => {
-    useAuthStore.getState().setSession(
-      { id: 1, email: 'a@b.c', name: 'Ana', avatarUrl: null, role: 'USER' },
-      'tok',
-    );
+    useAuthStore
+      .getState()
+      .setSession({ id: 1, email: 'a@b.c', name: 'Ana', avatarUrl: null, role: 'USER' }, 'tok');
   });
 
   it('arranca conectando y pasa a connected en el evento connect', async () => {
@@ -128,14 +127,28 @@ describe('useDraftState', () => {
   it('un draft:update propio baja pending y limpia el error del pick anterior', async () => {
     const { result } = renderHook(() => useDraftState(7));
     act(() =>
-      lastSocket.emit('draft:state', { draftStatus: 'LIVE', round: 1, pickNumber: 1, currentTurnLeagueMemberId: 5, picks: [] }),
+      lastSocket.emit('draft:state', {
+        draftStatus: 'LIVE',
+        round: 1,
+        pickNumber: 1,
+        currentTurnLeagueMemberId: 5,
+        picks: [],
+      }),
     );
     act(() => lastSocket.emit('draft:error', { code: 'NOT_YOUR_TURN', message: 'no es tu turno' }));
     await waitFor(() => expect(result.current.pickError).not.toBeNull());
 
     act(() =>
       lastSocket.emit('draft:update', {
-        pick: { id: 1, leagueMemberId: 5, pickNumber: 1, round: 1, driverId: 44, constructorId: null, pickedAt: null },
+        pick: {
+          id: 1,
+          leagueMemberId: 5,
+          pickNumber: 1,
+          round: 1,
+          driverId: 44,
+          constructorId: null,
+          pickedAt: null,
+        },
         nextTurn: 6,
         round: 1,
         available: { drivers: [], constructors: [] },

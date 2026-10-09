@@ -21,9 +21,7 @@ export function DriversPage() {
   }
 
   return (
-    <PageShell
-      title="Pilotos"
-    >
+    <PageShell title="Pilotos">
       <div className="flex flex-col gap-6">
         <div className="max-w-xs">
           <ConstructorFilter
