@@ -30,5 +30,6 @@ Documentamos decisiones técnicas que son **(a) difíciles de revertir**, **(b) 
 | [0006](./ADR-0006-draft-3-rondas-sin-reserva.md)       | Draft de 3 rondas — sin piloto reserva ni DriverSwap                               | Accepted | Dominio / alcance     |
 | [0007](./ADR-0007-supabase-postgres-hosting.md)        | Postgres en Supabase, dos proyectos gratuitos en vez de self-hosting               | Accepted | Infraestructura       |
 | [0008](./ADR-0008-render-backend-vercel-frontend.md)   | Backend en Render y frontend en Vercel, en dominios separados                      | Accepted | Infraestructura       |
+| [0009](./ADR-0009-archivar-league-en-lugar-de-borrarla.md) | Archivar una League en lugar de borrarla                                           | Accepted | Dominio / modelado    |
 
 **Nota:** Las ADRs 0001-0005 son **retroactivas** — documentan decisiones ya implementadas en el código. Status = `Accepted` desde el inicio (no `Draft`). La 0006 es la primera escrita **antes** de implementar; la 0007 y la 0008 documentan decisiones de infraestructura tomadas sobre la marcha.
