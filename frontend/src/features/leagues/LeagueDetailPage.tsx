@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Alert, Badge, Button, Card, PageShell } from '../../components/ui';
+import type { DraftStatus } from '../../models/league';
 import { useAuthStore } from '../../store/auth.store';
 import { DRAFT_LABEL } from './draft-label';
 import { MembersTable } from './MembersTable';
@@ -35,14 +36,20 @@ export function LeagueDetailPage() {
   // draft rebotaria para siempre mientras el draft corre. Entrar a una liga que YA estaba
   // en vivo no redirige — el ref arranca en undefined, no en PENDING.
   //
-  // Va antes de los returns tempranos de abajo: un hook no puede quedar detras de un return.
+  // El ref guarda la liga junto al estado: /leagues/:id es UNA ruta, asi que pasar de la liga
+  // A a la B cambia el parametro sin remontar el componente. Sin la comparacion de id, el
+  // PENDING de A dispararia un redirect al draft de B.
   const draftStatus = league.data?.draftStatus;
-  const statusAnterior = useRef(draftStatus);
+  const lastSeen = useRef<{ leagueId: number; status?: DraftStatus }>({
+    leagueId: id,
+    status: draftStatus,
+  });
   useEffect(() => {
-    if (statusAnterior.current === 'PENDING' && draftStatus === 'LIVE') {
+    const previous = lastSeen.current;
+    if (previous.leagueId === id && previous.status === 'PENDING' && draftStatus === 'LIVE') {
       void navigate(`/leagues/${id}/draft`);
     }
-    statusAnterior.current = draftStatus;
+    lastSeen.current = { leagueId: id, status: draftStatus };
   }, [draftStatus, id, navigate]);
 
   if (league.error) {
