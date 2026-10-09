@@ -275,6 +275,30 @@ describe('draft namespace — draft:pick', () => {
 
     socket.disconnect();
   });
+
+  // El owner puede archivar con el draft corriendo (decision del 9/10). Los demas tienen la
+  // pantalla del draft abierta y ningun motivo para enterarse: la liga se archiva por REST,
+  // en otra pestaña. Sin este aviso se quedan con un reloj corriendo sobre una liga muerta.
+  it('archivar la liga por REST avisa a los sockets conectados al draft', async () => {
+    const { leagueId, owner, members } = await setupLeague(2);
+    await request(app)
+      .post(`/api/v1/leagues/${leagueId}/draft/start`)
+      .set('Authorization', `Bearer ${owner.token}`);
+
+    const { socket } = await connectMember(members[1].token, leagueId);
+    const archivedPromise = waitForEvent<{ leagueId: number }>(socket, 'league:archived');
+
+    const res = await request(app)
+      .patch(`/api/v1/leagues/${leagueId}`)
+      .set('Authorization', `Bearer ${owner.token}`)
+      .send({ status: 'ARCHIVED' });
+    expect(res.status).toBe(200);
+
+    const avisado = await archivedPromise;
+    expect(avisado.leagueId).toBe(leagueId);
+
+    socket.disconnect();
+  });
 });
 
 // ─── Timer + auto-pick ──────────────────────────────────────────────────

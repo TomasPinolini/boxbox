@@ -150,7 +150,14 @@ export async function listLeagues(userId: number) {
   // siguen apareciendo. Pero ahora TAMBIEN aparecen las que junte por inviteCode.
   return prisma.league.findMany({
     where: {
+      // Dos status distintos que se escriben igual y no son lo mismo: el de la MEMBRESIA
+      // (sigo adentro) y el de la LIGA (sigue abierta).
       members: { some: { userId, status: 'ACTIVE' } },
+      // Archivar es como el owner cierra una liga (ADR-0009), y lo que el owner quiere es
+      // justamente dejar de verla. Sin este filtro la liga archivada seguia en el listado y
+      // archivar no servia para nada visible. Mismo criterio que joinLeague, que exige
+      // status ACTIVE: la liga tiene que estar abierta, no "no archivada".
+      status: 'ACTIVE',
     },
     select: leagueSelect,
     orderBy: { createdAt: 'desc' },
