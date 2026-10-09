@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Alert, Badge, Button, Card, PageShell } from '../../components/ui';
 import { useAuthStore } from '../../store/auth.store';
@@ -25,6 +25,25 @@ export function LeagueDetailPage() {
   const leave = useLeave(id);
   const kick = useKick(id);
   const [copied, setCopied] = useState(false);
+
+  // Arrancado el draft, la pantalla te lleva sola: al que lo arranco porque su mutacion
+  // invalida la liga, y a los que estaban esperando porque useLeague sondea mientras esta
+  // PENDING. Nadie tiene que cazar el link "Ver draft en vivo".
+  //
+  // Dispara en la TRANSICION PENDING -> LIVE y no en "esta LIVE", y esa diferencia es toda
+  // la funcionalidad: con la condicion simple, el "Volver a la liga" de la pantalla del
+  // draft rebotaria para siempre mientras el draft corre. Entrar a una liga que YA estaba
+  // en vivo no redirige — el ref arranca en undefined, no en PENDING.
+  //
+  // Va antes de los returns tempranos de abajo: un hook no puede quedar detras de un return.
+  const draftStatus = league.data?.draftStatus;
+  const statusAnterior = useRef(draftStatus);
+  useEffect(() => {
+    if (statusAnterior.current === 'PENDING' && draftStatus === 'LIVE') {
+      void navigate(`/leagues/${id}/draft`);
+    }
+    statusAnterior.current = draftStatus;
+  }, [draftStatus, id, navigate]);
 
   if (league.error) {
     return (
