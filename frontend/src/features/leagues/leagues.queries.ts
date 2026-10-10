@@ -1,7 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { League } from '../../models/league';
+import type { League, LeagueListItem } from '../../models/league';
 import type { LeagueMember } from '../../models/league-member';
 import type { LeagueStandings } from '../../models/standing';
+import type { DraftState } from '../../models/draft';
 import { ApiError } from '../../services/api-error';
 import { leaguesService, type CreateLeagueInput } from '../../services/leagues.service';
 
@@ -12,10 +13,11 @@ const keys = {
   one: (id: number) => ['leagues', id] as const,
   members: (id: number) => ['leagues', id, 'members'] as const,
   standings: (id: number) => ['leagues', id, 'standings'] as const,
+  draftState: (id: number) => ['leagues', id, 'draft-state'] as const,
 };
 
 export function useLeagues() {
-  return useQuery<League[], ApiError>({ queryKey: keys.all, queryFn: leaguesService.list });
+  return useQuery<LeagueListItem[], ApiError>({ queryKey: keys.all, queryFn: leaguesService.list });
 }
 
 export function useLeague(id: number) {
@@ -41,6 +43,16 @@ export function useMembers(id: number) {
   return useQuery<LeagueMember[], ApiError>({
     queryKey: keys.members(id),
     queryFn: () => leaguesService.members(id),
+  });
+}
+
+// Los equipos armados, para la pantalla de la liga. `enabled` porque antes de que el draft
+// termine no hay equipos que mostrar y no tiene sentido pedirlos.
+export function useLeagueTeams(id: number, enabled: boolean) {
+  return useQuery<DraftState, ApiError>({
+    queryKey: keys.draftState(id),
+    queryFn: () => leaguesService.draftState(id),
+    enabled,
   });
 }
 
@@ -81,6 +93,12 @@ function useLeagueAction<TVars = void>(id: number, fn: (vars: TVars) => Promise<
     },
   });
 }
+
+// Archivar es como el owner cierra una liga (ADR-0009): no hay DELETE, es un PATCH de status.
+// Invalida lo mismo que las demas acciones de liga, incluido el listado, porque la liga
+// archivada tiene que desaparecer de ahi.
+export const useArchiveLeague = (id: number) =>
+  useLeagueAction(id, () => leaguesService.archive(id));
 
 export const useStartDraft = (id: number) =>
   useLeagueAction(id, () => leaguesService.startDraft(id));

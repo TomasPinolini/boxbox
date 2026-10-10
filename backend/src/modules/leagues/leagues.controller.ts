@@ -9,6 +9,8 @@
 
 import { Request, Response, NextFunction } from 'express';
 import * as leaguesService from './leagues.service';
+import { getIo } from '../../shared/socket';
+import { announceLeagueArchived } from '../draft/draft.gateway';
 
 // ─── Endpoints Slice 2 (cableados con firmas nuevas del service) ────
 
@@ -44,6 +46,16 @@ export async function getById(req: Request, res: Response, next: NextFunction) {
 export async function update(req: Request, res: Response, next: NextFunction) {
   try {
     const league = await leaguesService.updateLeague(Number(req.params.id), req.body);
+    // Archivar es la unica transicion de este PATCH que alguien puede estar mirando en vivo:
+    // si hay un draft corriendo, los demas jugadores tienen la pantalla abierta y hay que
+    // sacarlos de ahi. Mismo patron que draft.controller.ts — getIo() es null en los tests
+    // que importan `app` directo, y entonces esto no hace nada.
+    if (league.status === 'ARCHIVED') {
+      const io = getIo();
+      if (io) {
+        announceLeagueArchived(io, league.id);
+      }
+    }
     res.json({ data: league });
   } catch (err) {
     next(err);

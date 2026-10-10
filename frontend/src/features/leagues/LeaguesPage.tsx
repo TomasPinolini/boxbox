@@ -3,6 +3,7 @@ import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { z } from 'zod';
 import { Alert, Button, Card, Field, PageShell, inputClass } from '../../components/ui';
+import { useConstructors, useDrivers } from '../drivers/drivers.queries';
 import { LeagueCard } from './LeagueCard';
 import { useCreateLeague, useJoinLeague, useLeagues } from './leagues.queries';
 
@@ -18,6 +19,11 @@ const joinSchema = z.object({ inviteCode: z.string().min(4, 'Mínimo 4 caractere
 export function LeaguesPage() {
   const navigate = useNavigate();
   const leagues = useLeagues();
+  // El catalogo se pide una vez para toda la pantalla y cada tarjeta resuelve sus tres ids
+  // contra el. Son las mismas queries que ya usan /drivers y el draft, asi que normalmente
+  // ya estan en cache.
+  const drivers = useDrivers();
+  const constructors = useConstructors();
   const createLeague = useCreateLeague();
   const joinLeague = useJoinLeague();
 
@@ -25,9 +31,7 @@ export function LeaguesPage() {
   const joinForm = useForm<z.infer<typeof joinSchema>>({ resolver: zodResolver(joinSchema) });
 
   return (
-    <PageShell
-      title="Mis ligas"
-    >
+    <PageShell title="Mis ligas">
       <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
         <section className="flex flex-col gap-4">
           {leagues.error && <Alert code={leagues.error.code} message={leagues.error.message} />}
@@ -41,6 +45,8 @@ export function LeaguesPage() {
               <LeagueCard
                 key={league.id}
                 league={league}
+                drivers={drivers.data ?? []}
+                constructors={constructors.data ?? []}
                 onOpen={(id) => navigate(`/leagues/${id}`)}
               />
             ))}

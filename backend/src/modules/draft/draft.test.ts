@@ -284,6 +284,65 @@ describe('GET /api/v1/leagues/:id/draft/available', () => {
     expect(res.body.data.constructors).toHaveLength(1);
   });
 
+  it('cada driver trae su escuderia resuelta + headshotUrl, para el picker del frontend', async () => {
+    const { leagueId, seasonId, owner } = await setupLeague(1);
+    const c1 = await seedConstructor();
+    const driverId = await seedDriver();
+    await prisma.driverSeason.create({ data: { driverId, constructorId: c1, seasonId } });
+
+    const res = await request(app)
+      .get(`/api/v1/leagues/${leagueId}/draft/available`)
+      .set('Authorization', `Bearer ${owner.token}`);
+
+    expect(res.status).toBe(200);
+    const driver = res.body.data.drivers[0];
+    expect(driver).toHaveProperty('headshotUrl');
+    expect(driver.constructor).toMatchObject({ id: c1, name: expect.any(String), color: '#000000' });
+    expect(driver.constructor).toHaveProperty('logoUrl');
+    expect(res.body.data.constructors[0]).toHaveProperty('logoUrl');
+  });
+
+  it('ordena por escuderia alfabetica y, dentro de cada una, por apellido', async () => {
+    const { leagueId, seasonId, owner } = await setupLeague(1);
+    const stamp = Date.now();
+    const zebra = await prisma.constructor.create({
+      data: { name: 'Zebra Racing', color: '#000', externalId: `zebra-${stamp}` },
+    });
+    const alpha = await prisma.constructor.create({
+      data: { name: 'Alpha Racing', color: '#000', externalId: `alpha-${stamp}` },
+    });
+
+    // zebraB se crea primero pero su apellido ("Bravo") va DESPUES de zebraA ("Alfa") — si el
+    // test pasara igual con el orden de creacion, no probaria nada del sort por apellido.
+    async function makeDriver(firstName: string, lastName: string, externalId: string) {
+      const driver = await prisma.driver.create({
+        data: { firstName, lastName, number: Math.floor(Math.random() * 90) + 1, code: 'XXX', externalId },
+      });
+      return driver.id;
+    }
+    const zebraB = await makeDriver('B', 'Bravo', `zb-${stamp}`);
+    const zebraA = await makeDriver('A', 'Alfa', `za-${stamp}`);
+    const alphaOnly = await makeDriver('C', 'Charlie', `ac-${stamp}`);
+    await prisma.driverSeason.createMany({
+      data: [
+        { driverId: zebraB, constructorId: zebra.id, seasonId },
+        { driverId: zebraA, constructorId: zebra.id, seasonId },
+        { driverId: alphaOnly, constructorId: alpha.id, seasonId },
+      ],
+    });
+
+    const res = await request(app)
+      .get(`/api/v1/leagues/${leagueId}/draft/available`)
+      .set('Authorization', `Bearer ${owner.token}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.drivers.map((d: { id: number }) => d.id)).toEqual([
+      alphaOnly, // Alpha Racing
+      zebraA, // Zebra Racing, apellido Alfa
+      zebraB, // Zebra Racing, apellido Bravo
+    ]);
+  });
+
   it('excluye los ya drafteados en ESTA liga', async () => {
     const { leagueId, seasonId, owner } = await setupLeague(1);
     const d1 = await seedDriver(seasonId);

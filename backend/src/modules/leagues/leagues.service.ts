@@ -148,13 +148,39 @@ export async function listLeagues(userId: number) {
   // Slice 3 cambio: filtra por membership ACTIVE en vez de createdById.
   // El creator ahora aparece auto-como member (Step 8a), asi que las ligas creadas por mi
   // siguen apareciendo. Pero ahora TAMBIEN aparecen las que junte por inviteCode.
-  return prisma.league.findMany({
+  const leagues = await prisma.league.findMany({
     where: {
+      // Dos status distintos que se escriben igual y no son lo mismo: el de la MEMBRESIA
+      // (sigo adentro) y el de la LIGA (sigue abierta).
       members: { some: { userId, status: 'ACTIVE' } },
+      // Archivar es como el owner cierra una liga (ADR-0009), y lo que el owner quiere es
+      // justamente dejar de verla. Sin este filtro la liga archivada seguia en el listado y
+      // archivar no servia para nada visible. Mismo criterio que joinLeague, que exige
+      // status ACTIVE: la liga tiene que estar abierta, no "no archivada".
+      status: 'ACTIVE',
     },
-    select: leagueSelect,
+    select: {
+      ...leagueSelect,
+      // El equipo del que pide, para que la tarjeta de /leagues pueda mostrarlo sin pedir una
+      // request por liga. Se filtra por userId aca mismo: `members` trae como mucho una fila.
+      //
+      // Reusa fantasyTeamSelect y no un literal propio: ese select carga el workaround de la
+      // colision de `constructor` con Object.prototype (ver su comentario, 100 lineas arriba).
+      // Escribir el literal aca de nuevo vuelve a romper tsc, comprobado.
+      members: {
+        where: { userId, status: 'ACTIVE' as const },
+        select: { fantasyTeam: { select: fantasyTeamSelect } },
+      },
+    },
     orderBy: { createdAt: 'desc' },
   });
+
+  // Se aplana antes de salir: el cliente no tiene por que saber que el equipo cuelga de la
+  // membresia, y `members: [{ fantasyTeam }]` con un solo elemento es una forma incomoda.
+  return leagues.map(({ members, ...league }) => ({
+    ...league,
+    myTeam: members[0]?.fantasyTeam ?? null,
+  }));
 }
 
 // getLeagueById: ya NO chequea ownership. requireLeagueMember (middleware) ya garantizo

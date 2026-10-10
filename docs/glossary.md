@@ -12,6 +12,7 @@ Definiciones de una línea de todos los términos del dominio. Si necesitás nar
 |---|---|---|
 | **User** | Persona registrada con email y contraseña; entidad de identidad del sistema. | account, customer, profile |
 | **LeagueMember** | Membresía concreta de un **User** en una **League** específica; lleva su propio status (ACTIVE/LEFT/KICKED), `isOwner` y `joinedAt`. | participant, player, "user en una league" |
+| **owner** | El **LeagueMember** con `isOwner = true`: el único que arranca el draft, echa miembros y archiva la liga. **No tiene nada que ver con el rol ADMIN del sistema** — un ADMIN no es owner de las ligas ajenas. | admin, dueño/creador (en código); "el que creó la liga" (`createdById` no es la fuente de verdad) |
 
 ---
 
@@ -64,6 +65,7 @@ Definiciones de una línea de todos los términos del dominio. Si necesitás nar
 | **lockDate** | Timestamp por **Race** después del cual no se aceptan más **Prediction**s; típicamente 1h antes del race start, no necesariamente = qualifyingDate. | deadline, cutoff |
 | **snake draft** | Modalidad de draft donde el orden de picks se revierte cada ronda (1→N, N→1, 1→N); 3 rondas en BoxBox: titular 1, titular 2, constructor. | serpentine draft, mirror draft |
 | **soft-delete** | Política de borrado lógico: la fila queda en DB con `deletedAt` seteado y se filtra de reads; solo aplica a entidades de catálogo (Driver, Constructor, Circuit). | logical delete (en docs); usar "borrar" cuando se borra físicamente |
+| **archivado** | Cierre definitivo de una **League** por su **owner**: pasa a `status = 'ARCHIVED'`, desaparece de los listados, deja de aceptar su `inviteCode` y sale del recálculo de **LeagueStanding**s. La fila y todos sus datos quedan en DB: una League **nunca** se borra (ADR-0009). | borrar/eliminar una liga, cancelar, cerrar |
 | **externalId** | ID estable que viene de Jolpica-F1 / OpenF1 para reconciliar entidades en re-syncs; `@unique` en Driver, Constructor, Circuit; `@unique` compuesto en Race. | external_key, jolpica_id |
 
 ---

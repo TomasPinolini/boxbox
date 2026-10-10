@@ -3,6 +3,8 @@
 // el socket. Slice 13b (tramo 1) solo LEE este estado; picks y timer countdown quedan para
 // el tramo 2, pero el tipo ya refleja el wire format completo para no romper cuando se sumen.
 
+import type { ConstructorRef, Driver } from './driver';
+
 export type DraftRoundCategory = 'DRIVER' | 'CONSTRUCTOR';
 
 export interface DraftPick {
@@ -15,9 +17,13 @@ export interface DraftPick {
   pickedAt: string | null;
 }
 
+// Drivers/constructors disponibles para pickear — mismo shape que `Driver`/`ConstructorRef`
+// de /drivers (Slice 14), no una version recortada: el picker del draft pinta foto, dorsal
+// y escudería con los mismos componentes (`DriverAvatar`, `TeamBadge`), así que necesita los
+// mismos datos.
 export interface DraftAvailable {
-  drivers: { id: number; firstName: string; lastName: string; number: number; code: string }[];
-  constructors: { id: number; name: string; color: string }[];
+  drivers: Driver[];
+  constructors: ConstructorRef[];
 }
 
 export interface DraftState {

@@ -50,8 +50,8 @@ export function AppLayout() {
             alineada con el contenido de la pagina. flex-wrap: en pantallas angostas los
             links bajan de linea en vez de desbordar. */}
         <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 text-sm md:px-6">
-          <Link to="/leagues" className="mr-auto text-base font-bold tracking-tight">
-            BOX<span className="text-red-600">BOX</span>
+          <Link to="/leagues" className="mr-auto">
+            <img src="/logo.svg" alt="boxbox" className="h-7 w-auto" />
           </Link>
 
           <NavLink to="/drivers" className={linkClass}>

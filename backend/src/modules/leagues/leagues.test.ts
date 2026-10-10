@@ -334,6 +334,67 @@ describe('PATCH /api/v1/leagues/:id', () => {
     expect(res.body.data.status).toBe('ARCHIVED');
   });
 
+  // La tarjeta de /leagues muestra el equipo elegido. Viene en el listado y no de una
+  // request por liga: con N ligas serian N requests en la pantalla principal.
+  it('GET /leagues incluye myTeam, el equipo del que pide', async () => {
+    const me = await authedUser('mt');
+    const season = await seedSeason();
+
+    const created = await request(app)
+      .post('/api/v1/leagues')
+      .set('Authorization', `Bearer ${me.token}`)
+      .send({ name: 'Con equipo', inviteCode: 'my-team', seasonId: season.id });
+
+    const res = await request(app).get('/api/v1/leagues').set('Authorization', `Bearer ${me.token}`);
+    const liga = (res.body.data as { id: number; myTeam: unknown }[]).find(
+      (l) => l.id === created.body.data.id,
+    );
+
+    // Recien creada la liga el FantasyTeam existe con los slots vacios, no es null: lo crea
+    // el mismo nested write que la membresia (Slice 4).
+    expect(liga?.myTeam).toMatchObject({
+      driver1Id: null,
+      driver2Id: null,
+      constructorId: null,
+    });
+  });
+
+  // Archivar es la via por la que el owner cierra una liga (ADR-0009). Si la liga archivada
+  // sigue apareciendo en el listado, el owner no consigue lo unico que queria: sacarsela de
+  // encima. Hasta hoy listLeagues no miraba League.status en absoluto.
+  it('la liga archivada desaparece de GET /leagues, para todos sus miembros', async () => {
+    const owner = await authedUser('own');
+    const socio = await authedUser('soc');
+    const season = await seedSeason();
+
+    const created = await request(app)
+      .post('/api/v1/leagues')
+      .set('Authorization', `Bearer ${owner.token}`)
+      .send({ name: 'Se archiva', inviteCode: 'arch-list', seasonId: season.id });
+    const leagueId = created.body.data.id;
+
+    await request(app)
+      .post('/api/v1/leagues/join')
+      .set('Authorization', `Bearer ${socio.token}`)
+      .send({ inviteCode: 'arch-list' });
+
+    const idsDe = async (token: string) => {
+      const res = await request(app).get('/api/v1/leagues').set('Authorization', `Bearer ${token}`);
+      return (res.body.data as { id: number }[]).map((l) => l.id);
+    };
+
+    expect(await idsDe(owner.token)).toContain(leagueId);
+    expect(await idsDe(socio.token)).toContain(leagueId);
+
+    await request(app)
+      .patch(`/api/v1/leagues/${leagueId}`)
+      .set('Authorization', `Bearer ${owner.token}`)
+      .send({ status: 'ARCHIVED' });
+
+    expect(await idsDe(owner.token)).not.toContain(leagueId);
+    expect(await idsDe(socio.token)).not.toContain(leagueId);
+  });
+
   it('devuelve 404 LEAGUE_NOT_FOUND si soy no-member (P2-1 unification)', async () => {
     const alice = await authedUser('a');
     const bob = await authedUser('b'); // Bob nunca joineo

@@ -65,11 +65,15 @@ async function ligaConDosJugadores(browser: Browser) {
  */
 async function pickDelQueTengaElTurno(jugadores: Page[]) {
   let conTurno: Page | undefined;
+  // El picker es una grilla de <button>, uno por piloto o escuderia, agrupada en un
+  // role="group". El <select> que queda en el DOM es el fallback nativo de telefono y en
+  // escritorio no esta visible, asi que no sirve para detectar el turno.
+  const opciones = (p: Page) => p.getByRole('group').getByRole('button');
   await expect
     .poll(
       async () => {
         for (const p of jugadores) {
-          if (await p.locator('select').isVisible()) {
+          if ((await opciones(p).count()) > 0) {
             conTurno = p;
             return true;
           }
@@ -80,8 +84,6 @@ async function pickDelQueTengaElTurno(jugadores: Page[]) {
     )
     .toBe(true);
 
-  const select = conTurno!.locator('select');
-  const primeroDisponible = await select.locator('option').nth(1).getAttribute('value');
 
   // El pick viaja por socket, asi que hay que esperar a que VUELVA, no a que se envie.
   // No sirve esperar a que el boton desaparezca: el orden serpiente hace que un jugador
@@ -91,7 +93,8 @@ async function pickDelQueTengaElTurno(jugadores: Page[]) {
   const picksHechos = conTurno!.locator('li').filter({ hasText: /^Ronda/ });
   const antes = await picksHechos.count();
 
-  await select.selectOption(primeroDisponible!);
+  // El primero que no este deshabilitado: los ya elegidos quedan apagados, no desaparecen.
+  await opciones(conTurno!).and(conTurno!.locator('button:not([disabled])')).first().click();
   await conTurno!.getByRole('button', { name: 'Confirmar pick' }).click();
 
   await expect
@@ -105,12 +108,21 @@ async function pickDelQueTengaElTurno(jugadores: Page[]) {
     .toBe(true);
 }
 
+/**
+ * Arranca el draft. Son DOS clicks: desde el rediseño de la pantalla de liga, la accion
+ * irreversible pide confirmacion con la cuenta de miembros antes de ejecutarse.
+ */
+async function arrancarDraft(duenio: Page) {
+  await duenio.getByRole('button', { name: 'Iniciar draft' }).click();
+  await duenio.getByRole('button', { name: 'Sí, arrancar' }).click();
+}
+
 test('arrancar el draft lleva al dueño y al otro miembro a la pantalla del draft', async ({
   browser,
 }) => {
   const { duenio, socio, id, cerrar } = await ligaConDosJugadores(browser);
 
-  await duenio.getByRole('button', { name: 'Iniciar draft' }).click();
+  await arrancarDraft(duenio);
 
   // Al dueño lo lleva la invalidacion de su propia mutacion.
   await expect(duenio).toHaveURL(new RegExp(`/leagues/${id}/draft$`));
@@ -126,7 +138,7 @@ test('con el draft en vivo, volver a la liga no rebota al draft', async ({ brows
   test.slow(); // hay que dejar pasar un ciclo entero de sondeo para probar una ausencia
   const { duenio, socio, id, cerrar } = await ligaConDosJugadores(browser);
 
-  await duenio.getByRole('button', { name: 'Iniciar draft' }).click();
+  await arrancarDraft(duenio);
   await expect(socio).toHaveURL(new RegExp(`/leagues/${id}/draft$`), { timeout: 15_000 });
 
   await socio.getByRole('link', { name: /Volver a la liga/i }).click();
@@ -145,7 +157,7 @@ test('un draft de dos jugadores termina mostrando el equipo armado', async ({ br
   test.slow(); // 6 picks por socket, mas la preparacion
   const { duenio, socio, id, cerrar } = await ligaConDosJugadores(browser);
 
-  await duenio.getByRole('button', { name: 'Iniciar draft' }).click();
+  await arrancarDraft(duenio);
   await expect(socio).toHaveURL(new RegExp(`/leagues/${id}/draft$`), { timeout: 15_000 });
 
   // 2 jugadores x 3 rondas. El orden serpiente lo resuelve el backend; acá solo se responde
