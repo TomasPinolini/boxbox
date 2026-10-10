@@ -22,6 +22,18 @@ export function useLeague(id: number) {
   return useQuery<League, ApiError>({
     queryKey: keys.one(id),
     queryFn: () => leaguesService.get(id),
+    // Mientras el draft esta PENDING hay que enterarse de que alguien lo arranco, y la
+    // pantalla de la liga no esta conectada al socket: ese namespace se abre recien al entrar
+    // a /draft. Sondear cada 5s es la forma mas barata de cubrirlo, y se apaga sola en cuanto
+    // el estado deja de ser PENDING — una liga con el draft terminado no pide nada.
+    // ponytail: polling; si alguna vez molesta, el reemplazo es que el gateway emita el
+    // cambio de estado a una sala por liga y la pantalla escuche ahi.
+    refetchInterval: (query) => (query.state.data?.draftStatus === 'PENDING' ? 5000 : false),
+    // Sin esto el sondeo se detiene cuando la ventana pierde el foco, y como providers.tsx
+    // apaga refetchOnWindowFocus, tampoco hay recuperacion al volver: habria que esperar al
+    // siguiente tick. Con turnos de 60 segundos, el que tenia la pestaña atras se entera
+    // tarde y puede perder su turno. Esta query es una sola y liviana.
+    refetchIntervalInBackground: true,
   });
 }
 

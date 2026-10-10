@@ -21,8 +21,11 @@ test('registrarse, crear una liga y verla como owner', async ({ page }) => {
 
   await expect(page).toHaveURL(/\/leagues\/\d+$/);
   await expect(page.getByRole('heading', { name: 'Liga E2E' })).toBeVisible();
-  await expect(page.getByText('E2E Tester')).toBeVisible();
-  await expect(page.getByText('owner')).toBeVisible();
+  // Acotado al <main>: desde que AppLayout muestra el nombre del usuario en la barra, un
+  // getByText suelto matchea dos veces y rompe por strict mode.
+  const contenido = page.getByRole('main');
+  await expect(contenido.getByText('E2E Tester')).toBeVisible();
+  await expect(contenido.getByText('owner')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Iniciar draft' })).toBeEnabled();
 });
 
