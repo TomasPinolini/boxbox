@@ -129,6 +129,32 @@ describe('GET /api/v1/drivers — escuderia en el listado', () => {
     expect(res.body.data[0].constructor).toBeNull();
   });
 
+  // Auditoria de UX 2026-10-09: agrupado por escuderia (alfabetica) y dentro de cada una por
+  // apellido — no por apellido suelto. "Sin equipo" va al final, no al principio del alfabeto.
+  it('ordena por escuderia alfabetica y, dentro de cada una, por apellido', async () => {
+    const seasonId = await seedSeason();
+    const zebra = await seedConstructor('Zebra Racing', 'zebra');
+    const alpha = await seedConstructor('Alpha Racing', 'alpha');
+
+    const zebraB = await seedDriver({ firstName: 'B', lastName: 'Bravo', number: 2, code: 'ZB2', externalId: 'zb2' });
+    const zebraA = await seedDriver({ firstName: 'A', lastName: 'Alfa', number: 3, code: 'ZA3', externalId: 'za3' });
+    const alphaOnly = await seedDriver({ firstName: 'C', lastName: 'Charlie', number: 4, code: 'AC4', externalId: 'ac4' });
+    const sinEquipo = await seedDriver({ firstName: 'D', lastName: 'Aaa', number: 5, code: 'DE5', externalId: 'de5' });
+    await linkDriverSeason(zebraB, zebra, seasonId);
+    await linkDriverSeason(zebraA, zebra, seasonId);
+    await linkDriverSeason(alphaOnly, alpha, seasonId);
+
+    const res = await request(app).get('/api/v1/drivers');
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.map((d: { id: number }) => d.id)).toEqual([
+      alphaOnly, // Alpha Racing
+      zebraA, // Zebra Racing, apellido Alfa
+      zebraB, // Zebra Racing, apellido Bravo
+      sinEquipo, // sin equipo, al final aunque "Aaa" seria primero alfabeticamente
+    ]);
+  });
+
   // Canario: si alguien reemplaza resolveSeasonId por seasonsService.findActive(), que tira
   // NotFoundError, este test pasa de 200 a 404. Un endpoint publico de catalogo no puede
   // depender de que exista una temporada activa.
