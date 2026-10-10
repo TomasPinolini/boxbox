@@ -58,18 +58,23 @@ const pickSelect = {
   pickedAt: true,
 } as Prisma.DraftPickSelect;
 
+// headshotUrl/logoUrl: el picker del frontend (DraftPage) dibuja foto y logo en vez de un
+// nombre pelado — mismos campos que ya expone GET /drivers (Slice 14), para que un piloto se
+// vea igual eligiendolo en el draft que mirandolo en /drivers.
 const driverAvailableSelect = {
   id: true,
   firstName: true,
   lastName: true,
   number: true,
   code: true,
+  headshotUrl: true,
 } as const;
 
 const constructorAvailableSelect = {
   id: true,
   name: true,
   color: true,
+  logoUrl: true,
 } as Prisma.ConstructorSelect;
 
 // startDraft: genera el calendario completo de picks (M miembros x 4 rondas) de una sola vez
@@ -178,7 +183,7 @@ export async function getAvailablePicks(leagueId: number) {
     throw new NotFoundError('League');
   }
 
-  const [drivers, constructors] = await Promise.all([
+  const [drivers, constructors, links] = await Promise.all([
     prisma.driver.findMany({
       where: {
         deletedAt: null,
@@ -197,8 +202,29 @@ export async function getAvailablePicks(leagueId: number) {
       select: constructorAvailableSelect,
       orderBy: { name: 'asc' },
     }),
+    prisma.driverSeason.findMany({
+      where: { seasonId: league.seasonId },
+      // as Prisma.DriverSeasonSelect, no un literal inline: mismo choque de `constructor`
+      // con Object.prototype que en Slice 8 (ver CLAUDE.md, "Gotcha de tipos").
+      select: { driverId: true, constructorId: true } as Prisma.DriverSeasonSelect,
+    }),
   ]);
-  return { drivers, constructors };
+
+  // Escuderia de cada piloto disponible, para que el picker del draft pinte el mismo chip de
+  // color que /drivers (Slice 14) — tres queries + merge en TS, mismo motivo y mismo patron
+  // que drivers.service.ts.findAll (la relacion `constructor` colisiona con Object.prototype).
+  const constructorById = new Map(constructors.map((c) => [c.id, c]));
+  const constructorByDriver = new Map(
+    links.flatMap((l) => {
+      const constructor = constructorById.get(l.constructorId);
+      return constructor ? [[l.driverId, constructor] as const] : [];
+    }),
+  );
+
+  return {
+    drivers: drivers.map((d) => ({ ...d, constructor: constructorByDriver.get(d.id) ?? null })),
+    constructors,
+  };
 }
 
 // submitPick: valida turno + categoria + disponibilidad, aplica el pick, llena el slot del

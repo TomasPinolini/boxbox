@@ -284,6 +284,24 @@ describe('GET /api/v1/leagues/:id/draft/available', () => {
     expect(res.body.data.constructors).toHaveLength(1);
   });
 
+  it('cada driver trae su escuderia resuelta + headshotUrl, para el picker del frontend', async () => {
+    const { leagueId, seasonId, owner } = await setupLeague(1);
+    const c1 = await seedConstructor();
+    const driverId = await seedDriver();
+    await prisma.driverSeason.create({ data: { driverId, constructorId: c1, seasonId } });
+
+    const res = await request(app)
+      .get(`/api/v1/leagues/${leagueId}/draft/available`)
+      .set('Authorization', `Bearer ${owner.token}`);
+
+    expect(res.status).toBe(200);
+    const driver = res.body.data.drivers[0];
+    expect(driver).toHaveProperty('headshotUrl');
+    expect(driver.constructor).toMatchObject({ id: c1, name: expect.any(String), color: '#000000' });
+    expect(driver.constructor).toHaveProperty('logoUrl');
+    expect(res.body.data.constructors[0]).toHaveProperty('logoUrl');
+  });
+
   it('excluye los ya drafteados en ESTA liga', async () => {
     const { leagueId, seasonId, owner } = await setupLeague(1);
     const d1 = await seedDriver(seasonId);

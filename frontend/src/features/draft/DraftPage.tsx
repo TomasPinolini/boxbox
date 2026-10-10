@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Alert, Badge, Button, Card, Field, PageShell, selectClass } from '../../components/ui';
+import { Alert, Badge, Button, Card, PageShell } from '../../components/ui';
 import type { Driver } from '../../models/driver';
 import type { DraftState } from '../../models/draft';
 import { useAuthStore } from '../../store/auth.store';
@@ -8,6 +8,7 @@ import { useDrivers, useConstructors } from '../drivers/drivers.queries';
 import { DRAFT_LABEL } from '../leagues/draft-label';
 import { useMembers } from '../leagues/leagues.queries';
 import { draftAnnouncement } from './draft-announcement';
+import { DraftPicker } from './DraftPicker';
 import { buildDraftTeams, type DraftTeam } from './draft-teams';
 import { TeamLineup, TeamRow } from './TeamLineup';
 import { useDraftState } from './useDraftState';
@@ -35,7 +36,7 @@ export function DraftPage() {
   const members = useMembers(id);
   const drivers = useDrivers();
   const constructors = useConstructors();
-  const [selected, setSelected] = useState('');
+  const [selected, setSelected] = useState<number | null>(null);
   // Limpiar la seleccion cuando cambia de turno o de ronda (ajuste de estado durante el
   // render, no un efecto — sin esto quedaria marcado un piloto que ya no es valido). Ver
   // https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes
@@ -43,7 +44,7 @@ export function DraftPage() {
   const [lastTurnKey, setLastTurnKey] = useState(turnKey);
   if (turnKey !== lastTurnKey) {
     setLastTurnKey(turnKey);
-    setSelected('');
+    setSelected(null);
   }
 
   const myLeagueMemberId = members.data?.find((m) => m.userId === me?.id)?.id ?? null;
@@ -97,10 +98,8 @@ export function DraftPage() {
     : '';
 
   function confirmPick() {
-    if (!selected) return;
-    submitPick(
-      category === 'DRIVER' ? { driverId: Number(selected) } : { constructorId: Number(selected) },
-    );
+    if (selected === null) return;
+    submitPick(category === 'DRIVER' ? { driverId: selected } : { constructorId: selected });
   }
 
   return (
@@ -156,47 +155,47 @@ export function DraftPage() {
                       ? memberName(state.currentTurnLeagueMemberId)
                       : '—'}
                   </span>
+                  {/* El contador tiene que poder leerse de un vistazo (no un detalle gris
+                      entre parentesis) y avisar cuando se acaba el tiempo, no solo cuando
+                      llega a cero — por eso cambia de color antes, no en el ultimo instante. */}
                   {secondsRemaining !== null && (
-                    <span className="ml-2 text-slate-400">({secondsRemaining}s)</span>
+                    <span
+                      className={`ml-2 font-display text-base font-bold tabular-nums ${
+                        secondsRemaining <= 10 ? 'text-red-600' : 'text-slate-700'
+                      }`}
+                    >
+                      {secondsRemaining}s
+                    </span>
                   )}
                 </p>
               )}
 
               {isMyTurn && state.available && (
                 <div className="enter-scale mt-4 border-t border-slate-200 pt-4">
-                  <p className="mb-2 text-sm font-semibold text-slate-900">¡Te toca a vos!</p>
+                  {/* "Te toca a vos" es la unica razon por la que esta tarjeta tiene accion
+                      ahora mismo — tiene que pesar mas que cualquier otro titulo de la
+                      pantalla (incluido "Picks", mas abajo), no 14px perdido entre textos
+                      secundarios. */}
+                  <p className="mb-3 text-xl font-bold text-red-600">¡Te toca a vos!</p>
                   {pickError && (
                     <div className="mb-3">
                       <Alert code={pickError.code} message={pickError.message} />
                     </div>
                   )}
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-                    <div className="flex-1">
-                      <Field label={category === 'DRIVER' ? 'Piloto' : 'Escudería'}>
-                        <select
-                          className={selectClass}
-                          value={selected}
-                          onChange={(e) => setSelected(e.target.value)}
-                        >
-                          <option value="">Elegí uno…</option>
-                          {category === 'DRIVER'
-                            ? state.available.drivers.map((d) => (
-                                <option key={d.id} value={d.id}>
-                                  {d.firstName} {d.lastName}
-                                </option>
-                              ))
-                            : state.available.constructors.map((c) => (
-                                <option key={c.id} value={c.id}>
-                                  {c.name}
-                                </option>
-                              ))}
-                        </select>
-                      </Field>
-                    </div>
-                    <Button disabled={!selected || pickPending} onClick={confirmPick}>
-                      {pickPending ? 'Mandando…' : 'Confirmar pick'}
-                    </Button>
-                  </div>
+                  <DraftPicker
+                    category={category}
+                    drivers={state.available.drivers}
+                    constructors={state.available.constructors}
+                    selectedId={selected}
+                    onSelect={setSelected}
+                  />
+                  <Button
+                    className="mt-3 w-full sm:w-auto"
+                    disabled={selected === null || pickPending}
+                    onClick={confirmPick}
+                  >
+                    {pickPending ? 'Mandando…' : 'Confirmar pick'}
+                  </Button>
                 </div>
               )}
             </Card>
