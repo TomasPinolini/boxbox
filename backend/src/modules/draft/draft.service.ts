@@ -221,10 +221,19 @@ export async function getAvailablePicks(leagueId: number) {
     }),
   );
 
-  return {
-    drivers: drivers.map((d) => ({ ...d, constructor: constructorByDriver.get(d.id) ?? null })),
-    constructors,
-  };
+  // Mismo orden que /drivers (auditoria de UX 2026-10-09): agrupado por escuderia, alfabetica,
+  // y dentro de cada una por apellido — con 2 columnas en el picker, cada fila es un equipo.
+  const availableDrivers = drivers.map((d) => ({
+    ...d,
+    constructor: constructorByDriver.get(d.id) ?? null,
+  }));
+  availableDrivers.sort((a, b) => {
+    const an = a.constructor?.name ?? '￿';
+    const bn = b.constructor?.name ?? '￿';
+    return an.localeCompare(bn) || a.lastName.localeCompare(b.lastName);
+  });
+
+  return { drivers: availableDrivers, constructors };
 }
 
 // submitPick: valida turno + categoria + disponibilidad, aplica el pick, llena el slot del

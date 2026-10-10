@@ -52,6 +52,25 @@ function indexConstructorsByDriver(
   return byDriver;
 }
 
+// Orden de /drivers y del picker del draft (BOX, auditoria de UX 2026-10-09): agrupado por
+// escuderia en vez de apellido suelto — con 2 pilotos por equipo y una grilla de 2 columnas,
+// cada fila termina siendo un equipo completo. La escuderia se ordena alfabetica (mismo
+// orden que ya usa GET /constructors), y dentro de cada una, por apellido. Sin equipo
+// (constructor null) va al final, no al principio: alfabetico ordenaria "" antes que "A".
+function sortByConstructorThenName<T extends { constructor: { name: string } | null; lastName: string; firstName: string }>(
+  items: T[],
+): T[] {
+  return [...items].sort((a, b) => {
+    const an = a.constructor?.name ?? '￿';
+    const bn = b.constructor?.name ?? '￿';
+    return (
+      an.localeCompare(bn) ||
+      a.lastName.localeCompare(b.lastName) ||
+      a.firstName.localeCompare(b.firstName)
+    );
+  });
+}
+
 // GET /drivers — listado publico con la escuderia de cada piloto.
 //
 // Se resuelve en tres queries planas + merge en TS en vez de un include/select sobre la
@@ -84,7 +103,8 @@ export async function findAll(constructorId?: number, seasonId?: number) {
 
   if (drivers.length === 0) return [];
 
-  // Sin temporada resuelta no hay contra que buscar la escuderia: todos van sin equipo.
+  // Sin temporada resuelta no hay contra que buscar la escuderia: todos van sin equipo, y por
+  // lo tanto el orden por escuderia no distingue a nadie — se mantiene el de apellido.
   if (!resolvedSeasonId) return drivers.map((driver) => ({ ...driver, constructor: null }));
 
   const byDriver = await constructorsForDrivers(
@@ -92,10 +112,12 @@ export async function findAll(constructorId?: number, seasonId?: number) {
     resolvedSeasonId,
   );
 
-  return drivers.map((driver) => ({
-    ...driver,
-    constructor: byDriver.get(driver.id) ?? null,
-  }));
+  return sortByConstructorThenName(
+    drivers.map((driver) => ({
+      ...driver,
+      constructor: byDriver.get(driver.id) ?? null,
+    })),
+  );
 }
 
 // Las dos queries que faltan del merge de arriba. Aparte porque findDetail hace lo mismo

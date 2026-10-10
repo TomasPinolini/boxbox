@@ -38,7 +38,10 @@ export function DriversPage() {
           <p className="text-slate-500">No hay pilotos para esa escudería.</p>
         )}
 
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {/* Fija en 2 columnas a cualquier ancho (auditoria de UX 2026-10-09): con los pilotos
+            ordenados por escuderia (ver drivers.service.ts) y 2 por equipo, cada fila de la
+            grilla termina siendo un equipo completo. */}
+        <div className="grid grid-cols-2 gap-4">
           {drivers.data?.map((driver) => (
             <DriverCard
               key={driver.id}
