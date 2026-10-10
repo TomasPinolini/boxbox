@@ -68,6 +68,17 @@ export function DraftPage() {
   const constructorOf = (team: DraftTeam) =>
     constructors.data?.find((c) => c.id === team.constructorId) ?? null;
 
+  // El picker recibe el roster COMPLETO (no `state.available`) y apaga los ya elegidos — ver
+  // el comentario grande en DraftPicker.tsx sobre por que. `state.picks` es acumulado de TODA
+  // la liga (todas las rondas, todos los miembros), no solo lo mio: incluye los driverId de
+  // las rondas 1 y 2 ya jugadas aunque ahora sea la ronda 3 de constructor.
+  const takenDriverIds = new Set(
+    state?.picks.filter((p) => p.driverId !== null).map((p) => p.driverId!) ?? [],
+  );
+  const takenConstructorIds = new Set(
+    state?.picks.filter((p) => p.constructorId !== null).map((p) => p.constructorId!) ?? [],
+  );
+
   const pickLabel = (pick: NonNullable<typeof state>['picks'][number]) => {
     if (pick.driverId !== null) {
       const driver = drivers.data?.find((d) => d.id === pick.driverId);
@@ -170,7 +181,7 @@ export function DraftPage() {
                 </p>
               )}
 
-              {isMyTurn && state.available && (
+              {isMyTurn && (
                 <div className="enter-scale mt-4 border-t border-slate-200 pt-4">
                   {/* "Te toca a vos" es la unica razon por la que esta tarjeta tiene accion
                       ahora mismo — tiene que pesar mas que cualquier otro titulo de la
@@ -184,8 +195,9 @@ export function DraftPage() {
                   )}
                   <DraftPicker
                     category={category}
-                    drivers={state.available.drivers}
-                    constructors={state.available.constructors}
+                    drivers={drivers.data ?? []}
+                    constructors={constructors.data ?? []}
+                    takenIds={category === 'DRIVER' ? takenDriverIds : takenConstructorIds}
                     selectedId={selected}
                     onSelect={setSelected}
                   />

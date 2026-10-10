@@ -13,16 +13,21 @@ import { TeamBadge } from '../drivers/TeamBadge';
 // se ve (ring + fondo) y el teclado lo recorre gratis (Tab, Enter/Espacio) sin JS extra para
 // flechas — no hace falta el patrón roving-tabindex de un <select> nativo, son como mucho 22.
 //
-// Tile es vertical (foto/logo arriba, texto abajo). Los pilotos se agrupan por escudería
-// (groupByConstructor) en vez de ir todos en una sola grilla continua: a medida que avanza el
-// draft van desapareciendo del pool, y si el que queda de un equipo cayera en una grilla
-// continua terminaría pegado al piloto de OTRO equipo — bug real reportado en la revisión de
-// esta misma pantalla (2026-10-10). Cada escudería es su propia fila de 2 columnas, completa
-// o no.
+// Recibe el ROSTER COMPLETO de la temporada, no solo los disponibles — la primera version
+// pasaba `state.available` (solo lo que queda), y a medida que avanzaba el draft la lista se
+// acortaba: el companero de equipo que quedaba disponible se reacomodaba al lado del piloto
+// de OTRO equipo (bug reportado en la revision de esta pantalla, 2026-10-10). Mostrar siempre
+// el roster entero y apagar (`takenIds`) los ya elegidos, en vez de sacarlos, evita el
+// reacomodo de raiz: nada desaparece, asi que nada se puede reubicar mal.
+//
+// groupByConstructor queda igual — protege contra el caso (mas raro, pero real en F1: un
+// reserva a mitad de temporada) de una escuderia con un numero impar de pilotos en el roster
+// ya de base, no solo contra los picks del draft.
 
 function Tile({
   id,
   selected,
+  disabled,
   onSelect,
   children,
   borderColor,
@@ -30,6 +35,7 @@ function Tile({
 }: {
   id: number;
   selected: boolean;
+  disabled: boolean;
   onSelect: (id: number) => void;
   children: React.ReactNode;
   borderColor: string;
@@ -38,13 +44,18 @@ function Tile({
   return (
     <button
       type="button"
-      aria-pressed={selected}
-      aria-label={label}
+      disabled={disabled}
+      aria-pressed={disabled ? undefined : selected}
+      aria-label={disabled ? `${label} (ya elegido)` : label}
       onClick={() => onSelect(id)}
       className={`flex w-full flex-col items-center gap-2 rounded-md border-t-4 bg-slate-50 p-3 text-center transition ${
-        selected ? 'ring-2 ring-red-600' : 'hover:bg-slate-100'
+        disabled
+          ? 'cursor-not-allowed grayscale opacity-50'
+          : selected
+            ? 'ring-2 ring-red-600'
+            : 'hover:bg-slate-100'
       }`}
-      style={{ borderTopColor: borderColor }}
+      style={{ borderTopColor: disabled ? '#cbd5e1' : borderColor }}
     >
       {children}
     </button>
@@ -55,12 +66,14 @@ export function DraftPicker({
   category,
   drivers,
   constructors,
+  takenIds,
   selectedId,
   onSelect,
 }: {
   category: 'DRIVER' | 'CONSTRUCTOR';
   drivers: Driver[];
   constructors: ConstructorRef[];
+  takenIds: Set<number>;
   selectedId: number | null;
   onSelect: (id: number) => void;
 }) {
@@ -74,6 +87,7 @@ export function DraftPicker({
                 key={d.id}
                 id={d.id}
                 selected={selectedId === d.id}
+                disabled={takenIds.has(d.id)}
                 onSelect={onSelect}
                 borderColor={d.constructor?.color ?? '#e2e8f0'}
                 label={`${d.firstName} ${d.lastName}`}
@@ -105,6 +119,7 @@ export function DraftPicker({
           key={c.id}
           id={c.id}
           selected={selectedId === c.id}
+          disabled={takenIds.has(c.id)}
           onSelect={onSelect}
           borderColor={c.color}
           label={c.name}

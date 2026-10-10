@@ -35,6 +35,7 @@ describe('DraftPicker', () => {
         category="DRIVER"
         drivers={drivers}
         constructors={[]}
+        takenIds={new Set()}
         selectedId={null}
         onSelect={() => {}}
       />,
@@ -52,6 +53,7 @@ describe('DraftPicker', () => {
         category="DRIVER"
         drivers={drivers}
         constructors={[]}
+        takenIds={new Set()}
         selectedId={null}
         onSelect={onSelect}
       />,
@@ -68,6 +70,7 @@ describe('DraftPicker', () => {
         category="DRIVER"
         drivers={drivers}
         constructors={[]}
+        takenIds={new Set()}
         selectedId={1}
         onSelect={() => {}}
       />,
@@ -89,6 +92,7 @@ describe('DraftPicker', () => {
         category="CONSTRUCTOR"
         drivers={drivers}
         constructors={[redBull, ferrari]}
+        takenIds={new Set()}
         selectedId={null}
         onSelect={() => {}}
       />,
@@ -97,5 +101,64 @@ describe('DraftPicker', () => {
     expect(screen.getByRole('button', { name: 'Red Bull Racing' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Ferrari' })).toBeInTheDocument();
     expect(screen.queryByText('Max Verstappen')).not.toBeInTheDocument();
+  });
+
+  // El bug que reporto el usuario: un piloto ya elegido desaparecia del array y su companero
+  // se reacomodaba al lado de otro equipo. Ahora el roster completo sigue entero — el elegido
+  // se apaga, no se va.
+  describe('pilotos ya elegidos (takenIds)', () => {
+    it('siguen en la lista, pero deshabilitados y sin aria-pressed', () => {
+      render(
+        <DraftPicker
+          category="DRIVER"
+          drivers={drivers}
+          constructors={[]}
+          takenIds={new Set([1])}
+          selectedId={null}
+          onSelect={() => {}}
+        />,
+      );
+
+      const taken = screen.getByRole('button', { name: 'Max Verstappen (ya elegido)' });
+      expect(taken).toBeDisabled();
+      expect(taken).not.toHaveAttribute('aria-pressed');
+
+      const free = screen.getByRole('button', { name: 'Charles Leclerc' });
+      expect(free).toBeEnabled();
+    });
+
+    it('no se pueden clickear', async () => {
+      const onSelect = vi.fn();
+      render(
+        <DraftPicker
+          category="DRIVER"
+          drivers={drivers}
+          constructors={[]}
+          takenIds={new Set([1])}
+          selectedId={null}
+          onSelect={onSelect}
+        />,
+      );
+
+      await userEvent.click(screen.getByRole('button', { name: 'Max Verstappen (ya elegido)' }));
+
+      expect(onSelect).not.toHaveBeenCalled();
+    });
+
+    it('tambien aplica a escuderias en categoria CONSTRUCTOR', () => {
+      render(
+        <DraftPicker
+          category="CONSTRUCTOR"
+          drivers={[]}
+          constructors={[redBull, ferrari]}
+          takenIds={new Set([3])}
+          selectedId={null}
+          onSelect={() => {}}
+        />,
+      );
+
+      expect(screen.getByRole('button', { name: 'Red Bull Racing (ya elegido)' })).toBeDisabled();
+      expect(screen.getByRole('button', { name: 'Ferrari' })).toBeEnabled();
+    });
   });
 });
