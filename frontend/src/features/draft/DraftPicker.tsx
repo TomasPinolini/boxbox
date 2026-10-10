@@ -1,6 +1,7 @@
 import type { ConstructorRef, Driver } from '../../models/driver';
 import { ConstructorLogo } from '../drivers/ConstructorLogo';
 import { DriverAvatar } from '../drivers/DriverAvatar';
+import { groupByConstructor } from '../drivers/group-by-constructor';
 import { TeamBadge } from '../drivers/TeamBadge';
 
 // DraftPicker: reemplaza el <select> de texto plano que tenía el draft. Mismos componentes
@@ -12,9 +13,12 @@ import { TeamBadge } from '../drivers/TeamBadge';
 // se ve (ring + fondo) y el teclado lo recorre gratis (Tab, Enter/Espacio) sin JS extra para
 // flechas — no hace falta el patrón roving-tabindex de un <select> nativo, son como mucho 22.
 //
-// Tile es vertical (foto/logo arriba, texto abajo) y la grilla es fija en 2 columnas a
-// cualquier ancho — mismo criterio que DriverCard: con el backend ya ordenando por escudería
-// (ver draft.service.ts), cada fila de 2 tiles termina siendo un equipo completo.
+// Tile es vertical (foto/logo arriba, texto abajo). Los pilotos se agrupan por escudería
+// (groupByConstructor) en vez de ir todos en una sola grilla continua: a medida que avanza el
+// draft van desapareciendo del pool, y si el que queda de un equipo cayera en una grilla
+// continua terminaría pegado al piloto de OTRO equipo — bug real reportado en la revisión de
+// esta misma pantalla (2026-10-10). Cada escudería es su propia fila de 2 columnas, completa
+// o no.
 
 function Tile({
   id,
@@ -62,29 +66,33 @@ export function DraftPicker({
 }) {
   if (category === 'DRIVER') {
     return (
-      <div className="grid grid-cols-2 gap-2" role="group" aria-label="Elegí un piloto">
-        {drivers.map((d) => (
-          <Tile
-            key={d.id}
-            id={d.id}
-            selected={selectedId === d.id}
-            onSelect={onSelect}
-            borderColor={d.constructor?.color ?? '#e2e8f0'}
-            label={`${d.firstName} ${d.lastName}`}
-          >
-            <DriverAvatar driver={d} size={48} />
-            <div className="min-w-0">
-              <p className="truncate text-sm font-semibold">
-                {d.firstName} {d.lastName}
-              </p>
-              <div className="mt-1 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-xs text-slate-500">
-                <span className="font-display tabular-nums">#{d.number}</span>
-              </div>
-              <div className="mt-1">
-                <TeamBadge constructor={d.constructor} />
-              </div>
-            </div>
-          </Tile>
+      <div className="flex flex-col gap-2" role="group" aria-label="Elegí un piloto">
+        {groupByConstructor(drivers).map((group) => (
+          <div key={group.key} className="grid grid-cols-2 gap-2">
+            {group.items.map((d) => (
+              <Tile
+                key={d.id}
+                id={d.id}
+                selected={selectedId === d.id}
+                onSelect={onSelect}
+                borderColor={d.constructor?.color ?? '#e2e8f0'}
+                label={`${d.firstName} ${d.lastName}`}
+              >
+                <DriverAvatar driver={d} size={48} />
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold">
+                    {d.firstName} {d.lastName}
+                  </p>
+                  <div className="mt-1 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-xs text-slate-500">
+                    <span className="font-display tabular-nums">#{d.number}</span>
+                  </div>
+                  <div className="mt-1">
+                    <TeamBadge constructor={d.constructor} />
+                  </div>
+                </div>
+              </Tile>
+            ))}
+          </div>
         ))}
       </div>
     );

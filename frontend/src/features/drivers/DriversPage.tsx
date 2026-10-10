@@ -3,6 +3,7 @@ import { Alert, PageShell } from '../../components/ui';
 import { ConstructorFilter } from './ConstructorFilter';
 import { DriverCard } from './DriverCard';
 import { useConstructors, useDrivers } from './drivers.queries';
+import { groupByConstructor } from './group-by-constructor';
 
 export function DriversPage() {
   const navigate = useNavigate();
@@ -38,16 +39,20 @@ export function DriversPage() {
           <p className="text-slate-500">No hay pilotos para esa escudería.</p>
         )}
 
-        {/* Fija en 2 columnas a cualquier ancho (auditoria de UX 2026-10-09): con los pilotos
-            ordenados por escuderia (ver drivers.service.ts) y 2 por equipo, cada fila de la
-            grilla termina siendo un equipo completo. */}
-        <div className="grid grid-cols-2 gap-4">
-          {drivers.data?.map((driver) => (
-            <DriverCard
-              key={driver.id}
-              driver={driver}
-              onOpen={(id) => navigate(`/drivers/${id}`)}
-            />
+        {/* Una grilla de 2 columnas POR escuderia, no una sola grilla continua con los 22 —
+            si un piloto no corre la temporada (o filtra el conteo real a un numero impar), su
+            companero no se tiene que reacomodar al lado de alguien de otro equipo. */}
+        <div className="flex flex-col gap-4">
+          {groupByConstructor(drivers.data ?? []).map((group) => (
+            <div key={group.key} className="grid grid-cols-2 gap-4">
+              {group.items.map((driver) => (
+                <DriverCard
+                  key={driver.id}
+                  driver={driver}
+                  onOpen={(id) => navigate(`/drivers/${id}`)}
+                />
+              ))}
+            </div>
           ))}
         </div>
       </div>
