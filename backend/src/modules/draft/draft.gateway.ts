@@ -54,6 +54,10 @@ type DraftServer = SocketIOServer<
     'draft:timer': (payload: { secondsRemaining: number }) => void;
     'draft:complete': (payload: { teams: unknown[] }) => void;
     'draft:error': (payload: { code: string; message: string }) => void;
+    // No empieza con draft: porque no es del draft — es la liga entera que dejo de existir
+    // para sus miembros. Llega por este namespace porque es donde estan conectados los que
+    // hay que avisar.
+    'league:archived': (payload: { leagueId: number }) => void;
   },
   Record<string, never>,
   SocketData
@@ -202,6 +206,21 @@ export async function announceDraftReset(io: DraftServer, leagueId: number): Pro
   io.of('/draft')
     .to(roomName(leagueId))
     .emit('draft:state', { ...state, available, timer: null });
+}
+
+// El owner puede archivar la liga en cualquier momento, incluso con el draft corriendo
+// (decision del 9/10). Sin este aviso, los demas se quedan mirando un reloj de una liga que
+// ya no existe hasta que intentan pickear y el backend los rechaza.
+//
+// Es la unica funcion de este archivo que NO manda un evento draft:*. El namespace igual es
+// /draft porque es donde estan conectados justamente los que hay que sacar de ahi: la
+// pantalla de la liga no abre socket.
+//
+// Sincrona a diferencia de sus vecinas: no lee estado, solo avisa. Y apaga el timer, que es
+// in-memory y si no quedaria corriendo para una liga muerta.
+export function announceLeagueArchived(io: DraftServer, leagueId: number): void {
+  clearDraftTimer(leagueId);
+  io.of('/draft').to(roomName(leagueId)).emit('league:archived', { leagueId });
 }
 
 async function handleSocketPick(io: DraftServer, socket: Socket, payload: unknown) {

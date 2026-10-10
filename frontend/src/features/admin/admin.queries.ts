@@ -53,11 +53,7 @@ export function useJolpicaPreview() {
 // Recalcular standings para una carrera que ya tiene resultados. Idempotente: repetir no duplica.
 export function useRecalculateStandings() {
   const qc = useQueryClient();
-  return useMutation<
-    { raceId: number; leagues: number; standings: number },
-    ApiError,
-    number
-  >({
+  return useMutation<{ raceId: number; leagues: number; standings: number }, ApiError, number>({
     mutationFn: (raceId) => racesService.recalculate(raceId),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['leagues'] });

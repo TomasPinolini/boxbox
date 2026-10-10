@@ -16,6 +16,8 @@ interface DraftUpdatePayload {
 
 interface DraftSocketResult {
   state: DraftState | null;
+  /** El owner archivo la liga mientras esta pantalla estaba abierta. */
+  leagueArchived: boolean;
   status: DraftConnectionStatus;
   errorMessage: string | null;
   secondsRemaining: number | null;
@@ -40,6 +42,7 @@ export function useDraftState(leagueId: number): DraftSocketResult {
   const [timerTick, setTimerTick] = useState(0);
   const [pickError, setPickError] = useState<{ code: string; message: string } | null>(null);
   const [pickPending, setPickPending] = useState(false);
+  const [leagueArchived, setLeagueArchived] = useState(false);
 
   useEffect(() => {
     if (!token) return;
@@ -83,8 +86,20 @@ export function useDraftState(leagueId: number): DraftSocketResult {
       setPickPending(false);
       setSecondsRemaining(null);
       setState((prev) =>
-        prev ? { ...prev, draftStatus: 'COMPLETED', currentTurnLeagueMemberId: null, round: null } : prev,
+        prev
+          ? { ...prev, draftStatus: 'COMPLETED', currentTurnLeagueMemberId: null, round: null }
+          : prev,
       );
+    });
+
+    // El owner puede archivar la liga en cualquier momento, incluso con el draft corriendo.
+    // Sin esto, los demas se quedan mirando un reloj de una liga que ya no existe hasta que
+    // intentan elegir y el backend los rechaza. Es el unico evento de este socket que no
+    // empieza con draft:, porque no es del draft.
+    socket.on('league:archived', () => {
+      setLeagueArchived(true);
+      setSecondsRemaining(null);
+      setPickPending(false);
     });
 
     socket.on('draft:error', (payload: { code: string; message: string }) => {
@@ -118,5 +133,14 @@ export function useDraftState(leagueId: number): DraftSocketResult {
     socketRef.current?.emit('draft:pick', input);
   }, []);
 
-  return { state, status, errorMessage, secondsRemaining, pickError, pickPending, submitPick };
+  return {
+    state,
+    leagueArchived,
+    status,
+    errorMessage,
+    secondsRemaining,
+    pickError,
+    pickPending,
+    submitPick,
+  };
 }
