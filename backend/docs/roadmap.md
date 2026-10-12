@@ -32,53 +32,41 @@ Prisma 7 + Postgres. Tests = Vitest + Supertest contra DB real.
 
 ## Now — lo que bloquea la entrega del 12/10
 
-_(Slices 1–8 y 14 completos. Lo que sigue del carril backend es el Epic 2: Slices 9 y 12.)_
+_(Nada de código. Todo el carril backend que la rúbrica gatea está abajo, en "Completados":
+Slices 1–9, 12, 14 y 16. El único entregable que falta de la entrega es el **video demo** —
+vive en el hub, [`../../docs/roadmap.md`](../../docs/roadmap.md) → "Trámites de cátedra".)_
 
 ---
 
-## Later — scoring + sync
+## Later — Predictions, y nada más
 
-_(El carril Draft — Slices 4, 5, 6 — está completo. Lo que sigue es el carril Scoring, que converge con Draft en Slice 9.)_
-
-### Slice 9 — LeagueStanding (snapshot por carrera)
-
-- **Goal**: después de cada carrera completada, generar un snapshot LeagueStanding por cada miembro de cada liga activa.
-- **Touches**: tabla `LeagueStanding` (driverPoints, constructorPoints, predictionPoints, totalPoints, position, positionChange); endpoint `POST /api/v1/races/:id/recalculate` (admin) que regenera standings de esa carrera para todas las ligas; endpoint `GET /leagues/:id/standings?raceId=X` para histórico.
-- **Done when**: en una liga con 3 miembros y 1 carrera completada, hay 3 LeagueStandings con `position` 1, 2, 3 correctos por totalPoints. `positionChange` calculado contra la carrera anterior (o 0 si es la primera).
-- **Blocked by**: Slice 7, Slice 8.
+_(Scoring y sync ya están construidos: los Slices 9 y 12 viven en "Completados". Lo único que
+queda pendiente en este carril es el Slice 10, que es **Alcance Adicional Voluntario** de
+`proposal.md` — no entra en la rúbrica y no mueve la nota. El Slice 11 quedó eliminado por
+ADR-0006 y se deja abajo como lápida, para que nadie lo reintroduzca.)_
 
 ### Slice 10 — Predictions
 
 - **Goal**: cada LeagueMember puede predecir winner/pole/topConstructor para cada carrera antes del `lockDate`. Cuando la carrera se completa, se evalúan y suman bonus.
 - **Touches**: tabla `Prediction`; nuevo módulo `modules/predictions/`; endpoints `PUT /leagues/:id/predictions/:raceId`, `GET .../mine`, `GET .../all` (post-lock); evaluación se dispara en el recalculate de Slice 9.
 - **Done when**: una predicción antes del lock se acepta. Después del lock se rechaza (409). Cuando se cargan los RaceResults, las predicciones acertadas suman bonus en LeagueStanding.predictionPoints.
-- **Blocked by**: Slice 9.
+- **Blocked by**: nada — su único bloqueo era el Slice 9, que está hecho. `scoreTeam` en `standings.service.ts` llena `predictionPoints` con 0 y es el único lugar a tocar.
 
 ### Slice 11 — DriverSwap — ELIMINADO (ADR-0006)
 
 - **Decisión (2026-08-27)**: la reserva y `DriverSwap` salieron del juego — ver [`adr/ADR-0006-draft-3-rondas-sin-reserva.md`](../../docs/adr/ADR-0006-draft-3-rondas-sin-reserva.md). El draft tiene 3 rondas (2 pilotos + constructor) y el tope de miembros es `floor(driverCount / 2)`. No se renumeran los slices siguientes. El listado voluntario "historial de swaps" cae con este slice.
 
-### Slice 12 — Sync con Jolpica/OpenF1
-
-- **Goal**: en vez de cargar RaceResults manualmente, un endpoint admin sincroniza con la API externa de F1.
-- **Touches**: tabla `SyncLog`; nuevo módulo `modules/sync/` (o sub-rutas en `modules/admin/`); endpoints `POST /api/v1/admin/sync/drivers`, `.../constructors`, `.../circuits`, `.../races`, `.../season`; HTTP client para Jolpica (probablemente `fetch` nativo o `undici`); cada sync deja un SyncLog con counts y status.
-- **Done when**: `POST /admin/sync/season?year=2026` puebla Driver/Constructor/Circuit/Race desde Jolpica y deja un SyncLog `SUCCESS`. Falla parcial deja `PARTIAL` con detalle. Re-sync no duplica (uso de `externalId` + upsert).
-- **Blocked by**: ~~acceso a las APIs~~ — **desbloqueado**. Verificado el 2026-09-11: `api.jolpi.ca/ergast/f1/2026/drivers.json` y `api.openf1.org/v1/drivers` responden 200 sin credenciales.
-- **⚠️ Trampa de datos**: Jolpica devuelve **32 pilotos para 2026** (`"total": "32"`), no 22 — incluye suplentes y reservas que corrieron alguna sesión. Si el sync los escribe todos como `DriverSeason`, `maxMembersForSeason = floor(32/2) = 16` en vez de 11, se rompe la regla "un miembro por equipo de la grilla" de ADR-0006 y vuelve el bug de BOX-14 por otra puerta. Filtrar a titulares antes de escribir `DriverSeason`.
-- **Alcance mínimo para el 12/10**: es la pata de "fetch desde APIs externas" del Epic 2 de Aprobación. Con `12a` (drivers + constructors) alcanza para demostrarlo; `12b` y `12c` son upside.
-- **Estado 2026-09-21 — `12b` + `12c` hechos** (rama `12/sync-results`; orden real `12b → 12c → 12a`, ver BOX-9). Decisión: **Jolpica es la fuente de verdad del calendario** — el seed trae las 23 fechas reales y ya no inventa resultados; `round` es la clave de emparejamiento y `Race` no necesita `externalId`. `modules/sync/` + `shared/jolpica.ts` (`fetch` nativo, timeout 10 s, respuestas validadas con Zod). El status se mapea por `positionText`, **no** por `status` (en 2026 hay `Retired` clasificados y `Lapped` con `R`). Deuda P2002 cerrada: `RACE_RESULTS_ALREADY_EXIST`. Queda `12a` como upside.
-- **Limitación conocida**: `DriverSeason` es un constructor por temporada. En las 3 fechas de 2026 donde Lawson corrió para Red Bull, sus puntos se acreditan a RB; Tsunoda (suplente, sin `Driver`) sale `skipped`.
-
 ---
 
-## Sub-slices probables (anticipar)
+## Sub-slices (anticipados, y cómo salieron)
 
 Si alguno de estos se vuelve demasiado grande, partir así:
 
 - **Slice 1 (Auth)**: `1a` register + login (sin /me, sin refresh), `1b` /me + middleware, `1c` refresh tokens.
 - **Slice 5 (Draft REST)**: `5a` modelo + start + state, `5b` pick + validaciones, `5c` snake order + reset.
 - **Slice 6 (Draft realtime)**: `6a` socket conectado + state broadcast, `6b` pick via socket + update broadcast, `6c` timer + auto-pick.
-- **Slice 12 (Sync)**: por entidad — `12a` drivers + constructors, `12b` circuits + races, `12c` results.
+- **Slice 12 (Sync)**: por entidad — `12a` drivers + constructors, `12b` circuits + races, `12c` results. **Así salió**: `12b` y `12c` están construidos (ver "Completados"); `12a` **no se hizo** y queda como upside post-entrega. No bloquea nada: el seed ya trae la grilla 2026 curada, y el sync de resultados deliberadamente **no crea** Drivers ni DriverSeasons.
+- **Qué se partió de verdad**: sólo el Slice 1 (`1a`/`1b`/`1c`) y el Slice 12 (`12b`/`12c`). Los Slices 5 y 6 entraron de una.
 
 ---
 
@@ -88,7 +76,7 @@ Si alguno de estos se vuelve demasiado grande, partir así:
 
 ### Slice 16 (backend) — campeonato de pilotos y de escuderías
 
-- **Status**: implementado en branch `16/championship-standings`, **sin commitear ni mergear**. Mitad backend; la pantalla está en [el carril frontend](../../frontend/docs/roadmap.md).
+- **Status**: done (branch `16/championship-standings`, PR #34 mergeado en `dev`). Mitad backend; la pantalla está en [el carril frontend](../../frontend/docs/roadmap.md).
 - **Fuera de la rúbrica de la cátedra**: es un requisito propio del usuario, no suma ni bloquea nada de la entrega del 12/10.
 - **Shipped**: `GET /drivers/standings` (`[{position, points, wins, driver}]`) y `GET /constructors/standings` (`[{position, points, constructor}]`), públicos, con `?seasonId=` opcional y la temporada activa por defecto. **Sin cambio de schema ni migración**: suman `RaceResult.points` y `ConstructorResult.totalPoints`, que ya existían.
 - **Decisiones clave**:
@@ -100,6 +88,41 @@ Si alguno de estos se vuelve demasiado grande, partir así:
   - **`/standings` va registrada antes de `/:id`** en los dos routers. Al revés, Express la matchea como id y `validateParams` responde 400.
   - **La colisión de `constructor` tiene una tercera cara**: el tipo de fila que Prisma genera para el modelo `Constructor` queda intersectado con `Function`, y `name` choca con `Function.name` → tipa como `never`. `c.name.localeCompare(...)` no compila; asignarlo a un campo `string` sí (`never` es asignable a todo), que es por lo que nunca se había notado. Solución: pasar por `ConstructorRef` antes de ordenar.
 - **Tests**: 241 (+10), en `drivers.test.ts` y `constructors.test.ts`. El fixture del desempate hace empatar a dos pilotos en 33 por caminos distintos (25+8 vs 18+15) con el orden alfabético en contra, así que solo las victorias pueden ordenarlos.
+
+### Slice 12 — Sync con Jolpica (`12b` calendario + `12c` resultados)
+
+- **Status**: done (branch `12/sync-results`, PR #37 mergeado en `dev`). `12a` (drivers + constructors) **no se construyó**: ver "Sub-slices".
+- **Goal**: en vez de cargar RaceResults a mano, un endpoint admin sincroniza con la API externa de F1. Es la pata de "fetch desde APIs externas" del Epic 2 de Aprobación, junto con el Slice 9.
+- **Shipped**: módulo `modules/sync/` (+ `sync.fixtures.ts`) montado en `app.ts` bajo `/api/v1/admin/sync`, con `requireAuth → requireAdmin` una sola vez a nivel router porque todo el módulo es admin-only. `POST /admin/sync/races?year=` (12b: upsert de `Circuit` por `externalId` y de `Race` por `(seasonId, round)`) y `POST /admin/sync/races/:id/results` (12c: una carrera, con `?dryRun=true` para ver el mapeo sin escribir — es lo que usa la vista previa de `/admin/results`). `shared/jolpica.ts` es el único punto de contacto con la red: `fetch` nativo + `AbortSignal.timeout` a 10 s, sin dependencias nuevas, y **todo lo que entra se valida con Zod** (trust boundary igual que `req.body`). Cada corrida deja exactamente un `SyncLog` — también las que fallan y los `dryRun`. Sin migration: `sync_logs` existe desde `init`.
+- **Decisiones clave**:
+  - **El sync NUNCA crea `Driver` ni `DriverSeason`.** Jolpica lista **32 pilotos para 2026**, no 22 (incluye suplentes), y `maxMembersForSeason = floor(driverCount / 2)` depende de ese número: escribirlos todos daría 16 en vez de 11 y rompería ADR-0006 por la puerta de atrás (BOX-14 de nuevo, BOX-9). Lo que no matchea un `Driver` existente se reporta como `skipped` y el `SyncLog` queda `PARTIAL`.
+  - **Jolpica es la fuente de verdad del calendario**: el seed trae las 23 fechas reales y ya no inventa resultados. `round` es la clave de emparejamiento y `Race` **no** necesita `externalId`.
+  - **Las reglas de carga no se reimplementan**: `syncResults` traduce el formato de Jolpica al input de `loadResults` (Slice 7/8) y lo valida con el **mismo** `loadRaceResultsSchema` que el body del endpoint manual — acá no hay middleware que lo corra, y es lo que ataja p. ej. medios puntos contra un `Int`.
+  - `PARTIAL` cuando hay salteados, `FAILED` cuando tira, `SUCCESS` sólo si no saltó nada. `SyncLog` no tiene columna de detalle, así que el motivo del fallo y la lista de salteados van los dos en `error`.
+- **Gotchas**:
+  - **El status se mapea por `positionText`, NO por `status`.** Relevado contra las 14 fechas corridas de 2026: hay `status: "Retired"` con posición numérica (abandonó pero clasificó por distancia) y `status: "Lapped"` con `positionText: "R"`. `positionText` es el campo que dice si clasificó.
+  - **Una fecha que ya tiene resultados de otro circuito no se pisa** → `skipped` + `PARTIAL`. Como la clave es `(seasonId, round)`, sobreescribirla dejaría resultados pegados a una carrera que no es. Si no tiene resultados, sí se corrige.
+  - `409 SYNC_RACE_MISMATCH` si el round local apunta a otro circuito que el de Jolpica; `409 SYNC_RESULTS_NOT_AVAILABLE` si la carrera todavía no se corrió; `502 JOLPICA_UNAVAILABLE` / `JOLPICA_BAD_RESPONSE` ante la red o un shape distinto. Deuda P2002 cerrada: `RACE_RESULTS_ALREADY_EXIST` en vez de un 500.
+  - **Limitación conocida**: `DriverSeason` es un constructor por temporada. En las 3 fechas de 2026 donde Lawson corrió para Red Bull, sus puntos se acreditan a RB; Tsunoda (suplente, sin `Driver`) sale `skipped`.
+- **Tests**: 19 en `sync.test.ts`, **sin pegarle a la red** — stubean el `fetch` global con fixtures recortados de respuestas reales. Cubren la cadena admin, el re-sync que no duplica, las dos trampas de circuito cruzado, el mapeo de `positionText`, el `dryRun` que no escribe pero loguea, el import real que deriva `ConstructorResult` y cierra la Race, y los dos 502.
+
+### Slice 9 — LeagueStanding (snapshot por carrera)
+
+- **Status**: done (branch `9/league-standings`, PR #32 mergeado en `dev`). Mitad de scoring del Epic 2 de Aprobación; la otra es el Slice 12.
+- **Goal**: después de cada carrera completada, generar un snapshot `LeagueStanding` por cada miembro de cada liga activa.
+- **Shipped**: módulo `modules/standings/` (los 5 archivos canónicos). `POST /races/:id/recalculate` (admin) — la ruta cuelga de `races.routes.ts` porque es race-scoped y admin-only, aunque la lógica viva en standings. `GET /leagues/:id/standings?raceId=` (miembro) — sub-router de `leagues.routes.ts`, así que recibe `req.leagueMember` ya poblado; sin `raceId` devuelve la última carrera que tenga standings de esa liga. Sin migration: `league_standings` existe desde `init`.
+- **Decisiones clave**:
+  - **Los puntos son ACUMULADOS hasta esa carrera inclusive**, no los de esa fecha sola: un `LeagueStanding` es la foto del campeonato después de esa fecha. Se suman todas las `COMPLETED` de la temporada con `round <=`; una cancelada o pospuesta en el medio simplemente no suma.
+  - **Idempotente**, con `upsert` por `(leagueMemberId, raceId)`. "Snapshot inmutable" en el dominio significa que no es una vista live, no que no se pueda regenerar — el endpoint se llama `/recalculate` justamente para volver a correrlo si se corrigen resultados.
+  - **Funciones puras sobre filas planas** (`indexPoints`, `scoreTeam`, `rank`), sin `groupBy`/`aggregate` de Prisma — mismo patrón que `buildConstructorResults` (Slice 8), y se testean sin DB.
+  - **El desempate es DETERMINÍSTICO, no "justo"**: `totalPoints` desc → `driverPoints` desc → `leagueMemberId` asc (el que se unió antes). Sin posiciones compartidas: en una liga de 3, las posiciones son 1, 2 y 3. Determinístico es lo que importa para que recalcular dos veces dé lo mismo.
+  - **Sólo miembros `ACTIVE`** generan standings nuevos; el que se fue o fue echado conserva los viejos como historia. Mismo criterio que `GET /leagues/:id/members`.
+  - Un slot vacío del FantasyTeam (draft a medias o reseteado) vale cero en vez de quedar afuera de la tabla. `predictionPoints` se llena con 0: la columna existe y el Slice 10 es el único lugar a tocar.
+- **Gotchas**:
+  - **`positionChange` positivo = subió** (`posiciónAnterior - posiciónActual`), y 0 si no hay carrera anterior con standings o si el miembro no estaba. Se lee de la última `COMPLETED` con `round` menor, no de `round - 1`.
+  - `409 RACE_NOT_COMPLETED` si la carrera no está `COMPLETED` — no se calcula sobre una fecha sin correr.
+  - **La colisión de `constructor` otra vez** (Slices 4 y 5): los `select` sobre `ConstructorResult` y `FantasyTeam` van con `as Prisma.XSelect`, no con anotación ni `as const`.
+- **Tests**: 12 en `standings.test.ts` + el smoke `SMOKE=1 npm run smoke:slice-9`, que es **el de referencia del repo**: draft completo → resultados de dos fechas → standings, con `runId` en cada fixture, temporada propia fuera del rango real de F1 (`YEAR = 3000 + runId % 900`), limpieza por defecto (`SMOKE_KEEP=1` para dejarla) y un fixture asimétrico a propósito, para que `positionChange` se mueva en las dos direcciones y la aserción no pase por la rama "no pasó nada".
 
 ### Slice 14 (backend) — detalle de piloto enriquecido
 
