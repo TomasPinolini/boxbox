@@ -43,3 +43,14 @@ npm-debug.log*
 
 # Scratch personal de deudas tecnicas — local-only, never commit
 docs/known-debt.md
+
+# Salidas de skills/agentes y backups automáticos — generados, no son del producto.
+# .impeccable/ (skill impeccable: auditorías PDF), reports/ + research_notes/ (research),
+# PRODUCT.md (impeccable:product-schema). Los backups los pide el CLAUDE.md global
+# antes de editar un config. Nada de esto se borra: git deja de mirarlo.
+# docs/agents/ SÍ va versionado — lo leen las skills, no lo generan.
+.impeccable/
+reports/
+research_notes/
+PRODUCT.md
+*.bak*

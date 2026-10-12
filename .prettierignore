@@ -2,3 +2,12 @@ node_modules
 dist
 build
 prisma/migrations
+
+# Generados — prettier los reescribía (ver .gitignore)
+test-results
+playwright-report
+.impeccable/
+reports/
+research_notes/
+PRODUCT.md
+*.bak*
