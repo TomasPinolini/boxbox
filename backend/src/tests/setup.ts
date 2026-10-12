@@ -2,6 +2,10 @@ import { beforeEach, afterAll } from 'vitest';
 import { prisma } from '../shared/prisma';
 import { hashPassword } from '../shared/password';
 import { signAccessToken } from '../shared/jwt';
+import { assertLocalDatabase } from './db-guard';
+
+// Antes de cualquier TRUNCATE: si DATABASE_URL no es local, abortar la suite entera.
+assertLocalDatabase(process.env.DATABASE_URL);
 
 // Clean all tables before each test so tests don't affect each other
 beforeEach(async () => {
