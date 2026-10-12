@@ -527,11 +527,13 @@ const races2026: RaceData[] = [
 // campeonato. Un logo apaisado con el nombre del equipo adentro a 24px es una mancha; una
 // marca se sigue reconociendo. Antes habia wordmarks y se veian ilegibles.
 //
-// Las 11 tienen logo, pero de dos origenes distintos y eso importa: seis vienen de Wikimedia
-// Commons con licencia declarada (ver CREDITS.md) y cinco de agregadores que NO otorgan
-// licencia, aisladas en /logos/temporales/ con su propio README. De esas cinco no hay
+// Diez de las 11 tienen logo, de dos origenes distintos y eso importa: cinco vienen de
+// Wikimedia Commons con licencia declarada (ver CREDITS.md) y cinco de agregadores que NO
+// otorgan licencia, aisladas en /logos/temporales/ con su propio README. De esas cinco no hay
 // version libre: son dibujos figurativos con copyright propio, o solo existen apaisadas.
-// Si alguna cayera a null, la UI ya lo maneja: muestra un cuadrado con el color del equipo.
+// Williams quedo sin logo a proposito: el unico archivo libre en Commons era CC BY-SA 4.0, y
+// compartir-igual sobre un asset embebido en la app es una obligacion que no queremos cargar.
+// Si alguna cae a null, la UI ya lo maneja: muestra un cuadrado con el color del equipo.
 // Slice 12 va a poder pisar estos valores con las URLs que devuelva la API externa.
 const teamLogos: Record<string, string> = {
   alpine: '/logos/alpine.png',
@@ -539,7 +541,6 @@ const teamLogos: Record<string, string> = {
   haas: '/logos/haas.png',
   mclaren: '/logos/mclaren.png',
   mercedes: '/logos/mercedes.png',
-  williams: '/logos/williams.png',
   // TEMPORALES, sin licencia verificada. Van en su propia carpeta a proposito, con un README
   // que explica que son y como sacarlos: frontend/public/logos/temporales/README.md.
   // No deben sobrevivir a un lanzamiento real.

@@ -16,13 +16,23 @@ quitó el fondo blanco, porque el original es un WebP sin canal alfa.
 | `haas.png` | la "H" | `TGR Haas F1 Team Logo (2026).svg` | Dominio público |
 | `mclaren.png` | el speedmark | `McLaren Speedmark.svg` | Dominio público |
 | `mercedes.png` | la estrella | `Mercedes-Benz Star 2022.svg` | Dominio público |
-| `williams.png` | la "W" | `Williams Racing Monogram.png` | **CC BY-SA 4.0** — atribución y compartir igual |
-| `clasicos/ligier.png` | — | — | CC BY-SA 4.0 — atribución y compartir igual |
 | `clasicos/renault.png` | — | — | Dominio público |
 | `clasicos/tyrrell.png` | — | — | Dominio público |
 
-Los tres de `clasicos/` no los referencia ni el seed ni la interfaz: quedaron de una prueba
+Los dos de `clasicos/` no los referencia ni el seed ni la interfaz: quedaron de una prueba
 anterior.
+
+## Borrados a propósito: `williams.png` y `clasicos/ligier.png`
+
+Los dos eran **CC BY-SA 4.0**, la única licencia de esta tabla que además de atribución exige
+**compartir igual**. Esa segunda obligación se propaga a la obra derivada, y cumplirla sobre un
+PNG embebido en una SPA es incómodo de hacer bien y fácil de incumplir sin darse cuenta. Como el
+costo de no tenerlos es cero — la UI ya cae al cuadrado con `Constructor.color`, ver
+`features/drivers/team-color.ts` — se fueron. Williams queda sin logo; `teamLogos` en
+`backend/prisma/seed.ts` ya no lo lista.
+
+No es un juicio sobre CC BY-SA: es que para este caso la licencia pedía más de lo que el activo
+valía.
 
 **Sin logo**: Ferrari, Red Bull Racing, Aston Martin, Audi F1 Team y Racing Bulls. No es un
 olvido, es una limitación de las fuentes libres: de ninguna de las cinco hay en Commons una
