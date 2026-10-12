@@ -35,10 +35,10 @@ La rúbrica pide cantidades "por integrante" o "cada 2 integrantes o fracción".
 | Listado con filtro + detalle ×1                          | Regularidad | ✅ **Slice 14**, los dos carriles — `/drivers` y `/drivers/:id`, públicas        |
 | CUU/epic ×1                                             | Regularidad | ✅ **Slice 13b** — draft en vivo, conectar + ver estado + pickear + timer         |
 | CUU/epic ×2 (uno por integrante), mínimo 2 relacionados | Aprobación  | ✅ Epic 1 = draft (13b). Epic 2 = **Slices 9 + 12, shippeados**: `modules/standings/` y `modules/sync/`, 31 tests, `smoke:slice-9`, y los endpoints respondiendo en producción |
-| 1 test automatizado por integrante + 1 de integración   | Aprobación  | ✅ 206 tests contra Postgres real                                                |
+| 1 test automatizado por integrante + 1 de integración   | Aprobación  | ✅ **266 tests** contra Postgres real, los 12 archivos integración — salida cruda en [`test-evidence/`](./test-evidence/) |
 | Backend: login 2 niveles + rutas protegidas             | Aprobación  | ✅ `requireAuth` + `requireAdmin`                                                |
 | Frontend: mobile-first, 3 breakpoints                   | Regularidad | ✅ Tailwind, verificado a 375/768/1024                                           |
-| Frontend: 1 test unitario de componente + 1 e2e         | Aprobación  | ✅ 57 unitarios + 2 Playwright                                                   |
+| Frontend: 1 test unitario de componente + 1 e2e         | Aprobación  | ✅ **95 unitarios + 7 Playwright** — salida cruda en [`test-evidence/`](./test-evidence/) |
 | **Frontend: login con protección por niveles**          | Aprobación  | ✅ **Slice 15** — `RequireAdmin` + `/admin/results`, PR #33                      |
 
 ### Trámites de cátedra (no son slices)

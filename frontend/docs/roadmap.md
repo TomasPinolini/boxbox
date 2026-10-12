@@ -31,8 +31,9 @@ TypeScript + Tailwind v4. Tests = Vitest + Testing Library, e2e con Playwright.
 
 ## Now — lo que bloquea la entrega del 12/10
 
-_(Slices 13a, 13b, 14 y 15 completos, este carril. Ver el hub para el estado de la entrega
-en conjunto.)_
+_(Nada de código. Todo este carril está abajo, en "Completados": Slices 13a, 13b, 14, 15 y 16.
+El único entregable que falta de la entrega es el **video demo**, que no es un slice — vive en
+el hub, [`../../docs/roadmap.md`](../../docs/roadmap.md) → "Trámites de cátedra".)_
 
 ---
 
@@ -61,7 +62,7 @@ el tramo 2 se apoyó en esa base sin rehacer nada.
 
 ### Slice 16 (frontend) — pantalla de campeonato
 
-- **Status**: implementado en branch `16/championship-standings`, **sin commitear ni mergear**. Mitad frontend; los endpoints están en [el carril backend](../../backend/docs/roadmap.md).
+- **Status**: done (branch `16/championship-standings`, PR #34 mergeado en `dev`). Mitad frontend; los endpoints están en [el carril backend](../../backend/docs/roadmap.md).
 - **Fuera de la rúbrica de la cátedra**: es un requisito propio del usuario, no suma ni bloquea nada de la entrega del 12/10.
 - **Shipped**: `features/standings/` con `/standings`, **pública** (entrada suelta en el router, igual que `/drivers`). Dos `Card` — Pilotos y Escuderías — lado a lado desde `lg:`, apiladas en mobile. Links "Campeonato" en `LeaguesPage` y `DriversPage`.
 - **Decisiones clave**:
