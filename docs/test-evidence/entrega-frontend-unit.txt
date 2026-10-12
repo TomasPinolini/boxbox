@@ -6,8 +6,8 @@
  RUN  v4.1.11 /home/pinola/UTN/DSW/boxbox/frontend
 
 
- Test Files  15 passed (15)
-      Tests  65 passed (65)
-   Start at  08:29:09
-   Duration  5.27s (transform 1.93s, setup 4.11s, import 5.28s, tests 5.92s, environment 28.92s)
+ Test Files  21 passed (21)
+      Tests  95 passed (95)
+   Start at  08:52:55
+   Duration  9.00s (transform 3.20s, setup 7.19s, import 7.97s, tests 11.93s, environment 54.24s)
 

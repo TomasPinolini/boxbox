@@ -6,13 +6,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 BoxBox is a Formula 1 Fantasy League web app — a university project (TP) for Desarrollo de Software at UTN FRRO. Users create/join private leagues, participate in a live snake draft to build a team (2 drivers, 1 constructor — no reserve driver, see ADR-0006), and compete across the F1 season with real race results.
 
-Backend Slices 1–8 are shipped (auth, leagues, membership, fantasy teams, snake draft over REST + Socket.io, race-result ingestion with per-constructor totals). Frontend Slice 13a is also shipped (auth + leagues screens, e2e tests, responsive pass), and Slice 13b (draft realtime UI — connect to the `/draft` socket, show live `draft:state`, submit picks, timer countdown) is fully shipped. Scoring (Slice 9), predictions (Slice 10) and external sync (Slice 12) are still **planned, not built**. When in doubt about what is actually implemented, trust the source, not the docs.
+Backend Slices 1–9 and 12 are shipped (auth, leagues, membership, fantasy teams, snake draft over REST + Socket.io, race-result ingestion with per-constructor totals, league standings, Jolpica sync). Frontend Slices 13a, 13b, 14 and 15 are shipped (auth + leagues screens, draft realtime UI, drivers list/detail, championship table, admin results screen, role-gated routes, e2e tests). Predictions (Slice 10) is the only slice left and it is **voluntary scope**. When in doubt about what is actually implemented, trust the source, not the docs — `ls backend/src/modules/` and `ls frontend/src/features/` answer it in one command.
 
 ## Repository Layout
 
 ```
 backend/      Express 5 + Socket.io + TypeScript API (+ docs/roadmap.md — backend lane)
-frontend/     Vite + React 19 + TypeScript + Tailwind v4 SPA (+ docs/roadmap.md — frontend lane) (auth + leagues + draft UI shipped, incl. e2e)
+frontend/     Vite + React 19 + TypeScript + Tailwind v4 SPA (+ docs/roadmap.md — frontend lane)
 docs/         Design docs (proposal, ER diagram, API spec, architecture) + local setup tutorial
 ```
 
@@ -20,7 +20,7 @@ docs/         Design docs (proposal, ER diagram, API spec, architecture) + local
 
 Built (one slice = one PR; full log in `backend/docs/roadmap.md` and `frontend/docs/roadmap.md` → "Completados"):
 
-- Backend scaffold (Express 5, TypeScript, Prisma 7, Postgres) + Zod validation + centralized errors + Vitest integration tests against a real Postgres DB (206 tests across 10 files).
+- Backend scaffold (Express 5, TypeScript, Prisma 7, Postgres) + Zod validation + centralized errors + Vitest integration tests against a real Postgres DB (one `*.test.ts` per module; ~270 tests — `npm test -- --run` prints the count).
 - CRUD modules: `drivers`, `constructors`, `circuits`, `seasons`, `races`.
 - **Auth (Slice 1)**: `auth/` module, `requireAuth`, JWT access (15m) + refresh (7d, httpOnly cookie). `POST /auth/register|login|refresh|logout`, `GET /auth/me`.
 - **Leagues (Slice 2)**: `POST/GET /leagues`, `GET/PATCH /leagues/:id`. Archive via `PATCH status='ARCHIVED'` — no DELETE. `inviteCode` user-supplied (4-20 chars, lowercase, reserved blacklist). `maxMembers` defaults to and is capped at `maxMembersForSeason(season.driverCount) = floor(driverCount / 2)` — 11 for 2026 (ADR-0006); over the cap → 409 `MAX_MEMBERS_EXCEEDS_SEASON`.
@@ -30,15 +30,13 @@ Built (one slice = one PR; full log in `backend/docs/roadmap.md` and `frontend/d
 - **Draft realtime (Slice 6)**: Socket.io namespace `/draft` in `modules/draft/draft.gateway.ts`, attached in `server.ts` (not `app.ts`). Handshake `auth: { token, leagueId }`; rejected unless ACTIVE member. Rooms `league:<id>`. Events out: `draft:state|update|timer|complete|error`; in: `draft:pick`. 60s `setTimeout` auto-pick (in-memory, lost on restart). REST controllers broadcast the same events through the `shared/socket.ts` singleton (`getIo()` is `null` in supertest tests → no-op). Gateway tests bind a real port and override `pickTimeoutMs` to 300ms.
 - **RaceResult ingestion (Slice 7)**: `GET /races/:id/results` (public), `POST /races/:id/results` (`requireAuth → requireAdmin`), transitions the race to `COMPLETED`. `middleware/admin.ts` reads `role` from the JWT — no DB hit, stale until token expiry.
 - **ConstructorResult (Slice 8)**: `loadResults` also derives one `ConstructorResult` per constructor (driver → constructor via `DriverSeason` of the race's season; `buildConstructorResults` is a pure grouping function) inside the same `$transaction` — every pre-check now runs on `tx`. 409 `DRIVER_NOT_IN_SEASON` / `CONSTRUCTOR_TOO_MANY_DRIVERS`. No endpoint; Slice 9 reads the table.
+- **LeagueStanding (Slice 9)**: `modules/standings/` — `GET /leagues/:id/standings` mounted as a sub-router from `leagues.routes.ts` (so it inherits `req.leagueMember`) plus `POST /races/:id/recalculate` (admin) mounted from `races.routes.ts`; both call `standings.service.ts`. Selects on the `ConstructorResult`/`FantasyTeam` `constructor` relation need `as Prisma.XSelect` — same `Object.prototype` collision as Slices 4, 5 and 14. Frontend: `features/standings/ChampionshipPage.tsx`, route `/standings`.
+- **Jolpica sync (Slice 12)**: `modules/sync/` mounted in `app.ts` under `/api/v1/admin/sync`, `requireAuth → requireAdmin` once at router level. `POST /races` (12b, upserts Circuit by `externalId` and Race by `(seasonId, round)`) and `POST /races/:id/results` (12c, `?dryRun=true` returns the mapping without writing — that is what the admin preview uses). It **never** creates `Driver`/`DriverSeason` rows: Jolpica lists 32 drivers for 2026 and `maxMembersForSeason` depends on `driverCount` (BOX-9), so unmatched rows come back as `skipped` and the `SyncLog` lands `PARTIAL`. Result-loading rules stay in `races.service.ts` (`loadResults`). Tests run against recorded real responses in `sync.fixtures.ts`. Frontend: `features/admin/RaceResultsPage.tsx`, route `/admin/results` behind `RequireAdmin`.
 - **Frontend bootstrap (Slice 13a)**: `frontend/` — Vite + React 19 + TypeScript + Tailwind v4. `services/api-client.ts` (axios singleton with dedup'd token-refresh interceptor via `refreshOnce()`), `store/auth.store.ts` (Zustand, token kept in memory only — no `persist`), React Query hooks per feature (`features/*/[...].queries.ts`, invalidated on every mutation), React Router v7 with layout-route guards (`RequireAuth`, `GuestOnly`), `react-hook-form` + Zod forms mirroring the backend schemas, and a handful of `components/ui/` primitives (`Alert`, `Badge`, `Button`, `Card`, `Field`, `PageShell`). Screens shipped: `/login`, `/register`, `/leagues` (list + create + join by invite code), `/leagues/:id` (members, invite code, start draft, leave/kick — respecting `ROSTER_LOCKED` once the draft is LIVE). E2E coverage with Playwright (`frontend/e2e/leagues.spec.ts`, `npm run e2e`) plus a verified responsive pass (375/768/1024px, no horizontal overflow) round out the slice.
 - **Draft realtime UI (Slice 13b)**: `features/draft/` — `draft-socket.ts` (the one place that opens the `/draft` namespace socket, `connectDraftSocket(leagueId, token)`, mirroring `ApiClient` as the single door for HTTP), `useDraftState.ts` (hook: connects on mount, stores the initial `draft:state`, keeps merging `draft:update`/`draft:complete` while the screen stays open, exposes `submitPick(input)` which emits `draft:pick`, tracks `secondsRemaining`/`pickError`/`pickPending`), `DraftPage.tsx` (route `/leagues/:id/draft` — status badge, round + whose turn it is + countdown, a `<select>` + confirm button when it's your turn, picks made so far with names resolved via `useMembers`/`useDrivers`/`useConstructors`). The countdown is client-side: the server sends `draft:timer` once per round, and a `setInterval` decrements it locally — the hook splits a `timerTick` counter (bumped only on a new timer event) from `secondsRemaining` (decremented every second) specifically to satisfy `eslint-plugin-react-hooks` v7's purity rules, which reject both recreating the interval every tick and deriving the displayed value from `Date.now()` during render.
 - **Drivers list + detail (Slice 14)**: `GET /drivers` includes `constructor` (`{id, name, color, logoUrl}`, `null` when the driver has no `DriverSeason` in the resolved season); `GET /drivers/:id` adds `stats` and a `results` history ordered by `round`. The service splits `findById` (lean, **not exported**, existence checks only) from `findDetail` (public endpoint), so `update`/`softDelete` never pay for the joins. The constructor is fetched with **three flat queries + a merge in TS**, never an `include`/`select` on the `constructor` relation — that name collides with `Object.prototype` (Slices 4 and 5). `middleware/validate.ts` gained `validateQuery`, which writes to `req.validatedQuery`: **`req.query` is a getter without a setter in Express 5**, so assigning to it throws at runtime under `"strict"` and `tsc` will not catch it. `?constructorId=` is now season-scoped. Frontend: `features/drivers/`, routes `/drivers` and `/drivers/:id` **public, outside `RequireAuth`**, server-side filter whose value lives in the URL. The team badge is painted with `Constructor.color` — pick the text colour that **maximises** contrast, not by a luminance threshold, and use pure black: 4 of the 11 grid colours fail WCAG otherwise (see `features/drivers/team-color.ts`). `Driver.headshotUrl` (21/22, remote URLs from OpenF1) and `Constructor.logoUrl` (8/11, static files under `frontend/public/logos/`, licences in `CREDITS.md`) are populated by the seed.
 
-**Required for the 12/10 delivery** — these gate the cátedra's rubric, verified against the code on 2026-09-11. Full breakdown in `backend/docs/roadmap.md` / `frontend/docs/roadmap.md` → "Now"; the rubric table and epic split live in the hub, `docs/roadmap.md`:
-
-- ~~Slice 15 — frontend route protection by role~~ — done, PR #33.
-- ~~Slice 13b — draft realtime UI~~ — done (tramo 1 PR #35, tramo 2 branch `13b/draft-picks`). The Regularidad epic.
-- **Slices 9 + 12 — LeagueStanding and Jolpica sync**. Together they are the second Aprobación epic ("procesar resultados de carrera y actualizar standings"). Jolpica returns **32 drivers for 2026**, not 22 — filter to race seats before writing `DriverSeason` or `maxMembersForSeason` breaks (see roadmap).
+Every slice the cátedra's rubric gates for the 12/10 delivery is shipped (Slices 9, 12, 13b, 15). The rubric table and epic split live in the hub, `docs/roadmap.md`; per-lane detail in `backend/docs/roadmap.md` / `frontend/docs/roadmap.md` — both of which still list Slices 9 and 12 as pending, so trust the modules over those files.
 
 Not yet built — **intentionally deferred**. Do not suggest implementing any of these without an explicit ask from the user:
 
@@ -70,7 +68,7 @@ npm run db:generate           # regenerate Prisma client only
 npm run db:studio             # prisma studio GUI
 npx prisma db seed            # populate DB with F1 dev data (idempotent)
 
-npx tsc --noEmit              # type-check — NOT run by lint or vitest; run before a PR (Slice 5 found a latent TS error this way)
+npx tsc --noEmit              # type-check — NOT run by lint or vitest; run before a PR. Real here (Slice 5 found a latent TS error this way); in `frontend/` it checks ZERO files, see below
 npx knip                      # unused exports/deps (config in package.json)
 SMOKE=1 npm run smoke:slice-4 # end-to-end smoke against a running server (src/scripts/)
 SMOKE=1 npm run smoke:slice-9 # ídem, scoring: draft completo → resultados → standings
@@ -87,7 +85,7 @@ npm install
 cp .env.example .env          # VITE_API_URL, VITE_SOCKET_URL — see src/config/env.ts
 npm run dev                   # vite dev server on http://localhost:5173
 
-npm run build                 # tsc -b && vite build
+npm run build                 # tsc -b && vite build — the ONLY type-check in this lane. `tsc --noEmit` here always exits 0 because frontend/tsconfig.json is `"files": []` + project refs
 npm run preview               # preview the production build
 npm run lint                  # eslint .
 
@@ -115,7 +113,7 @@ When adding a new domain, mirror an existing module (e.g. `drivers/`) exactly �
 
 Two sanctioned deviations:
 
-- **Child resources stay in the parent module** (`LeagueMember`, `FantasyTeam` → `leagues/`; `RaceResult` → `races/`). Only `draft/` has its own module, and it is mounted as a sub-router from `leagues.routes.ts`, not from `app.ts`.
+- **Child resources stay in the parent module** (`LeagueMember`, `FantasyTeam` → `leagues/`; `RaceResult` → `races/`). `draft/` and `standings/` have their own module but are mounted as sub-routers from `leagues.routes.ts`, not from `app.ts` (`standings/` also hangs `POST /races/:id/recalculate` off `races.routes.ts`).
 - `draft/` carries an extra `draft.gateway.ts` + `draft.gateway.test.ts` for Socket.io. The gateway calls `draft.service.ts` — it never reimplements rules, and the service never knows whether the caller is HTTP or WS.
 
 ### Request lifecycle
@@ -161,11 +159,11 @@ Auth chains, outermost first:
 
 ```
 app/            Router, providers (React Query client), SessionGate (blocks render until the auth check resolves)
-features/<x>/   Pages + feature-scoped components + <x>.queries.ts (React Query hooks) per domain (auth, leagues)
+features/<x>/   Pages + feature-scoped components + <x>.queries.ts (React Query hooks) per domain (admin, auth, draft, drivers, leagues, standings)
 services/       api-client.ts (axios singleton) + one *.service.ts per domain (thin wrappers over axios calls)
 store/          Zustand stores — currently just auth.store.ts (access token, in memory only, no persist)
 models/         Shared TS types mirroring backend response shapes
-components/ui/  Small styled primitives (Alert, Badge, Button, Card, Field, PageShell) — no feature logic
+components/ui/  Small styled primitives (Alert, Badge, Button, Card, ConfirmButton, Field, PageShell, Position, Success) — no feature logic
 config/env.ts   Single source of truth for `import.meta.env` — same rule as the backend's `config/env.ts`
 ```
 
@@ -239,8 +237,7 @@ agent-browser snapshot -i           # 4. RE-SNAPSHOT tras cualquier navegación 
 
 ## Conventions
 
-- **Language**: docs and UI are Spanish; code, identifiers, comments, commit messages are English.
-- **Commits**: short imperative summaries in Spanish are used in existing history (e.g. `CRUD de Circuits, Seasons y Races con tests`) — match that style.
+- **Language**: **identifiers in English** (variables, functions, types, files, error codes, API fields); **everything written for a human in Spanish** — docs, UI copy, code comments and commit messages. That is what the repo actually does: most `.ts`/`.tsx` files carry Spanish comments, and every recent commit is a Conventional Commit with a Spanish summary (`feat(frontend): logo real de boxbox en el nav y favicon nuevo`) — match that style.
 - **Error codes**: `SCREAMING_SNAKE_CASE`, domain-prefixed (`DRIVER_NOT_FOUND`, `DRIVER_HAS_DEPENDENCIES`).
 - **Prettier + ESLint** are configured; run `npm run lint` before opening a PR. Prettier config is at the repo root (`.prettierrc`).
 

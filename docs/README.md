@@ -22,10 +22,10 @@ Mapa directo de lo que pide la consigna ([utnfrrodsw/tp](https://github.com/utnf
 | Tracking de features, bugs e issues | [`gestion-del-proyecto.md`](./gestion-del-proyecto.md#tracking-de-features-bugs-e-issues) + [Linear](https://linear.app/pinolini/team/BOX/all) |
 | Documentación de la API | [`api-endpoints.md`](./api-endpoints.md) y [`error-codes.md`](./error-codes.md) |
 | Evidencia de ejecución de tests | [`test-evidence/`](./test-evidence/) |
-| Deployment (links y credenciales) | `entrega/deployment.md` — *pendiente* |
-| Video demo | *pendiente* |
+| Deployment (links y credenciales) | [`entrega/deployment.md`](./entrega/deployment.md) |
+| Video demo | **pendiente** — es el único entregable de Aprobación que falta |
 
-Las decisiones de diseño con alternativas reales están en [`adr/`](./adr/) (7 ADR). El estado
+Las decisiones de diseño con alternativas reales están en [`adr/`](./adr/) (9 ADR). El estado
 contra la rúbrica, en [`roadmap.md`](./roadmap.md).
 
 ---

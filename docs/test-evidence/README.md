@@ -4,18 +4,18 @@ Salida cruda de las suites, capturada tal cual la imprime el runner. Es el entre
 "evidencia de ejecución de test automáticos" que pide la cátedra
 ([utnfrrodsw/tp](https://github.com/utnfrrodsw/tp), `docs.md`).
 
-## Evidencia de la entrega — 2026-09-25
+## Evidencia de la entrega — 2026-10-12
 
-Las tres suites completas, corridas sobre el estado actual de `dev`:
+Las tres suites completas, recapturadas sobre `dev` al día (commit `0022775`):
 
 | Archivo | Suite | Resultado |
 | :------ | :---- | :-------- |
-| [`entrega-backend-full.txt`](./entrega-backend-full.txt) | Vitest + Supertest contra Postgres real | **260 tests, 12 archivos, todo verde** |
-| [`entrega-frontend-unit.txt`](./entrega-frontend-unit.txt) | Vitest + Testing Library | **65 tests, 15 archivos, todo verde** |
-| [`entrega-frontend-e2e.txt`](./entrega-frontend-e2e.txt) | Playwright contra backend + frontend reales | **4 tests, todo verde** |
+| [`entrega-backend-full.txt`](./entrega-backend-full.txt) | Vitest + Supertest contra Postgres real | **266 tests, 12 archivos, todo verde** |
+| [`entrega-frontend-unit.txt`](./entrega-frontend-unit.txt) | Vitest + Testing Library | **95 tests, 21 archivos, todo verde** |
+| [`entrega-frontend-e2e.txt`](./entrega-frontend-e2e.txt) | Playwright contra backend + frontend reales | **7 tests, todo verde** |
 
 Cubre los dos requisitos de Aprobación: backend pide 1 test automatizado por integrante
-más 1 de integración (los 260 son de integración, contra la DB de verdad — ver
+más 1 de integración (todos son de integración, contra la DB de verdad — ver
 [ADR-0003](../adr/ADR-0003-real-db-integration-tests.md)); frontend pide mínimo 1 test
 unitario de componente y 1 end-to-end.
 
