@@ -102,7 +102,8 @@ a:active,
    keyframes y sin JS. Si el navegador no lo soporta, el elemento aparece de golpe — que
    es exactamente el comportamiento que habia antes, asi que degrada solo. */
 .enter-top,
-.enter-bottom {
+.enter-bottom,
+.enter-left {
   transition:
     opacity 180ms var(--ease-out),
     transform 180ms var(--ease-out);
@@ -133,6 +134,11 @@ a:active,
     opacity: 0;
     transform: translateY(6px);
   }
+  /* El drawer del menú: entra deslizando desde el lado por el que aparece */
+  .enter-left {
+    opacity: 0;
+    transform: translateX(-12px);
+  }
 }
 
 /* Movimiento reducido. Se conserva el fade y se descarta el desplazamiento: mas suave,
@@ -147,7 +153,8 @@ a:active,
   @starting-style {
     .enter-top,
     .enter-scale,
-    .enter-bottom {
+    .enter-bottom,
+    .enter-left {
       transform: none;
     }
   }
