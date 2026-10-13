@@ -103,10 +103,15 @@ function ConstructorsTable({ rows }: { rows: ConstructorStanding[] }) {
                 ademas la unica tabla sin ninguna imagen, mientras la de pilotos tiene las
                 fotos — esa asimetria es lo que la hacia ver mas pobre. */}
             <td className={TD}>
-              <div className="flex items-center gap-2">
+              {/* Antes esta fila no llevaba a ningun lado y era el unico listado de la app sin
+                  detalle. Mismo gesto que la tabla de pilotos de arriba. */}
+              <Link
+                to={`/constructors/${constructor.id}`}
+                className="flex items-center gap-2 hover:underline"
+              >
                 <ConstructorLogo constructor={constructor} />
                 <TeamBadge constructor={constructor} />
-              </div>
+              </Link>
             </td>
             <td className="py-2 text-right font-display tabular-nums font-semibold">{points}</td>
           </tr>
