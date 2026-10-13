@@ -95,7 +95,16 @@ export function LeagueDetailPage() {
   const draft = DRAFT_LABEL[l.draftStatus];
   const busy = startDraft.isPending || leave.isPending || kick.isPending || archive.isPending || rename.isPending;
   const actionError =
-    startDraft.error ?? archive.error ?? rename.error ?? leave.error ?? kick.error ?? members.error;
+    startDraft.error ??
+    archive.error ??
+    rename.error ??
+    leave.error ??
+    kick.error ??
+    members.error ??
+    // Los equipos y las posiciones tambien: si /draft/state falla con el draft terminado, la
+    // pantalla lideraba con nada y no decia nada. Un error mudo es peor que uno feo.
+    teams.error ??
+    standings.error;
   const cantidad = members.data?.length ?? 0;
 
   async function copyCode() {
