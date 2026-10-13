@@ -1,5 +1,7 @@
+import { useEffect, useRef, useState } from 'react';
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui';
+import type { User } from '../models/user';
 import { authService } from '../services/auth.service';
 import { useAuthStore } from '../store/auth.store';
 
@@ -15,6 +17,11 @@ import { useAuthStore } from '../store/auth.store';
 // Antes cada pagina armaba sus propios links en su prop `actions`, con tres consecuencias:
 // la lista era distinta en cada una, desde una pantalla de detalle solo se podia volver, y
 // "Salir" existia unicamente en Mis ligas.
+//
+// Dos barras, no una que se reacomoda: con hasta 6 links + usuario + Salir, apretarlo todo en
+// una fila con flex-wrap (como era antes) dejaba la navegacion en 2-3 lineas en un telefono.
+// Abajo de md es la barra angosta (hamburguesa + logo) con un drawer; de md para arriba es la
+// fila horizontal de siempre, sin tocar.
 
 // NavLink pone aria-current="page" solo en el link activo. El color marca donde estas: el
 // acento rojo es la posicion actual, no un link cualquiera.
@@ -23,21 +30,132 @@ const linkClass = ({ isActive }: { isActive: boolean }) =>
     ? 'font-semibold text-red-600 underline underline-offset-4'
     : 'font-semibold text-slate-600 hover:text-slate-900 hover:underline';
 
+// Mismo activo-en-rojo que linkClass, pero como fila de lista vertical: el acento es un borde
+// izquierdo + fondo tenue, no un subrayado — un subrayado en una fila de ancho completo no se
+// lee igual que en un link suelto.
+const drawerLinkClass = ({ isActive }: { isActive: boolean }) =>
+  `block rounded-r-md py-3 pl-4 pr-3 font-semibold ${
+    isActive
+      ? 'border-l-4 border-red-600 bg-red-50 text-red-600'
+      : 'border-l-4 border-transparent text-slate-600 hover:bg-slate-50'
+  }`;
+
+// Foto del usuario + iniciales de respaldo, mismo patron que DriverAvatar (features/drivers/):
+// avatarUrl es un recurso remoto que puede fallar, y bastantes usuarios ni lo van a tener.
+function UserAvatar({ user, size = 44 }: { user: Pick<User, 'name' | 'avatarUrl'>; size?: number }) {
+  const [failed, setFailed] = useState(false);
+  const initials = user.name
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join('')
+    .toUpperCase();
+
+  if (!user.avatarUrl || failed) {
+    return (
+      <span
+        className="flex shrink-0 items-center justify-center rounded-full bg-slate-200 font-semibold text-slate-600"
+        style={{ width: size, height: size, fontSize: Math.max(size * 0.36, 10) }}
+        aria-hidden="true"
+      >
+        {initials}
+      </span>
+    );
+  }
+
+  return (
+    <img
+      src={user.avatarUrl}
+      alt=""
+      aria-hidden="true"
+      loading="lazy"
+      onError={() => setFailed(true)}
+      className="shrink-0 rounded-full bg-slate-100 object-cover"
+      style={{ width: size, height: size }}
+    />
+  );
+}
+
 export function AppLayout() {
   const user = useAuthStore((s) => s.user);
   const navigate = useNavigate();
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const hamburgerRef = useRef<HTMLButtonElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
 
   async function logout() {
     await authService.logout();
     navigate('/login');
   }
 
+  function closeDrawer() {
+    setDrawerOpen(false);
+    // El foco vuelve al botón que abrió el drawer — si no, al cerrar (Escape, overlay, un
+    // link) el foco queda en un elemento que ya no está en pantalla y el teclado se pierde.
+    hamburgerRef.current?.focus();
+  }
+
+  // Al abrir: foco adentro del drawer (el cierre, primer elemento interactivo) y scroll del
+  // body bloqueado — si no, atrás del overlay se puede seguir scrolleando la pagina con el
+  // drawer flotando encima, que se siente roto. Escape cierra, como cualquier panel flotante.
+  useEffect(() => {
+    if (!drawerOpen) return;
+    closeButtonRef.current?.focus();
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') closeDrawer();
+    }
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [drawerOpen]);
+
+  // Misma lista de links en dos lugares (fila horizontal de escritorio, lista vertical del
+  // drawer) con dos tratamientos visuales distintos — un subrayado se lee bien en una fila
+  // suelta, no en una fila de ancho completo. `className` es la funcion de aria-current que
+  // decide el color; el resto de la estructura es identica.
+  function renderNavLinks(className: (props: { isActive: boolean }) => string) {
+    return (
+      <>
+        <NavLink to="/drivers" className={className} onClick={closeDrawer}>
+          Pilotos
+        </NavLink>
+        <NavLink to="/standings" className={className} onClick={closeDrawer}>
+          Campeonato
+        </NavLink>
+        {user && (
+          <NavLink to="/leagues" className={className} onClick={closeDrawer}>
+            Mis ligas
+          </NavLink>
+        )}
+        {/* Solo ADMIN: un link muerto para un USER es peor que no tenerlo (BOX-37). */}
+        {user?.role === 'ADMIN' && (
+          <>
+            <NavLink to="/admin/results" className={className} onClick={closeDrawer}>
+              Cargar resultados
+            </NavLink>
+            <NavLink to="/admin/seasons" className={className} onClick={closeDrawer}>
+              Temporadas
+            </NavLink>
+            <NavLink to="/admin/circuits" className={className} onClick={closeDrawer}>
+              Circuitos
+            </NavLink>
+          </>
+        )}
+      </>
+    );
+  }
+
   return (
     <>
-      {/* Skip link. Lo pide la barra de navegacion de abajo: con 5 links persistentes, alguien
-          que navega con teclado tiene que pasar por todos en CADA pantalla antes de llegar al
-          contenido. Esta oculto hasta que recibe foco (sr-only + focus:not-sr-only), que es el
-          patron estandar: solo aparece para quien lo necesita, en el primer Tab de la pagina. */}
+      {/* Skip link. Lo pide la barra de navegacion de abajo: con varios links persistentes,
+          alguien que navega con teclado tiene que pasar por todos en CADA pantalla antes de
+          llegar al contenido. Esta oculto hasta que recibe foco (sr-only + focus:not-sr-only),
+          que es el patron estandar: solo aparece para quien lo necesita, en el primer Tab. */}
       <a
         href="#contenido"
         className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-white focus:px-4 focus:py-2 focus:font-semibold focus:text-red-600 focus:shadow-md focus:ring-1 focus:ring-slate-300"
@@ -46,39 +164,37 @@ export function AppLayout() {
       </a>
 
       <nav aria-label="Principal" className="border-b border-slate-200 bg-white">
+        {/* Barra angosta: hamburguesa a la izquierda (abre un drawer que entra por la
+            izquierda — el boton queda del lado por el que aparece el panel) y logo a la
+            derecha, para no competir por el mismo lado. Visible solo abajo de md. */}
+        <div className="mx-auto flex w-full max-w-5xl items-center justify-between px-4 py-3 md:hidden">
+          <button
+            ref={hamburgerRef}
+            type="button"
+            aria-label="Abrir menú"
+            aria-expanded={drawerOpen}
+            aria-controls="menu-mobile"
+            onClick={() => setDrawerOpen(true)}
+            className="flex h-9 w-9 flex-col items-center justify-center gap-1"
+          >
+            <span aria-hidden="true" className="block h-0.5 w-5 rounded-full bg-slate-900" />
+            <span aria-hidden="true" className="block h-0.5 w-5 rounded-full bg-slate-900" />
+            <span aria-hidden="true" className="block h-0.5 w-5 rounded-full bg-slate-900" />
+          </button>
+          <Link to="/leagues">
+            <img src="/logo.svg" alt="boxbox" className="h-7 w-auto" />
+          </Link>
+        </div>
+
         {/* Mismo contenedor que PageShell (max-w-5xl px-4 md:px-6) para que la barra quede
-            alineada con el contenido de la pagina. flex-wrap: en pantallas angostas los
-            links bajan de linea en vez de desbordar. */}
-        <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 text-sm md:px-6">
+            alineada con el contenido de la pagina. Fila horizontal de siempre, de md en
+            adelante. */}
+        <div className="mx-auto hidden w-full max-w-5xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 text-sm md:flex md:px-6">
           <Link to="/leagues" className="mr-auto">
             <img src="/logo.svg" alt="boxbox" className="h-7 w-auto" />
           </Link>
 
-          <NavLink to="/drivers" className={linkClass}>
-            Pilotos
-          </NavLink>
-          <NavLink to="/standings" className={linkClass}>
-            Campeonato
-          </NavLink>
-          {user && (
-            <NavLink to="/leagues" className={linkClass}>
-              Mis ligas
-            </NavLink>
-          )}
-          {/* Solo ADMIN: un link muerto para un USER es peor que no tenerlo (BOX-37). */}
-          {user?.role === 'ADMIN' && (
-            <>
-              <NavLink to="/admin/results" className={linkClass}>
-                Cargar resultados
-              </NavLink>
-              <NavLink to="/admin/seasons" className={linkClass}>
-                Temporadas
-              </NavLink>
-              <NavLink to="/admin/circuits" className={linkClass}>
-                Circuitos
-              </NavLink>
-            </>
-          )}
+          {renderNavLinks(linkClass)}
 
           {user ? (
             <>
@@ -98,6 +214,71 @@ export function AppLayout() {
       {/* aria-hidden: es decoracion pura, no tiene por que aparecer en el arbol de
           accesibilidad de nadie. */}
       <div aria-hidden="true" className="checkered h-2" />
+
+      {drawerOpen && (
+        <>
+          {/* El overlay cierra con un click: es el area "afuera" del panel, el gesto estandar
+              para descartarlo. type="button" + aria-hidden porque es puramente un gesto de
+              cierre, no algo que un lector de pantalla necesite anunciar como boton. */}
+          <button
+            type="button"
+            aria-hidden="true"
+            tabIndex={-1}
+            onClick={closeDrawer}
+            className="fixed inset-0 z-20 bg-slate-900/50 md:hidden"
+          />
+          <div
+            id="menu-mobile"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Menú"
+            className="enter-left fixed inset-y-0 left-0 z-30 flex w-72 max-w-[85vw] flex-col bg-white shadow-xl md:hidden"
+          >
+            <div className="flex items-center justify-between gap-2 border-b border-slate-200 p-4">
+              {user ? (
+                <div className="flex min-w-0 items-center gap-2.5">
+                  <UserAvatar user={user} />
+                  <span className="truncate font-semibold text-slate-900">{user.name}</span>
+                </div>
+              ) : (
+                <span className="font-semibold text-slate-900">Menú</span>
+              )}
+              <button
+                ref={closeButtonRef}
+                type="button"
+                aria-label="Cerrar menú"
+                onClick={closeDrawer}
+                className="shrink-0 px-2 py-1 text-2xl leading-none text-slate-400 hover:text-slate-600"
+              >
+                ×
+              </button>
+            </div>
+
+            {/* No "Principal": ya hay un nav con esa etiqueta en la pagina (el de arriba, la
+                barra), y dos landmarks con el mismo nombre a la vez confunden la navegacion
+                por regiones de un lector de pantalla. */}
+            <nav aria-label="Menú" className="flex flex-1 flex-col gap-0.5 overflow-y-auto py-2">
+              {renderNavLinks(drawerLinkClass)}
+            </nav>
+
+            <div className="border-t border-slate-200 p-4">
+              {user ? (
+                <Button className="w-full" onClick={logout}>
+                  Cerrar sesión
+                </Button>
+              ) : (
+                <Link
+                  to="/login"
+                  onClick={closeDrawer}
+                  className="block w-full rounded-md bg-red-600 px-4 py-2 text-center text-sm font-semibold text-white hover:bg-red-700"
+                >
+                  Ingresar
+                </Link>
+              )}
+            </div>
+          </div>
+        </>
+      )}
 
       <Outlet />
     </>
