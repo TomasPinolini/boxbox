@@ -603,6 +603,90 @@ const driverHeadshots: Record<string, string> = {
 // ───────────────────────────────────────────────────────────────────────────
 // Lógica — recorre los arrays y persiste vía upsert
 // ───────────────────────────────────────────────────────────────────────────
+// Datos — resultados SINTETICOS de las fechas ya corridas
+// ───────────────────────────────────────────────────────────────────────────
+//
+// ATENCION: estos resultados NO son de Formula 1 real y NO vienen de Jolpica.
+// Son inventados. Existen para que el entorno de desarrollo tenga algo que
+// mostrar: sin ellos el campeonato dibuja un podio sobre filas en cero, las
+// posiciones de cada liga quedan todas empatadas en 0 y no hay forma de ver si
+// el scoring anda.
+//
+// Decision del 2026-10-13: se eligio generarlos en vez de congelar una respuesta
+// real de Jolpica en un fixture, priorizando velocidad. La contrapartida es que
+// estos numeros no se pueden presentar como resultados reales de F1 — ni en la
+// defensa ni en el video.
+//
+// Son deterministas a proposito: la misma corrida produce siempre la misma
+// tabla, asi una demo no cambia de un dia para el otro.
+
+const COMPLETED_THROUGH_ROUND = 17;
+
+// Puntos de F1 por posicion final (top 10). Desde 2025 no hay punto por vuelta
+// rapida. Misma tabla que frontend/src/features/admin/results-payload.ts.
+const POINTS_BY_POSITION = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1];
+
+// Generador congruencial chico. No se usa Math.random porque el seed tiene que
+// ser reproducible: dos corridas distintas deben dar exactamente lo mismo.
+function pseudoRandom(seed: number): () => number {
+  let state = seed >>> 0;
+  return () => {
+    state = (state * 1664525 + 1013904223) >>> 0;
+    return state / 0x100000000;
+  };
+}
+
+interface SyntheticResult {
+  driverExternalId: string;
+  position: number | null;
+  points: number;
+  status: 'CLASSIFIED' | 'DNF';
+  gridPosition: number;
+}
+
+// Una carrera inventada. `paceOrder` es el orden de ritmo (los equipos de arriba
+// primero); se le aplica un ruido acotado para que el que anda mejor suela
+// terminar adelante pero no siempre. Sin ese ruido las 17 fechas darian la misma
+// tabla y el campeonato no tendria nada que contar.
+function resultsForRound(round: number, paceOrder: string[]): SyntheticResult[] {
+  const rnd = pseudoRandom(round * 7919 + 13);
+
+  const order = paceOrder
+    .map((driverExternalId, index) => ({ driverExternalId, score: index + (rnd() - 0.5) * 7 }))
+    .sort((a, b) => a.score - b.score)
+    .map((d) => d.driverExternalId);
+
+  // Dos abandonos por fecha, siempre de la mitad de atras: un DNF del lider cada
+  // carrera volveria el campeonato una loteria y no es lo que queremos mostrar.
+  const desde = Math.floor(order.length / 2);
+  const primero = desde + Math.floor(rnd() * (order.length - desde));
+  let segundo = desde + Math.floor(rnd() * (order.length - desde));
+  if (segundo === primero) segundo = desde + ((primero - desde + 1) % (order.length - desde));
+  const abandonan = new Set([order[primero], order[segundo]]);
+
+  let posicion = 0;
+  return order.map((driverExternalId, grid) => {
+    if (abandonan.has(driverExternalId)) {
+      return {
+        driverExternalId,
+        position: null,
+        points: 0,
+        status: 'DNF' as const,
+        gridPosition: grid + 1,
+      };
+    }
+    posicion += 1;
+    return {
+      driverExternalId,
+      position: posicion,
+      points: POINTS_BY_POSITION[posicion - 1] ?? 0,
+      status: 'CLASSIFIED' as const,
+      gridPosition: grid + 1,
+    };
+  });
+}
+
+// ───────────────────────────────────────────────────────────────────────────
 
 async function main() {
   // 0. Admin de desarrollo ---------------------------------------------------
@@ -637,6 +721,14 @@ async function main() {
   };
 
   // 2. Constructors + Drivers + DriverSeasons -------------------------------
+  // Se guardan los ids reales mientras se crean: la seccion 5 los necesita y no
+  // tiene por que volver a consultarlos.
+  const driverIdByExternalId = new Map<string, number>();
+  const constructorIdByDriverId = new Map<number, number>();
+  // Orden de ritmo para los resultados sinteticos: el orden en que estan escritos
+  // los equipos en teams2026, que ya va de mayor a menor expectativa.
+  const paceOrder: string[] = [];
+
   for (const team of teams2026) {
     const logoUrl = teamLogos[team.externalId] ?? null;
     const teamConstructor = await prisma.constructor.upsert({
@@ -663,6 +755,9 @@ async function main() {
         },
       });
       await connectDriverSeason(driver.id, teamConstructor.id);
+      driverIdByExternalId.set(d.externalId, driver.id);
+      constructorIdByDriverId.set(driver.id, teamConstructor.id);
+      paceOrder.push(d.externalId);
     }
   }
 
@@ -680,6 +775,7 @@ async function main() {
   }
 
   // 4. Races ----------------------------------------------------------------
+  const raceIdByRound = new Map<number, number>();
   for (const r of races2026) {
     const circuitId = circuitIdByExternalId.get(r.circuitExternalId);
     if (!circuitId) {
@@ -689,7 +785,7 @@ async function main() {
     }
 
     const raceDate = new Date(r.date);
-    await prisma.race.upsert({
+    const race = await prisma.race.upsert({
       where: { seasonId_round: { seasonId: season.id, round: r.round } },
       update: {},
       create: {
@@ -701,11 +797,71 @@ async function main() {
         circuitId,
       },
     });
+    raceIdByRound.set(r.round, race.id);
   }
 
-  // 5. Resultados: el seed NO los inventa. Las fechas ya corridas se traen de Jolpica con
-  // POST /api/v1/admin/sync/races/:id/results (o el boton "Importar de Jolpica" en
-  // /admin/results). Jolpica es la fuente de verdad del calendario y de los resultados (BOX-9).
+  // 5. Resultados SINTETICOS de las fechas ya corridas ----------------------
+  // Ver el bloque de comentarios de resultsForRound: estos numeros son inventados,
+  // no son de F1 real y no vienen de Jolpica. Estan para que el entorno de
+  // desarrollo tenga algo que mostrar en campeonato y en posiciones de liga.
+  //
+  // El calendario SI es real y se re-sincroniza con
+  // POST /api/v1/admin/sync/races?year=2026. Lo que no es real son los resultados.
+  for (let round = 1; round <= COMPLETED_THROUGH_ROUND; round += 1) {
+    const raceId = raceIdByRound.get(round);
+    if (!raceId) continue;
+
+    const results = resultsForRound(round, paceOrder);
+    const pointsByConstructor = new Map<number, number[]>();
+
+    for (const r of results) {
+      const driverId = driverIdByExternalId.get(r.driverExternalId);
+      if (!driverId) continue;
+
+      await prisma.raceResult.upsert({
+        where: { raceId_driverId: { raceId, driverId } },
+        update: {
+          position: r.position,
+          points: r.points,
+          status: r.status,
+          gridPosition: r.gridPosition,
+        },
+        create: {
+          raceId,
+          driverId,
+          position: r.position,
+          points: r.points,
+          status: r.status,
+          gridPosition: r.gridPosition,
+        },
+      });
+
+      const constructorId = constructorIdByDriverId.get(driverId);
+      if (constructorId === undefined) continue;
+      const bucket = pointsByConstructor.get(constructorId) ?? [];
+      bucket.push(r.points);
+      pointsByConstructor.set(constructorId, bucket);
+    }
+
+    // Mismo criterio que buildConstructorResults del backend (Slice 8):
+    // driver1Points es el MAYOR de los dos, no un piloto fijo. Ver BOX-65.
+    for (const [constructorId, points] of pointsByConstructor) {
+      const [driver1Points = 0, driver2Points = 0] = [...points].sort((a, b) => b - a);
+      await prisma.constructorResult.upsert({
+        where: { raceId_constructorId: { raceId, constructorId } },
+        update: { driver1Points, driver2Points, totalPoints: driver1Points + driver2Points },
+        create: {
+          raceId,
+          constructorId,
+          driver1Points,
+          driver2Points,
+          totalPoints: driver1Points + driver2Points,
+        },
+      });
+    }
+
+    await prisma.race.update({ where: { id: raceId }, data: { status: 'COMPLETED' } });
+  }
 
   // 6. Summary --------------------------------------------------------------
   const counts = {

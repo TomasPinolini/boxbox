@@ -148,7 +148,7 @@ Auth chains, outermost first:
 - `externalId` columns are the join key with Jolpica/OpenF1 data. Services reject duplicates with `ConflictError`.
 - Before soft-deleting, services check for active dependencies (e.g. a driver referenced by a `FantasyTeam`) and raise `ConflictError` with a domain-specific code like `DRIVER_HAS_DEPENDENCIES`.
 - Prisma 7 config lives in `backend/prisma.config.ts` (not the legacy `prisma` block in `package.json`). That file points at the schema, the migrations dir, and the seed command.
-- Dev seed: `backend/prisma/seed.ts` populates one Season + grid + a few Circuits/Races. Run `npx prisma db seed` (idempotent — uses `upsert` everywhere). Tests do NOT use the seed; they truncate per-test and build their own fixtures. `prisma migrate reset` in Prisma 7 does NOT auto-run the seed — run `db seed` explicitly after a reset.
+- Dev seed: `backend/prisma/seed.ts` populates one Season + grid + Circuits/Races, **plus synthetic race results for rounds 1–17**. Run `npx prisma db seed` (idempotent — uses `upsert` everywhere). **Those results are invented, not real F1 and not from Jolpica** — they exist so the championship and league standings have something to show instead of a podium over zeroes. They are deterministic: the same run always yields the same table, so a demo does not shift from one day to the next. The calendar *is* real; only the results are not. Never present them as real F1 data (see BOX-65). Tests do NOT use the seed; they truncate per-test and build their own fixtures. `prisma migrate reset` in Prisma 7 does NOT auto-run the seed — run `db seed` explicitly after a reset.
 
 ### Config
 
