@@ -23,7 +23,7 @@ BoxBox es una aplicación web de Fantasy League de Fórmula 1. Los usuarios crea
 | Base de datos | PostgreSQL + Prisma ORM                    |
 | WebSocket     | Socket.io (draft en vivo)                  |
 | Testing       | Vitest                                     |
-| Deploy        | Vercel (frontend) + Railway (backend + DB) |
+| Deploy        | Render (backend) + Vercel (frontend) + Supabase (Postgres) |
 | APIs externas | Jolpica-F1 + OpenF1                        |
 
 ## Instalación
@@ -70,7 +70,9 @@ Se incluyen archivos `.env.example` en cada directorio (`/backend` y `/frontend`
 
 ## Documentación
 
-La documentación del proyecto se encuentra en el directorio [`/docs`](./docs/):
+El punto de entrada es [`docs/README.md`](./docs/README.md): mapea cada entregable que pide la
+cátedra al archivo que lo contiene, y trae las listas de lectura de onboarding. El resto de la
+documentación vive en el directorio [`/docs`](./docs/):
 
 - [Propuesta del TP](./docs/proposal.md)
 - [Modelo de datos (Mermaid)](./docs/data-model.mmd)
@@ -87,5 +89,5 @@ La documentación del proyecto se encuentra en el directorio [`/docs`](./docs/):
 ## Gestión del Proyecto
 
 - **Metodología**: Kanban
-- **Herramienta de tracking**: [GitHub Projects](https://github.com/TomasPinolini/boxbox/projects)
+- **Herramienta de tracking**: [Linear](https://linear.app/pinolini/team/BOX/all) — detalle de la metodología y la bitácora en [`docs/gestion-del-proyecto.md`](./docs/gestion-del-proyecto.md)
 - **Repositorio**: [github.com/TomasPinolini/boxbox](https://github.com/TomasPinolini/boxbox)

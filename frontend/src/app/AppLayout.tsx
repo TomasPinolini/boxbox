@@ -67,9 +67,14 @@ export function AppLayout() {
           )}
           {/* Solo ADMIN: un link muerto para un USER es peor que no tenerlo (BOX-37). */}
           {user?.role === 'ADMIN' && (
-            <NavLink to="/admin/results" className={linkClass}>
-              Cargar resultados
-            </NavLink>
+            <>
+              <NavLink to="/admin/results" className={linkClass}>
+                Cargar resultados
+              </NavLink>
+              <NavLink to="/admin/seasons" className={linkClass}>
+                Temporadas
+              </NavLink>
+            </>
           )}
 
           {user ? (
