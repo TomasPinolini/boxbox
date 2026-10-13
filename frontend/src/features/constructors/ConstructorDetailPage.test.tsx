@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { ConstructorDetail } from '../../models/constructor';
 import { constructorsService } from '../../services/constructors.service';
@@ -31,6 +31,7 @@ const williams: ConstructorDetail = {
       driver1Points: 18,
       driver2Points: 8,
       totalPoints: 26,
+      pointsByDriverId: { 1: 18, 2: 8 },
     },
     {
       raceId: 11,
@@ -40,6 +41,7 @@ const williams: ConstructorDetail = {
       driver1Points: 6,
       driver2Points: 2,
       totalPoints: 8,
+      pointsByDriverId: { 1: 2, 2: 6 },
     },
   ],
 };
@@ -51,8 +53,10 @@ describe('ConstructorDetailPage', () => {
     renderWithQuery(<ConstructorDetailPage />);
 
     expect(await screen.findByRole('heading', { name: 'Williams' })).toBeInTheDocument();
-    expect(screen.getByText('Albon')).toBeInTheDocument();
-    expect(screen.getByText('Sainz')).toBeInTheDocument();
+    // Por rol y no por texto: desde que la tabla tiene una columna por piloto, el apellido
+    // aparece dos veces — en la lista de arriba y en el encabezado de su columna.
+    expect(screen.getByRole('link', { name: /Albon/ })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Sainz/ })).toBeInTheDocument();
     expect(screen.getByText('GP de Italia')).toBeInTheDocument();
     expect(screen.getByText('GP de Brasil')).toBeInTheDocument();
     // Los puntos totales de la temporada, que es el dato que se viene a buscar.
@@ -82,5 +86,36 @@ describe('ConstructorDetailPage', () => {
     renderWithQuery(<ConstructorDetailPage />);
 
     expect(await screen.findByText(/todavía no tiene carreras procesadas/i)).toBeInTheDocument();
+  });
+
+  it('la tabla tiene una columna por piloto, con su apellido', async () => {
+    vi.mocked(constructorsService.get).mockResolvedValue(williams);
+
+    renderWithQuery(<ConstructorDetailPage />);
+    await screen.findByText('Resultados');
+
+    // Los encabezados dicen quién es quién, en vez de "Piloto 1" y "Piloto 2".
+    const encabezados = screen.getAllByRole('columnheader').map((th) => th.textContent);
+    expect(encabezados).toEqual(['#', 'Carrera', 'Albon', 'Sainz', 'Total']);
+
+    // Y los puntos van a la columna del que los hizo: en Brasil, Sainz 6 y Albon 2.
+    const brasil = (await screen.findByText('GP de Brasil')).closest('tr') as HTMLElement;
+    const celdas = within(brasil).getAllByRole('cell').map((td) => td.textContent);
+    expect(celdas).toEqual(['2', 'GP de Brasil', '2', '6', '8']);
+  });
+
+  it('muestra "—" si el backend no manda el desglose por piloto', async () => {
+    const sinDesglose = {
+      ...williams,
+      // Como lo manda un backend anterior a este desglose.
+      results: williams.results.map((r) => ({ ...r, pointsByDriverId: undefined })),
+    };
+    vi.mocked(constructorsService.get).mockResolvedValue(sinDesglose);
+
+    renderWithQuery(<ConstructorDetailPage />);
+    const brasil = (await screen.findByText('GP de Brasil')).closest('tr') as HTMLElement;
+
+    // Un cero afirmaria que no sumaron nada; el guion dice que no sabemos.
+    expect(within(brasil).getAllByText('—')).toHaveLength(2);
   });
 });
