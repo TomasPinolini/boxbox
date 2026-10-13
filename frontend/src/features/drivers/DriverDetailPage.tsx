@@ -27,7 +27,16 @@ export function DriverDetailPage() {
       </PageShell>
     );
   }
-  if (!driver.data) return <p className="p-6 text-slate-500">Cargando…</p>;
+  // Adentro de PageShell y no suelto: si no, el texto aparece pegado al borde mientras el
+  // contenido real va mucho mas adentro, y la pagina salta al llegar los datos (mismo defecto
+  // que tenia LeagueDetailPage, arreglado ahi primero).
+  if (!driver.data) {
+    return (
+      <PageShell title="Piloto">
+        <p className="text-slate-500">Cargando…</p>
+      </PageShell>
+    );
+  }
 
   const d = driver.data;
 
