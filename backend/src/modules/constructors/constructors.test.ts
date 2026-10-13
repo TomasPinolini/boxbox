@@ -47,6 +47,89 @@ describe('GET /api/v1/constructors', () => {
   });
 });
 
+// El detalle es la pantalla publica de una escuderia: quienes la corren esta temporada y como
+// viene puntuando. Mismo molde que GET /drivers/:id (Slice 14).
+describe('GET /api/v1/constructors/:id — detalle', () => {
+  it('trae los pilotos de la temporada activa y el historial de resultados', async () => {
+    const season = await prisma.season.create({ data: { year: 2026, isActive: true } });
+    const constructor = await prisma.constructor.create({
+      data: { name: 'Williams', color: '#64C4FF', externalId: 'williams' },
+    });
+    const otra = await prisma.constructor.create({
+      data: { name: 'Alpine', color: '#0093CC', externalId: 'alpine' },
+    });
+
+    const albon = await prisma.driver.create({
+      data: { firstName: 'Alex', lastName: 'Albon', number: 23, code: 'ALB', externalId: 'albon' },
+    });
+    const sainz = await prisma.driver.create({
+      data: { firstName: 'Carlos', lastName: 'Sainz', number: 55, code: 'SAI', externalId: 'sainz' },
+    });
+    const ajeno = await prisma.driver.create({
+      data: { firstName: 'Pierre', lastName: 'Gasly', number: 10, code: 'GAS', externalId: 'gasly' },
+    });
+    for (const [driver, team] of [
+      [albon, constructor],
+      [sainz, constructor],
+      [ajeno, otra],
+    ] as const) {
+      await prisma.driverSeason.create({
+        data: { driverId: driver.id, constructorId: team.id, seasonId: season.id },
+      });
+    }
+
+    const circuit = await prisma.circuit.create({
+      data: { name: 'Monza', country: 'Italia', city: 'Monza', externalId: 'monza' },
+    });
+    const race = await prisma.race.create({
+      data: {
+        name: 'GP de Italia',
+        round: 1,
+        date: new Date('2026-09-06T13:00:00Z'),
+        lockDate: new Date('2026-09-06T12:00:00Z'),
+        seasonId: season.id,
+        circuitId: circuit.id,
+      },
+    });
+    await prisma.constructorResult.create({
+      data: {
+        raceId: race.id,
+        constructorId: constructor.id,
+        driver1Points: 18,
+        driver2Points: 8,
+        totalPoints: 26,
+      },
+    });
+
+    const res = await request(app).get(`/api/v1/constructors/${constructor.id}`);
+    expect(res.status).toBe(200);
+
+    const { data } = res.body;
+    expect(data.name).toBe('Williams');
+    // Solo los suyos: el piloto de la otra escuderia no entra.
+    expect(data.drivers.map((d: { code: string }) => d.code).sort()).toEqual(['ALB', 'SAI']);
+    expect(data.results).toHaveLength(1);
+    expect(data.results[0]).toMatchObject({ raceName: 'GP de Italia', round: 1, totalPoints: 26 });
+    expect(data.stats).toEqual({ races: 1, points: 26 });
+  });
+
+  it('sin temporada activa devuelve el detalle vacio, no un error', async () => {
+    const constructor = await prisma.constructor.create({
+      data: { name: 'Haas', color: '#B6BABD', externalId: 'haas' },
+    });
+
+    const res = await request(app).get(`/api/v1/constructors/${constructor.id}`);
+    expect(res.status).toBe(200);
+    expect(res.body.data).toMatchObject({
+      name: 'Haas',
+      seasonId: null,
+      drivers: [],
+      results: [],
+      stats: { races: 0, points: 0 },
+    });
+  });
+});
+
 describe('GET /api/v1/constructors/:id', () => {
   it('returns a constructor by id', async () => {
     const created = await request(app)

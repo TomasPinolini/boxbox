@@ -24,7 +24,7 @@ export async function getStandings(req: Request, res: Response, next: NextFuncti
 
 export async function getById(req: Request, res: Response, next: NextFunction) {
   try {
-    const constructor = await constructorsService.findById(Number(req.params.id));
+    const constructor = await constructorsService.findDetail(Number(req.params.id));
     res.json({ data: constructor });
   } catch (err) {
     next(err);
