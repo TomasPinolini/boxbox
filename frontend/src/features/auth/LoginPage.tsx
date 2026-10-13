@@ -124,9 +124,9 @@ export function LoginPage() {
             </p>
             {/* El catalogo de pilotos es publico: se puede mirar sin cuenta. */}
             <p className="mt-2 text-sm text-white/70">
-              O mirá{' '}
+              O{' '}
               <Link to="/drivers" className="font-semibold text-white hover:underline">
-                los pilotos de la temporada
+                mirá los pilotos de la temporada
               </Link>
             </p>
           </form>

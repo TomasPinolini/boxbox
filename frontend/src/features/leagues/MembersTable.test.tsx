@@ -32,10 +32,28 @@ describe('MembersTable', () => {
     expect(screen.queryByRole('button', { name: /^Echar/ })).not.toBeInTheDocument();
   });
 
-  it('llama onKick con el userId, no con el id del miembro', async () => {
+  // Echar es irreversible desde la UI (sin reinvitarla, no vuelve a entrar) — dos clicks,
+  // como "Archivar liga" y "Salir de la liga" en la misma pantalla.
+  it('pide confirmar antes de llamar onKick, y recien ahi manda el userId', async () => {
     const onKick = vi.fn();
     render(<MembersTable members={[member({ id: 1, userId: 99 })]} canKick onKick={onKick} />);
+
     await userEvent.click(screen.getByRole('button', { name: /^Echar/ }));
+    expect(onKick).not.toHaveBeenCalled();
+    expect(screen.getByRole('alert')).toHaveTextContent('Tomás Rivero');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Sí, echar' }));
     expect(onKick).toHaveBeenCalledWith(99);
+  });
+
+  it('Cancelar en la confirmacion no llama onKick', async () => {
+    const onKick = vi.fn();
+    render(<MembersTable members={[member()]} canKick onKick={onKick} />);
+
+    await userEvent.click(screen.getByRole('button', { name: /^Echar/ }));
+    await userEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
+
+    expect(onKick).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: /^Echar/ })).toBeInTheDocument();
   });
 });
