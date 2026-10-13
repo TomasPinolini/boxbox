@@ -148,7 +148,7 @@ Auth chains, outermost first:
 - `externalId` columns are the join key with Jolpica/OpenF1 data. Services reject duplicates with `ConflictError`.
 - Before soft-deleting, services check for active dependencies (e.g. a driver referenced by a `FantasyTeam`) and raise `ConflictError` with a domain-specific code like `DRIVER_HAS_DEPENDENCIES`.
 - Prisma 7 config lives in `backend/prisma.config.ts` (not the legacy `prisma` block in `package.json`). That file points at the schema, the migrations dir, and the seed command.
-- Dev seed: `backend/prisma/seed.ts` populates one Season + grid + a few Circuits/Races. Run `npx prisma db seed` (idempotent — uses `upsert` everywhere). Tests do NOT use the seed; they truncate per-test and build their own fixtures. `prisma migrate reset` in Prisma 7 does NOT auto-run the seed — run `db seed` explicitly after a reset.
+- Dev seed: `backend/prisma/seed.ts` populates one Season + grid + Circuits/Races, **plus the real race results of the season**, read from `prisma/seed-data/results-<year>.json`. Run `npx prisma db seed` (idempotent — uses `upsert` everywhere). That JSON is a dated snapshot of Jolpica, regenerated on demand with `npx ts-node src/scripts/fetch-jolpica-results.ts 2026` and committed. The seed never calls the network: it runs in the `posttest` of every `npm test`, so it has to be reproducible and work offline — same reasoning as `modules/sync/sync.fixtures.ts`. Results loaded by hand outside the seed do not survive, because the suite truncates every table and the `posttest` repopulates from the seed. Tests do NOT use the seed; they truncate per-test and build their own fixtures. `prisma migrate reset` in Prisma 7 does NOT auto-run the seed — run `db seed` explicitly after a reset.
 
 ### Config
 
