@@ -26,6 +26,7 @@ export const leaguesService = {
   // vale un GET /leagues/:id/teams.
   draftState: (id: number) => apiClient.get<DraftState>(`/leagues/${id}/draft/state`),
   leave: (id: number) => apiClient.post<LeagueMember>(`/leagues/${id}/leave`),
+  rename: (id: number, name: string) => apiClient.patch<League>(`/leagues/${id}`, { name }),
   archive: (id: number) => apiClient.patch<League>(`/leagues/${id}`, { status: 'ARCHIVED' }),
   kick: (id: number, userId: number) => apiClient.delete(`/leagues/${id}/members/${userId}`),
   startDraft: (id: number) =>
