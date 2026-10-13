@@ -23,6 +23,9 @@ const MESSAGES: Record<string, string> = {
   SEASON_ALREADY_EXISTS: 'Ya existe una temporada para ese año',
   SEASON_HAS_DEPENDENCIES: 'No se puede dar de baja: la temporada tiene ligas asociadas',
   SEASON_NOT_FOUND: 'Esa temporada no existe',
+  CIRCUIT_ALREADY_EXISTS: 'Ya hay un circuito con ese ID externo',
+  CIRCUIT_HAS_DEPENDENCIES: 'No se puede dar de baja: el circuito tiene carreras programadas',
+  CIRCUIT_NOT_FOUND: 'Ese circuito no existe',
   NETWORK_ERROR: 'No se pudo conectar con el servidor',
   INTERNAL_ERROR: 'Algo salió mal, probá de nuevo',
 };

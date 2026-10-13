@@ -4,6 +4,7 @@ import { GuestOnly } from '../features/auth/GuestOnly';
 import { LoginPage } from '../features/auth/LoginPage';
 import { RegisterPage } from '../features/auth/RegisterPage';
 import { RaceResultsPage } from '../features/admin/RaceResultsPage';
+import { CircuitsPage } from '../features/admin/CircuitsPage';
 import { SeasonsPage } from '../features/admin/SeasonsPage';
 import { RequireAdmin } from '../features/auth/RequireAdmin';
 import { RequireAuth } from '../features/auth/RequireAuth';
@@ -40,6 +41,7 @@ export const router = createBrowserRouter([
             children: [
               { path: '/admin/results', element: <RaceResultsPage /> },
               { path: '/admin/seasons', element: <SeasonsPage /> },
+              { path: '/admin/circuits', element: <CircuitsPage /> },
             ],
           },
         ],
