@@ -4,5 +4,15 @@ export interface Season {
   id: number;
   year: number;
   isActive: boolean;
+  /** Cupo configurado de pilotos de la temporada. No es cuantos hay cargados: eso es counts.drivers. */
   driverCount: number;
+  counts: SeasonCounts;
+}
+
+// Lo que cuelga de la temporada. El backend los devuelve en el listado porque son los tres
+// numeros que dicen si una temporada esta lista para usarse, y por que no se deja borrar.
+export interface SeasonCounts {
+  races: number;
+  leagues: number;
+  drivers: number;
 }

@@ -13,6 +13,7 @@ import {
   inputClass,
 } from '../../components/ui';
 import type { Season } from '../../models/season';
+import { cupoInsuficiente, deletionBlockedBy } from './season-dependencies';
 import {
   useActivateSeason,
   useCreateSeason,
@@ -116,6 +117,11 @@ export function SeasonsPage() {
             <thead>
               <tr className="border-b border-slate-200 text-slate-500">
                 <th className="py-2">Año</th>
+                {/* "Cupo" y no "Pilotos": es cuantos entran, no cuantos hay cargados. La
+                    columna de al lado es la otra cosa. */}
+                <th className="py-2">Cupo</th>
+                <th className="py-2">Carreras</th>
+                <th className="py-2">Ligas</th>
                 <th className="py-2">Pilotos</th>
                 <th className="py-2">Estado</th>
                 <th className="py-2" />
@@ -125,7 +131,17 @@ export function SeasonsPage() {
               {seasons.data.map((season) => (
                 <tr key={season.id} className="border-b border-slate-100 last:border-0">
                   <td className="py-2 font-display">{season.year}</td>
-                  <td className="py-2 font-display">{season.driverCount}</td>
+                  <td className="py-2">
+                    <span className="font-display">{season.driverCount}</span>
+                    {cupoInsuficiente(season.driverCount) && (
+                      <span className="mt-1 block text-xs text-amber-700">
+                        Cupo bajo: no entra ninguna liga de dos personas.
+                      </span>
+                    )}
+                  </td>
+                  <td className="py-2 font-display">{season.counts.races}</td>
+                  <td className="py-2 font-display">{season.counts.leagues}</td>
+                  <td className="py-2 font-display">{season.counts.drivers}</td>
                   <td className="py-2">
                     {/* El estado se dice con texto, no solo con color: el acento rojo marca
                         posicion en esta app, y un color solo no es informacion accesible. */}
@@ -155,12 +171,17 @@ export function SeasonsPage() {
                       <ConfirmButton
                         label="Dar de baja"
                         confirmLabel="Confirmar baja"
-                        consequence={`Vas a BORRAR la temporada ${season.year}. No se archiva: se elimina y no hay vuelta atrás. Si tiene ligas o carreras asociadas, el servidor lo va a rechazar.`}
+                        consequence={`Vas a BORRAR la temporada ${season.year}. No se archiva: se elimina y no hay vuelta atrás.`}
                         variant="danger"
-                        disabled={removeSeason.isPending}
+                        disabled={removeSeason.isPending || deletionBlockedBy(season) !== null}
                         onConfirm={() => removeSeason.mutate(season.id)}
                       />
                     </div>
+                    {deletionBlockedBy(season) && (
+                      <p className="mt-1 text-right text-xs text-slate-500">
+                        {deletionBlockedBy(season)}
+                      </p>
+                    )}
                   </td>
                 </tr>
               ))}

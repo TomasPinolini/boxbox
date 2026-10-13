@@ -10,8 +10,9 @@ import { SeasonsPage } from './SeasonsPage';
 // Se mockea el servicio, no axios: el contrato que le importa a la pantalla es el del servicio.
 vi.mock('../../services/seasons.service');
 
-const season2026: Season = { id: 1, year: 2026, isActive: true, driverCount: 22 };
-const season2025: Season = { id: 2, year: 2025, isActive: false, driverCount: 20 };
+const vacia = { races: 0, leagues: 0, drivers: 0 };
+const season2026: Season = { id: 1, year: 2026, isActive: true, driverCount: 22, counts: vacia };
+const season2025: Season = { id: 2, year: 2025, isActive: false, driverCount: 20, counts: vacia };
 
 beforeEach(() => {
   vi.mocked(seasonsService.list).mockResolvedValue([season2026, season2025]);
@@ -30,7 +31,7 @@ describe('SeasonsPage', () => {
 
   it('crea una temporada y la muestra en el listado', async () => {
     const user = userEvent.setup();
-    const nueva: Season = { id: 3, year: 2027, isActive: false, driverCount: 20 };
+    const nueva: Season = { id: 3, year: 2027, isActive: false, driverCount: 20, counts: vacia };
     // La segunda respuesta del listado ya trae la nueva: es lo que pasa de verdad cuando la
     // mutacion invalida la query. Si la pantalla no invalida, este test se queda en la primera.
     vi.mocked(seasonsService.list)
@@ -122,5 +123,45 @@ describe('SeasonsPage', () => {
     await waitFor(() => expect(seasonsService.activate).toHaveBeenCalledWith(2));
     // La de 2026 ya está activa: ofrecerle "Activar" sería un botón que no hace nada.
     expect(screen.queryByRole('button', { name: 'Activar 2026' })).not.toBeInTheDocument();
+  });
+
+  it('muestra cuántas carreras, ligas y pilotos tiene cada temporada', async () => {
+    vi.mocked(seasonsService.list).mockResolvedValue([
+      { ...season2026, counts: { races: 24, leagues: 2, drivers: 21 } },
+    ]);
+
+    renderWithQuery(<SeasonsPage />);
+    const row = (await screen.findByText('2026')).closest('tr') as HTMLElement;
+
+    // Numeros distintos a proposito: el cupo es 22 y los pilotos cargados 21, asi queda claro
+    // cual columna es cual.
+    expect(within(row).getByText('24')).toBeInTheDocument();
+    expect(within(row).getByText('2')).toBeInTheDocument();
+    expect(within(row).getByText('21')).toBeInTheDocument();
+  });
+
+  it('no deja borrar una temporada con dependencias y dice por qué', async () => {
+    vi.mocked(seasonsService.list).mockResolvedValue([
+      { ...season2026, counts: { races: 24, leagues: 2, drivers: 21 } },
+    ]);
+
+    renderWithQuery(<SeasonsPage />);
+    const row = (await screen.findByText('2026')).closest('tr') as HTMLElement;
+
+    // El motivo se ve ANTES de apretar: el servidor lo rechazaría igual, pero tarde.
+    expect(
+      within(row).getByText('No se puede borrar: tiene 24 carreras, 2 ligas y 21 pilotos.'),
+    ).toBeInTheDocument();
+    expect(within(row).getByRole('button', { name: 'Dar de baja' })).toBeDisabled();
+  });
+
+  it('avisa cuando el cupo de pilotos es tan bajo que ninguna liga puede formarse', async () => {
+    vi.mocked(seasonsService.list).mockResolvedValue([{ ...season2026, driverCount: 3 }]);
+
+    renderWithQuery(<SeasonsPage />);
+
+    expect(
+      await screen.findByText(/no entra ninguna liga de dos personas/i),
+    ).toBeInTheDocument();
   });
 });

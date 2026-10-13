@@ -2,8 +2,20 @@ import { prisma } from '../../shared/prisma';
 import { NotFoundError, ConflictError } from '../../shared/errors';
 import { CreateSeasonInput, UpdateSeasonInput } from './seasons.schema';
 
+// El listado lleva los conteos porque es lo que consume la pantalla de administracion: sin
+// ellos no se puede decir si una temporada esta lista, ni explicar por que no se deja borrar.
+// `counts.drivers` son los pilotos efectivamente asignados; `driverCount` es el cupo
+// configurado. Son dos numeros distintos y conviene no confundirlos.
 export async function findAll() {
-  return prisma.season.findMany({ orderBy: { year: 'desc' } });
+  const seasons = await prisma.season.findMany({
+    orderBy: { year: 'desc' },
+    include: { _count: { select: { races: true, leagues: true, driverSeasons: true } } },
+  });
+
+  return seasons.map(({ _count, ...season }) => ({
+    ...season,
+    counts: { races: _count.races, leagues: _count.leagues, drivers: _count.driverSeasons },
+  }));
 }
 
 export async function findActive() {
@@ -48,6 +60,18 @@ export async function remove(id: number) {
   const activeLeagues = await prisma.league.count({ where: { seasonId: id } });
   if (activeLeagues > 0) {
     throw new ConflictError('Cannot delete season with active leagues', 'SEASON_HAS_DEPENDENCIES');
+  }
+
+  // races tiene FK ON DELETE RESTRICT contra seasons: sin este chequeo el delete falla dentro
+  // de Prisma, el error no es un AppError y el cliente recibe un 500 en vez del codigo real.
+  const races = await prisma.race.count({ where: { seasonId: id } });
+  if (races > 0) {
+    throw new ConflictError('Cannot delete season with races', 'SEASON_HAS_DEPENDENCIES');
+  }
+
+  const driverSeasons = await prisma.driverSeason.count({ where: { seasonId: id } });
+  if (driverSeasons > 0) {
+    throw new ConflictError('Cannot delete season with drivers', 'SEASON_HAS_DEPENDENCIES');
   }
 
   return prisma.season.delete({ where: { id } });

@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import request from 'supertest';
 import app from '../../app';
 import { createTestAdmin, createTestUser } from '../../tests/setup';
+import { prisma } from '../../shared/prisma';
 
 // adminToken: el CRUD de catalogo es admin-only (A5 / BOX-15); se recrea por test (truncate).
 let adminToken: string;
@@ -17,6 +18,62 @@ describe('GET /api/v1/seasons', () => {
     const res = await request(app).get('/api/v1/seasons');
     expect(res.status).toBe(200);
     expect(res.body.data).toEqual([]);
+  });
+});
+
+// El listado es la pantalla de administracion de temporadas: sin estos numeros no se puede
+// saber si una temporada esta lista para usarse, ni por que no se deja borrar.
+describe('GET /api/v1/seasons — conteos', () => {
+  it('cada temporada trae cuantas carreras, ligas y pilotos tiene', async () => {
+    const admin = await createTestAdmin();
+    const season = await prisma.season.create({ data: { year: 2027 } });
+
+    const circuit = await prisma.circuit.create({
+      data: { name: 'Monza', country: 'Italia', city: 'Monza', externalId: 'monza' },
+    });
+    await prisma.race.create({
+      data: {
+        name: 'GP de Italia',
+        round: 1,
+        date: new Date('2027-09-05T13:00:00Z'),
+        lockDate: new Date('2027-09-05T12:00:00Z'),
+        seasonId: season.id,
+        circuitId: circuit.id,
+      },
+    });
+
+    const constructor = await prisma.constructor.create({
+      data: { name: 'McLaren', color: '#FF8000', externalId: 'mclaren' },
+    });
+    const driver = await prisma.driver.create({
+      data: { firstName: 'Lando', lastName: 'Norris', number: 4, code: 'NOR', externalId: 'norris' },
+    });
+    await prisma.driverSeason.create({
+      data: { driverId: driver.id, constructorId: constructor.id, seasonId: season.id },
+    });
+
+    await prisma.league.create({
+      data: {
+        name: 'Liga de prueba',
+        inviteCode: 'liga-prueba',
+        seasonId: season.id,
+        createdById: admin.user.id,
+      },
+    });
+
+    const res = await request(app).get('/api/v1/seasons');
+    expect(res.status).toBe(200);
+
+    const found = res.body.data.find((s: { year: number }) => s.year === 2027);
+    expect(found.counts).toEqual({ races: 1, leagues: 1, drivers: 1 });
+  });
+
+  it('una temporada vacia trae los tres conteos en cero', async () => {
+    await prisma.season.create({ data: { year: 2028 } });
+
+    const res = await request(app).get('/api/v1/seasons');
+    const found = res.body.data.find((s: { year: number }) => s.year === 2028);
+    expect(found.counts).toEqual({ races: 0, leagues: 0, drivers: 0 });
   });
 });
 
@@ -121,6 +178,62 @@ describe('DELETE /api/v1/seasons/:id', () => {
       ).status,
     ).toBe(204);
     expect((await request(app).get('/api/v1/seasons')).body.data).toHaveLength(0);
+  });
+
+  // El guard del service solo miraba ligas, pero `races` y `driver_seasons` tienen FK
+  // ON DELETE RESTRICT: sin este chequeo Prisma falla sola y el error llega como 500.
+  it('rechaza borrar una temporada que tiene carreras (409, no 500)', async () => {
+    const created = await request(app)
+      .post('/api/v1/seasons')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send(validSeason);
+    const seasonId = created.body.data.id;
+
+    const circuit = await prisma.circuit.create({
+      data: { name: 'Interlagos', country: 'Brasil', city: 'Sao Paulo', externalId: 'interlagos' },
+    });
+    await prisma.race.create({
+      data: {
+        name: 'GP de Brasil',
+        round: 1,
+        date: new Date('2026-11-08T18:00:00Z'),
+        lockDate: new Date('2026-11-08T17:00:00Z'),
+        seasonId,
+        circuitId: circuit.id,
+      },
+    });
+
+    const res = await request(app)
+      .delete(`/api/v1/seasons/${seasonId}`)
+      .set('Authorization', `Bearer ${adminToken}`);
+
+    expect(res.status).toBe(409);
+    expect(res.body.error.code).toBe('SEASON_HAS_DEPENDENCIES');
+  });
+
+  it('rechaza borrar una temporada que tiene pilotos asignados (409, no 500)', async () => {
+    const created = await request(app)
+      .post('/api/v1/seasons')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send(validSeason);
+    const seasonId = created.body.data.id;
+
+    const constructor = await prisma.constructor.create({
+      data: { name: 'Williams', color: '#64C4FF', externalId: 'williams' },
+    });
+    const driver = await prisma.driver.create({
+      data: { firstName: 'Alex', lastName: 'Albon', number: 23, code: 'ALB', externalId: 'albon' },
+    });
+    await prisma.driverSeason.create({
+      data: { driverId: driver.id, constructorId: constructor.id, seasonId },
+    });
+
+    const res = await request(app)
+      .delete(`/api/v1/seasons/${seasonId}`)
+      .set('Authorization', `Bearer ${adminToken}`);
+
+    expect(res.status).toBe(409);
+    expect(res.body.error.code).toBe('SEASON_HAS_DEPENDENCIES');
   });
 
   it('returns 404 when deleting non-existent season', async () => {
