@@ -14,6 +14,7 @@ import { Button } from './Button';
 // concretos de esta liga. "¿Seguro?" no agrega informacion, solo un click.
 export function ConfirmButton({
   label,
+  ariaLabel,
   confirmLabel,
   consequence,
   variant = 'primary',
@@ -21,6 +22,9 @@ export function ConfirmButton({
   onConfirm,
 }: {
   label: string;
+  // Solo hace falta cuando `label` por si solo no distingue de que accion se trata — por
+  // ejemplo una fila por persona en una lista, donde "Echar" repetido no dice a quien.
+  ariaLabel?: string;
   confirmLabel: string;
   consequence: string;
   variant?: 'primary' | 'secondary' | 'danger';
@@ -31,7 +35,12 @@ export function ConfirmButton({
 
   if (!armado) {
     return (
-      <Button variant={variant} disabled={disabled} onClick={() => setArmado(true)}>
+      <Button
+        variant={variant}
+        disabled={disabled}
+        aria-label={ariaLabel}
+        onClick={() => setArmado(true)}
+      >
         {label}
       </Button>
     );
