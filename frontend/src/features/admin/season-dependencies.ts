@@ -6,6 +6,8 @@ import type { Season } from '../../models/season';
 //
 // Devuelve el motivo listo para mostrar, o null cuando la temporada se puede borrar.
 export function deletionBlockedBy(season: Season): string | null {
+  if (!season.counts) return null;
+
   const parts = [
     cuantos(season.counts.races, 'carrera', 'carreras'),
     cuantos(season.counts.leagues, 'liga', 'ligas'),

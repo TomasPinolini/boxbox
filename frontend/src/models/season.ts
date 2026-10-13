@@ -6,7 +6,8 @@ export interface Season {
   isActive: boolean;
   /** Cupo configurado de pilotos de la temporada. No es cuantos hay cargados: eso es counts.drivers. */
   driverCount: number;
-  counts: SeasonCounts;
+  /** Ausente cuando el backend es anterior a los conteos. Ausente NO es cero. */
+  counts?: SeasonCounts;
 }
 
 // Lo que cuelga de la temporada. El backend los devuelve en el listado porque son los tres

@@ -139,9 +139,11 @@ export function SeasonsPage() {
                       </span>
                     )}
                   </td>
-                  <td className="py-2 font-display">{season.counts.races}</td>
-                  <td className="py-2 font-display">{season.counts.leagues}</td>
-                  <td className="py-2 font-display">{season.counts.drivers}</td>
+                  {/* Sin conteos el backend es anterior a este cambio: "—" dice que no se
+                      sabe. Un 0 afirmaria que no hay nada, que no es lo mismo. */}
+                  <td className="py-2 font-display">{season.counts?.races ?? '—'}</td>
+                  <td className="py-2 font-display">{season.counts?.leagues ?? '—'}</td>
+                  <td className="py-2 font-display">{season.counts?.drivers ?? '—'}</td>
                   <td className="py-2">
                     {/* El estado se dice con texto, no solo con color: el acento rojo marca
                         posicion en esta app, y un color solo no es informacion accesible. */}

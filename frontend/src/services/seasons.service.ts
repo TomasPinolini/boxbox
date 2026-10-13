@@ -9,6 +9,9 @@ export interface SeasonInput {
 }
 
 export const seasonsService = {
+  // Si el backend es anterior a los conteos, `counts` llega undefined y la pantalla muestra
+  // "—". Rellenarlo con ceros seria peor que no tenerlo: una temporada con ligas diria que no
+  // tiene ninguna, y eso es un numero equivocado dicho con seguridad.
   list: () => apiClient.get<Season[]>('/seasons'),
   create: (input: SeasonInput) => apiClient.post<Season>('/seasons', input),
   update: (id: number, input: SeasonInput) => apiClient.patch<Season>(`/seasons/${id}`, input),

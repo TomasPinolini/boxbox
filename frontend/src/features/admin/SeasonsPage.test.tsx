@@ -164,4 +164,17 @@ describe('SeasonsPage', () => {
       await screen.findByText(/no entra ninguna liga de dos personas/i),
     ).toBeInTheDocument();
   });
+
+  it('muestra "—" y no bloquea el borrado cuando el backend no informa los conteos', async () => {
+    // Una Season como la que manda un backend anterior a los conteos.
+    const sinConteos: Season = { ...season2026, counts: undefined };
+    vi.mocked(seasonsService.list).mockResolvedValue([sinConteos]);
+
+    renderWithQuery(<SeasonsPage />);
+    const row = (await screen.findByText('2026')).closest('tr') as HTMLElement;
+
+    // Tres guiones, uno por columna: no se sabe, y no se inventa un cero.
+    expect(within(row).getAllByText('—')).toHaveLength(3);
+    expect(within(row).getByRole('button', { name: 'Dar de baja' })).toBeEnabled();
+  });
 });
