@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Alert, Badge, Button, Card, ConfirmButton, PageShell } from '../../components/ui';
+import { RenameLeague } from './RenameLeague';
 import type { ConstructorRef, Driver } from '../../models/driver';
 import type { DraftStatus } from '../../models/league';
 import { useAuthStore } from '../../store/auth.store';
@@ -12,6 +13,7 @@ import { LeagueTeamsTable, type TeamRowData } from './LeagueTeamsTable';
 import { MembersTable } from './MembersTable';
 import {
   useArchiveLeague,
+  useRenameLeague,
   useKick,
   useLeague,
   useLeagueTeams,
@@ -36,6 +38,7 @@ export function LeagueDetailPage() {
   const standings = useStandings(id);
   const startDraft = useStartDraft(id);
   const archive = useArchiveLeague(id);
+  const rename = useRenameLeague(id);
   const leave = useLeave(id);
   const kick = useKick(id);
   const [copied, setCopied] = useState(false);
@@ -90,9 +93,9 @@ export function LeagueDetailPage() {
   const isOwner = myMember?.isOwner ?? false;
   const rosterOpen = l.draftStatus === 'PENDING';
   const draft = DRAFT_LABEL[l.draftStatus];
-  const busy = startDraft.isPending || leave.isPending || kick.isPending || archive.isPending;
+  const busy = startDraft.isPending || leave.isPending || kick.isPending || archive.isPending || rename.isPending;
   const actionError =
-    startDraft.error ?? archive.error ?? leave.error ?? kick.error ?? members.error;
+    startDraft.error ?? archive.error ?? rename.error ?? leave.error ?? kick.error ?? members.error;
   const cantidad = members.data?.length ?? 0;
 
   async function copyCode() {
@@ -107,7 +110,7 @@ export function LeagueDetailPage() {
 
   // El owner no sale de su liga: la cierra (409 OWNER_CANNOT_LEAVE en el backend). Son dos
   // acciones distintas para dos roles distintos, no la misma con otro nombre. ADR-0009.
-  const cerrar = isOwner ? (
+  const cerrarOSalir = isOwner ? (
     <ConfirmButton
       variant="danger"
       label="Archivar liga"
@@ -129,6 +132,21 @@ export function LeagueDetailPage() {
       disabled={busy}
       onConfirm={() => leave.mutate(undefined, { onSuccess: () => navigate('/leagues') })}
     />
+  );
+
+  // Las acciones que viven al pie de la liga, en las tres formas de la pantalla. Renombrar es
+  // solo del dueño y es reversible; cerrar o salir no, y por eso va ultimo y en rojo.
+  const acciones = (
+    <div className="flex flex-wrap items-end gap-2">
+      {isOwner && (
+        <RenameLeague
+          currentName={l.name}
+          disabled={busy}
+          onRename={(name) => rename.mutate(name)}
+        />
+      )}
+      {cerrarOSalir}
+    </div>
   );
 
   const error = actionError && (
@@ -159,11 +177,11 @@ export function LeagueDetailPage() {
           error={error}
           onKick={(userId) => kick.mutate(userId)}
           onStart={() => startDraft.mutate()}
-          cerrar={cerrar}
+          acciones={acciones}
         />
       )}
 
-      {l.draftStatus === 'LIVE' && <EnVivo leagueId={id} draftLabel={draft.text} cerrar={cerrar} />}
+      {l.draftStatus === 'LIVE' && <EnVivo leagueId={id} draftLabel={draft.text} acciones={acciones} />}
 
       {l.draftStatus === 'COMPLETED' && (
         <DespuesDelDraft
@@ -184,7 +202,7 @@ export function LeagueDetailPage() {
           )}
           cargando={teams.isLoading}
           error={error}
-          cerrar={cerrar}
+          acciones={acciones}
         />
       )}
     </PageShell>
@@ -205,7 +223,7 @@ function AntesDelDraft({
   error,
   onKick,
   onStart,
-  cerrar,
+  acciones,
 }: {
   code: string;
   copied: boolean;
@@ -218,7 +236,7 @@ function AntesDelDraft({
   error: React.ReactNode;
   onKick: (userId: number) => void;
   onStart: () => void;
-  cerrar: React.ReactNode;
+  acciones: React.ReactNode;
 }) {
   return (
     <div className="flex flex-col gap-4">
@@ -267,7 +285,7 @@ function AntesDelDraft({
         )}
       </Card>
 
-      <div>{cerrar}</div>
+      <div>{acciones}</div>
     </div>
   );
 }
@@ -275,11 +293,11 @@ function AntesDelDraft({
 function EnVivo({
   leagueId,
   draftLabel,
-  cerrar,
+  acciones,
 }: {
   leagueId: number;
   draftLabel: string;
-  cerrar: React.ReactNode;
+  acciones: React.ReactNode;
 }) {
   // A esta pantalla, con el draft corriendo, solo se llega a proposito: el redirect lleva a
   // todo el mundo al draft al arrancar. Quien esta aca con un reloj de 60 segundos corriendo
@@ -300,7 +318,7 @@ function EnVivo({
           </Link>
         </div>
       </Card>
-      <div>{cerrar}</div>
+      <div>{acciones}</div>
     </div>
   );
 }
@@ -310,14 +328,14 @@ function DespuesDelDraft({
   miEquipo,
   cargando,
   error,
-  cerrar,
+  acciones,
 }: {
   leagueId: number;
   rows: TeamRowData[];
   miEquipo: { drivers: Driver[]; constructor: ConstructorRef | null } | null;
   cargando: boolean;
   error: React.ReactNode;
-  cerrar: React.ReactNode;
+  acciones: React.ReactNode;
 }) {
   return (
     <div className="flex flex-col gap-4">
@@ -338,7 +356,7 @@ function DespuesDelDraft({
         )}
       </Card>
 
-      <div>{cerrar}</div>
+      <div>{acciones}</div>
     </div>
   );
 }
