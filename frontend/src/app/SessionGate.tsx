@@ -11,6 +11,16 @@ export function SessionGate({ children }: { children: ReactNode }) {
     if (!ready) void authService.restoreSession();
   }, [ready]);
 
-  if (!ready) return <p className="p-6 text-slate-500">Cargando sesión…</p>;
+  // Centrado y con el logo, no un <p> pegado al borde: todavia no existe el router (no
+  // sabemos si hay sesion ni en que pantalla esta), asi que no hay barra real que mostrar —
+  // pero el primer fotograma de cada F5 puede seguir pareciendo parte de la app.
+  if (!ready) {
+    return (
+      <div className="flex min-h-dvh flex-col items-center justify-center gap-3">
+        <img src="/logo.svg" alt="boxbox" className="h-7 w-auto" />
+        <p className="text-sm text-slate-500">Cargando sesión…</p>
+      </div>
+    );
+  }
   return <>{children}</>;
 }
