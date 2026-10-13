@@ -4,6 +4,8 @@ import { GuestOnly } from '../features/auth/GuestOnly';
 import { LoginPage } from '../features/auth/LoginPage';
 import { RegisterPage } from '../features/auth/RegisterPage';
 import { RaceResultsPage } from '../features/admin/RaceResultsPage';
+import { CircuitsPage } from '../features/admin/CircuitsPage';
+import { ConstructorDetailPage } from '../features/constructors/ConstructorDetailPage';
 import { SeasonsPage } from '../features/admin/SeasonsPage';
 import { RequireAdmin } from '../features/auth/RequireAdmin';
 import { RequireAuth } from '../features/auth/RequireAuth';
@@ -40,6 +42,7 @@ export const router = createBrowserRouter([
             children: [
               { path: '/admin/results', element: <RaceResultsPage /> },
               { path: '/admin/seasons', element: <SeasonsPage /> },
+              { path: '/admin/circuits', element: <CircuitsPage /> },
             ],
           },
         ],
@@ -49,6 +52,8 @@ export const router = createBrowserRouter([
       // tambien sin sesion.
       { path: '/drivers', element: <DriversPage /> },
       { path: '/drivers/:id', element: <DriverDetailPage /> },
+      // Publica como el detalle de piloto: los GET del catalogo no piden auth en el backend.
+      { path: '/constructors/:id', element: <ConstructorDetailPage /> },
       { path: '/standings', element: <ChampionshipPage /> },
     ],
   },

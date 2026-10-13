@@ -33,7 +33,14 @@ export interface TeamRowData {
   standing: Standing | null;
 }
 
-export function LeagueTeamsTable({ rows }: { rows: TeamRowData[] }) {
+export function LeagueTeamsTable({
+  rows,
+  onSelect,
+}: {
+  rows: TeamRowData[];
+  /** Avisa que fila eligieron. Sin esto el nombre es texto: no se promete un click que no hace nada. */
+  onSelect?: (leagueMemberId: number) => void;
+}) {
   // Si nadie tiene standing todavia, las tres columnas de competencia no se dibujan. No es
   // lo mismo que ponerlas con guiones: una tabla de posiciones vacia se lee como "voy
   // primero", no como "todavia no paso nada".
@@ -65,7 +72,17 @@ export function LeagueTeamsTable({ rows }: { rows: TeamRowData[] }) {
                 </td>
               )}
               <td className="py-2 pr-3 font-medium">
-                {r.memberName}
+                {onSelect ? (
+                  <button
+                    type="button"
+                    className="underline-offset-2 hover:underline"
+                    onClick={() => onSelect(r.leagueMemberId)}
+                  >
+                    {r.memberName}
+                  </button>
+                ) : (
+                  r.memberName
+                )}
                 {r.isMe && <span className="ml-1 text-xs text-slate-400">(vos)</span>}
               </td>
               <td className="py-2 pr-3">

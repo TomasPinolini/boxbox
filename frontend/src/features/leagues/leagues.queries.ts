@@ -94,9 +94,14 @@ function useLeagueAction<TVars = void>(id: number, fn: (vars: TVars) => Promise<
   });
 }
 
+// Renombrar es la unica accion de liga reversible: no navega a ningun lado, solo cambia el
+// titulo. Por eso no lleva confirmacion y las otras si.
+export const useRenameLeague = (id: number) =>
+  useLeagueAction<string>(id, (name) => leaguesService.rename(id, name));
+
 // Archivar es como el owner cierra una liga (ADR-0009): no hay DELETE, es un PATCH de status.
-// Invalida lo mismo que las demas acciones de liga, incluido el listado, porque la liga
-// archivada tiene que desaparecer de ahi.
+// Invalida lo mismo que las demas acciones, incluido el listado, porque la liga archivada
+// tiene que desaparecer de ahi.
 export const useArchiveLeague = (id: number) =>
   useLeagueAction(id, () => leaguesService.archive(id));
 

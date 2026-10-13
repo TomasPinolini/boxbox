@@ -17,6 +17,8 @@
  * una entrada al array, NO copiar bloques de upsert.
  */
 
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { prisma } from '../src/shared/prisma';
 import { hashPassword } from '../src/shared/password';
 
@@ -603,6 +605,44 @@ const driverHeadshots: Record<string, string> = {
 // ───────────────────────────────────────────────────────────────────────────
 // Lógica — recorre los arrays y persiste vía upsert
 // ───────────────────────────────────────────────────────────────────────────
+// Resultados reales, congelados desde Jolpica
+// ───────────────────────────────────────────────────────────────────────────
+//
+// El archivo lo genera `npx ts-node src/scripts/fetch-jolpica-results.ts 2026` y se commitea.
+// La fuente de verdad sigue siendo Jolpica: esto es una foto fechada de Jolpica.
+//
+// Por que congelado y no una llamada desde aca: el seed corre en el posttest de CADA
+// `npm test`. Un seed que pega a la red no es reproducible, no corre sin internet y sumaria
+// 20 segundos a cada corrida. Mismo criterio que modules/sync/sync.fixtures.ts.
+//
+// Por que en el seed y no cargado a mano: la suite trunca todas las tablas y el posttest
+// repone el seed, asi que cualquier resultado cargado por fuera desaparece en la siguiente
+// corrida de tests.
+
+interface StoredResult {
+  driverExternalId: string;
+  position: number | null;
+  points: number;
+  status: string;
+  gridPosition: number | null;
+  laps: number | null;
+  fastestLap: boolean;
+}
+
+interface StoredResultsFile {
+  year: number;
+  source: string;
+  fetchedAt: string;
+  races: { round: number; raceName: string; results: StoredResult[] }[];
+}
+
+function loadStoredResults(year: number): StoredResultsFile | null {
+  const path = join(__dirname, 'seed-data', `results-${year}.json`);
+  if (!existsSync(path)) return null;
+  return JSON.parse(readFileSync(path, 'utf8')) as StoredResultsFile;
+}
+
+// ───────────────────────────────────────────────────────────────────────────
 
 async function main() {
   // 0. Admin de desarrollo ---------------------------------------------------
@@ -637,6 +677,10 @@ async function main() {
   };
 
   // 2. Constructors + Drivers + DriverSeasons -------------------------------
+  // Se guardan los ids reales mientras se crean: la seccion 5 los necesita.
+  const driverIdByExternalId = new Map<string, number>();
+  const constructorIdByDriverId = new Map<number, number>();
+
   for (const team of teams2026) {
     const logoUrl = teamLogos[team.externalId] ?? null;
     const teamConstructor = await prisma.constructor.upsert({
@@ -663,6 +707,8 @@ async function main() {
         },
       });
       await connectDriverSeason(driver.id, teamConstructor.id);
+      driverIdByExternalId.set(d.externalId, driver.id);
+      constructorIdByDriverId.set(driver.id, teamConstructor.id);
     }
   }
 
@@ -680,6 +726,7 @@ async function main() {
   }
 
   // 4. Races ----------------------------------------------------------------
+  const raceIdByRound = new Map<number, number>();
   for (const r of races2026) {
     const circuitId = circuitIdByExternalId.get(r.circuitExternalId);
     if (!circuitId) {
@@ -689,7 +736,7 @@ async function main() {
     }
 
     const raceDate = new Date(r.date);
-    await prisma.race.upsert({
+    const race = await prisma.race.upsert({
       where: { seasonId_round: { seasonId: season.id, round: r.round } },
       update: {},
       create: {
@@ -701,11 +748,85 @@ async function main() {
         circuitId,
       },
     });
+    raceIdByRound.set(r.round, race.id);
   }
 
-  // 5. Resultados: el seed NO los inventa. Las fechas ya corridas se traen de Jolpica con
-  // POST /api/v1/admin/sync/races/:id/results (o el boton "Importar de Jolpica" en
-  // /admin/results). Jolpica es la fuente de verdad del calendario y de los resultados (BOX-9).
+  // 5. Resultados reales de Jolpica, congelados --------------------------------
+  // El seed NO inventa resultados: carga la foto que dejo
+  // `npx ts-node src/scripts/fetch-jolpica-results.ts 2026`. Si el archivo no esta, el seed
+  // sigue sin el — un clone recien hecho funciona igual, solo que el campeonato queda en cero.
+  const stored = loadStoredResults(2026);
+  if (!stored) {
+    console.log(
+      'Sin prisma/seed-data/results-2026.json: no se cargan resultados. ' +
+        'Generalo con `npx ts-node src/scripts/fetch-jolpica-results.ts 2026`.',
+    );
+  } else {
+    const sinPiloto = new Set<string>();
+
+    for (const race of stored.races) {
+      const raceId = raceIdByRound.get(race.round);
+      if (!raceId) continue;
+
+      const pointsByConstructor = new Map<number, number[]>();
+
+      for (const r of race.results) {
+        const driverId = driverIdByExternalId.get(r.driverExternalId);
+        if (!driverId) {
+          // Jolpica puede traer un suplente que nuestra grilla no tiene. Se saltea y se avisa
+          // al final: perder una fila en silencio seria peor que un campeonato incompleto.
+          sinPiloto.add(r.driverExternalId);
+          continue;
+        }
+
+        const datos = {
+          position: r.position,
+          points: r.points,
+          status: r.status as 'CLASSIFIED' | 'DNF' | 'DSQ' | 'DNS',
+          gridPosition: r.gridPosition,
+          laps: r.laps,
+          fastestLap: r.fastestLap,
+        };
+        await prisma.raceResult.upsert({
+          where: { raceId_driverId: { raceId, driverId } },
+          update: datos,
+          create: { raceId, driverId, ...datos },
+        });
+
+        const constructorId = constructorIdByDriverId.get(driverId);
+        if (constructorId === undefined) continue;
+        const bucket = pointsByConstructor.get(constructorId) ?? [];
+        bucket.push(r.points);
+        pointsByConstructor.set(constructorId, bucket);
+      }
+
+      // Mismo criterio que buildConstructorResults (Slice 8): driver1Points es el MAYOR de los
+      // dos, no un piloto fijo — ver BOX-65. Aca no se tira error si hay mas de dos pilotos
+      // (puede pasar con un suplente): se toman los dos mejores y el seed sigue.
+      for (const [constructorId, points] of pointsByConstructor) {
+        const [driver1Points = 0, driver2Points = 0] = [...points].sort((a, b) => b - a);
+        await prisma.constructorResult.upsert({
+          where: { raceId_constructorId: { raceId, constructorId } },
+          update: { driver1Points, driver2Points, totalPoints: driver1Points + driver2Points },
+          create: {
+            raceId,
+            constructorId,
+            driver1Points,
+            driver2Points,
+            totalPoints: driver1Points + driver2Points,
+          },
+        });
+      }
+
+      await prisma.race.update({ where: { id: raceId }, data: { status: 'COMPLETED' } });
+    }
+
+    if (sinPiloto.size > 0) {
+      console.log(
+        `Pilotos de Jolpica que no estan en la grilla del seed, salteados: ${[...sinPiloto].join(', ')}`,
+      );
+    }
+  }
 
   // 6. Summary --------------------------------------------------------------
   const counts = {

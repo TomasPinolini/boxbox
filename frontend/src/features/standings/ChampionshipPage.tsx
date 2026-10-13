@@ -71,7 +71,15 @@ function DriversTable({ rows }: { rows: DriverStanding[] }) {
               </Link>
             </td>
             <td className={`${TD} hidden sm:table-cell`}>
-              <TeamBadge constructor={driver.constructor} />
+              {/* El badge lleva a la escuderia. Esta en su propio <td>, fuera del Link que
+                  lleva al piloto: dos destinos distintos, nunca uno adentro del otro. */}
+              {driver.constructor ? (
+                <Link to={`/constructors/${driver.constructor.id}`} className="hover:underline">
+                  <TeamBadge constructor={driver.constructor} />
+                </Link>
+              ) : (
+                <TeamBadge constructor={driver.constructor} />
+              )}
             </td>
             <td className={`${TD} hidden font-display tabular-nums sm:table-cell`}>{wins}</td>
             <td className="py-2 text-right font-display tabular-nums font-semibold">{points}</td>
@@ -103,10 +111,15 @@ function ConstructorsTable({ rows }: { rows: ConstructorStanding[] }) {
                 ademas la unica tabla sin ninguna imagen, mientras la de pilotos tiene las
                 fotos — esa asimetria es lo que la hacia ver mas pobre. */}
             <td className={TD}>
-              <div className="flex items-center gap-2">
+              {/* Antes esta fila no llevaba a ningun lado y era el unico listado de la app sin
+                  detalle. Mismo gesto que la tabla de pilotos de arriba. */}
+              <Link
+                to={`/constructors/${constructor.id}`}
+                className="flex items-center gap-2 hover:underline"
+              >
                 <ConstructorLogo constructor={constructor} />
                 <TeamBadge constructor={constructor} />
-              </div>
+              </Link>
             </td>
             <td className="py-2 text-right font-display tabular-nums font-semibold">{points}</td>
           </tr>

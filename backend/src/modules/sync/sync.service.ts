@@ -136,7 +136,9 @@ export function syncRaces(year: number, triggeredById: number) {
 // Se mapea por positionText y NO por status. Relevado contra las 14 fechas corridas de 2026:
 // hay `status: "Retired"` con posicion numerica (abandono pero clasifico por distancia) y
 // `status: "Lapped"` con positionText "R". positionText es el campo que dice si clasifico.
-function mapStatus(positionText: string): RaceResultStatus {
+// Exportada para el script prisma/seed-data: tiene que traducir positionText igual que el
+// sync, o el seed y la sincronizacion en vivo diferirian sobre la misma carrera.
+export function mapStatus(positionText: string): RaceResultStatus {
   if (/^\d+$/.test(positionText)) return 'CLASSIFIED';
   if (positionText === 'D' || positionText === 'E') return 'DSQ'; // disqualified / excluded
   if (positionText === 'W' || positionText === 'F') return 'DNS'; // withdrew / failed to qualify

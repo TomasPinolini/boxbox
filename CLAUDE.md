@@ -20,7 +20,7 @@ docs/         Design docs (proposal, ER diagram, API spec, architecture) + local
 
 Built (one slice = one PR; full log in `backend/docs/roadmap.md` and `frontend/docs/roadmap.md` → "Completados"):
 
-- Backend scaffold (Express 5, TypeScript, Prisma 7, Postgres) + Zod validation + centralized errors + Vitest integration tests against a real Postgres DB (one `*.test.ts` per module; ~270 tests — `npm test -- --run` prints the count).
+- Backend scaffold (Express 5, TypeScript, Prisma 7, Postgres) + Zod validation + centralized errors + Vitest integration tests against a real Postgres DB (one `*.test.ts` per module; ~280 tests — `npm test` prints the count).
 - CRUD modules: `drivers`, `constructors`, `circuits`, `seasons`, `races`.
 - **Auth (Slice 1)**: `auth/` module, `requireAuth`, JWT access (15m) + refresh (7d, httpOnly cookie). `POST /auth/register|login|refresh|logout`, `GET /auth/me`.
 - **Leagues (Slice 2)**: `POST/GET /leagues`, `GET/PATCH /leagues/:id`. Archive via `PATCH status='ARCHIVED'` — no DELETE. `inviteCode` user-supplied (4-20 chars, lowercase, reserved blacklist). `maxMembers` defaults to and is capped at `maxMembersForSeason(season.driverCount) = floor(driverCount / 2)` — 11 for 2026 (ADR-0006); over the cap → 409 `MAX_MEMBERS_EXCEEDS_SEASON`.
@@ -60,8 +60,8 @@ npm run build                 # tsc → dist/
 npm start                     # node dist/server.js
 npm run lint                  # eslint src/
 
-npm test                      # vitest (watch mode)
-npm test -- --run             # single run, non-watch
+npm test                      # vitest run (single run) — termina solo
+npm run test:watch            # vitest en modo watch, mientras programás
 npm test -- src/modules/drivers/drivers.test.ts   # one file
 npm test -- -t "returns 404"                      # match test name
 
@@ -148,7 +148,7 @@ Auth chains, outermost first:
 - `externalId` columns are the join key with Jolpica/OpenF1 data. Services reject duplicates with `ConflictError`.
 - Before soft-deleting, services check for active dependencies (e.g. a driver referenced by a `FantasyTeam`) and raise `ConflictError` with a domain-specific code like `DRIVER_HAS_DEPENDENCIES`.
 - Prisma 7 config lives in `backend/prisma.config.ts` (not the legacy `prisma` block in `package.json`). That file points at the schema, the migrations dir, and the seed command.
-- Dev seed: `backend/prisma/seed.ts` populates one Season + grid + a few Circuits/Races. Run `npx prisma db seed` (idempotent — uses `upsert` everywhere). Tests do NOT use the seed; they truncate per-test and build their own fixtures. `prisma migrate reset` in Prisma 7 does NOT auto-run the seed — run `db seed` explicitly after a reset.
+- Dev seed: `backend/prisma/seed.ts` populates one Season + grid + Circuits/Races, **plus the real race results of the season**, read from `prisma/seed-data/results-<year>.json`. Run `npx prisma db seed` (idempotent — uses `upsert` everywhere). That JSON is a dated snapshot of Jolpica, regenerated on demand with `npx ts-node src/scripts/fetch-jolpica-results.ts 2026` and committed. The seed never calls the network: it runs in the `posttest` of every `npm test`, so it has to be reproducible and work offline — same reasoning as `modules/sync/sync.fixtures.ts`. Results loaded by hand outside the seed do not survive, because the suite truncates every table and the `posttest` repopulates from the seed. Tests do NOT use the seed; they truncate per-test and build their own fixtures. `prisma migrate reset` in Prisma 7 does NOT auto-run the seed — run `db seed` explicitly after a reset.
 
 ### Config
 
@@ -182,7 +182,7 @@ Backend (`backend/`):
 - `src/tests/setup.ts` `TRUNCATE ... CASCADE`s every table before each test, in FK-safe order. When you add a new table, add it to that list or tests will leak state.
 - `vitest.config.ts` sets `fileParallelism: false` because all files share one DB — keep it off.
 - Integration style: spin up the Express `app`, hit it with `request(app).post(...)`, assert on status + `body.data` / `body.error.code`.
-- Run a single test file while iterating: `npm test -- src/modules/<name>/<name>.test.ts --run`.
+- Run a single test file while iterating: `npm test -- src/modules/<name>/<name>.test.ts`.
 
 Frontend (`frontend/`):
 

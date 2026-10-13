@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Alert, Badge, Button, Card, ConfirmButton, PageShell } from '../../components/ui';
+import { RenameLeague } from './RenameLeague';
 import type { ConstructorRef, Driver } from '../../models/driver';
 import type { DraftStatus } from '../../models/league';
 import { useAuthStore } from '../../store/auth.store';
@@ -12,6 +13,7 @@ import { LeagueTeamsTable, type TeamRowData } from './LeagueTeamsTable';
 import { MembersTable } from './MembersTable';
 import {
   useArchiveLeague,
+  useRenameLeague,
   useKick,
   useLeague,
   useLeagueTeams,
@@ -30,12 +32,17 @@ import {
 export function LeagueDetailPage() {
   const id = Number(useParams().id);
   const navigate = useNavigate();
+  // El equipo que se esta mirando vive en la URL, como el filtro de /drivers: se puede
+  // compartir el link y el boton Atras del navegador funciona.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const equipoElegido = Number(searchParams.get('equipo')) || null;
   const me = useAuthStore((s) => s.user);
   const league = useLeague(id);
   const members = useMembers(id);
   const standings = useStandings(id);
   const startDraft = useStartDraft(id);
   const archive = useArchiveLeague(id);
+  const rename = useRenameLeague(id);
   const leave = useLeave(id);
   const kick = useKick(id);
   const [copied, setCopied] = useState(false);
@@ -90,9 +97,18 @@ export function LeagueDetailPage() {
   const isOwner = myMember?.isOwner ?? false;
   const rosterOpen = l.draftStatus === 'PENDING';
   const draft = DRAFT_LABEL[l.draftStatus];
-  const busy = startDraft.isPending || leave.isPending || kick.isPending || archive.isPending;
+  const busy = startDraft.isPending || leave.isPending || kick.isPending || archive.isPending || rename.isPending;
   const actionError =
-    startDraft.error ?? archive.error ?? leave.error ?? kick.error ?? members.error;
+    startDraft.error ??
+    archive.error ??
+    rename.error ??
+    leave.error ??
+    kick.error ??
+    members.error ??
+    // Los equipos y las posiciones tambien: si /draft/state falla con el draft terminado, la
+    // pantalla lideraba con nada y no decia nada. Un error mudo es peor que uno feo.
+    teams.error ??
+    standings.error;
   const cantidad = members.data?.length ?? 0;
 
   async function copyCode() {
@@ -107,7 +123,7 @@ export function LeagueDetailPage() {
 
   // El owner no sale de su liga: la cierra (409 OWNER_CANNOT_LEAVE en el backend). Son dos
   // acciones distintas para dos roles distintos, no la misma con otro nombre. ADR-0009.
-  const cerrar = isOwner ? (
+  const cerrarOSalir = isOwner ? (
     <ConfirmButton
       variant="danger"
       label="Archivar liga"
@@ -129,6 +145,21 @@ export function LeagueDetailPage() {
       disabled={busy}
       onConfirm={() => leave.mutate(undefined, { onSuccess: () => navigate('/leagues') })}
     />
+  );
+
+  // Las acciones que viven al pie de la liga, en las tres formas de la pantalla. Renombrar es
+  // solo del dueño y es reversible; cerrar o salir no, y por eso va ultimo y en rojo.
+  const acciones = (
+    <div className="flex flex-wrap items-end gap-2">
+      {isOwner && (
+        <RenameLeague
+          currentName={l.name}
+          disabled={busy}
+          onRename={(name) => rename.mutate(name)}
+        />
+      )}
+      {cerrarOSalir}
+    </div>
   );
 
   const error = actionError && (
@@ -159,11 +190,11 @@ export function LeagueDetailPage() {
           error={error}
           onKick={(userId) => kick.mutate(userId)}
           onStart={() => startDraft.mutate()}
-          cerrar={cerrar}
+          acciones={acciones}
         />
       )}
 
-      {l.draftStatus === 'LIVE' && <EnVivo leagueId={id} draftLabel={draft.text} cerrar={cerrar} />}
+      {l.draftStatus === 'LIVE' && <EnVivo leagueId={id} draftLabel={draft.text} acciones={acciones} />}
 
       {l.draftStatus === 'COMPLETED' && (
         <DespuesDelDraft
@@ -176,15 +207,31 @@ export function LeagueDetailPage() {
             constructors: constructors.data ?? [],
             myLeagueMemberId: myMember?.id ?? null,
           })}
-          miEquipo={miEquipoDe(
+          miEquipo={equipoDe(
             teams.data?.picks ?? [],
             myMember?.id ?? null,
             drivers.data ?? [],
             constructors.data ?? [],
           )}
+          rival={
+            equipoElegido && equipoElegido !== myMember?.id
+              ? {
+                  nombre:
+                    members.data?.find((m) => m.id === equipoElegido)?.user.name ?? 'ese jugador',
+                  equipo: equipoDe(
+                    teams.data?.picks ?? [],
+                    equipoElegido,
+                    drivers.data ?? [],
+                    constructors.data ?? [],
+                  ),
+                }
+              : null
+          }
+          onSelect={(leagueMemberId) => setSearchParams({ equipo: String(leagueMemberId) })}
+          onVolver={() => setSearchParams({})}
           cargando={teams.isLoading}
           error={error}
-          cerrar={cerrar}
+          acciones={acciones}
         />
       )}
     </PageShell>
@@ -205,7 +252,7 @@ function AntesDelDraft({
   error,
   onKick,
   onStart,
-  cerrar,
+  acciones,
 }: {
   code: string;
   copied: boolean;
@@ -218,7 +265,7 @@ function AntesDelDraft({
   error: React.ReactNode;
   onKick: (userId: number) => void;
   onStart: () => void;
-  cerrar: React.ReactNode;
+  acciones: React.ReactNode;
 }) {
   return (
     <div className="flex flex-col gap-4">
@@ -267,7 +314,7 @@ function AntesDelDraft({
         )}
       </Card>
 
-      <div>{cerrar}</div>
+      <div>{acciones}</div>
     </div>
   );
 }
@@ -275,11 +322,11 @@ function AntesDelDraft({
 function EnVivo({
   leagueId,
   draftLabel,
-  cerrar,
+  acciones,
 }: {
   leagueId: number;
   draftLabel: string;
-  cerrar: React.ReactNode;
+  acciones: React.ReactNode;
 }) {
   // A esta pantalla, con el draft corriendo, solo se llega a proposito: el redirect lleva a
   // todo el mundo al draft al arrancar. Quien esta aca con un reloj de 60 segundos corriendo
@@ -300,7 +347,7 @@ function EnVivo({
           </Link>
         </div>
       </Card>
-      <div>{cerrar}</div>
+      <div>{acciones}</div>
     </div>
   );
 }
@@ -308,24 +355,47 @@ function EnVivo({
 function DespuesDelDraft({
   rows,
   miEquipo,
+  rival,
+  onSelect,
+  onVolver,
   cargando,
   error,
-  cerrar,
+  acciones,
 }: {
   leagueId: number;
   rows: TeamRowData[];
   miEquipo: { drivers: Driver[]; constructor: ConstructorRef | null } | null;
+  rival: {
+    nombre: string;
+    equipo: { drivers: Driver[]; constructor: ConstructorRef | null } | null;
+  } | null;
+  onSelect: (leagueMemberId: number) => void;
+  onVolver: () => void;
   cargando: boolean;
   error: React.ReactNode;
-  cerrar: React.ReactNode;
+  acciones: React.ReactNode;
 }) {
   return (
     <div className="flex flex-col gap-4">
-      {miEquipo && (
+      {/* Una sola tarjeta arriba: el equipo propio, o el del rival que se eligio. Dos a la vez
+          empujarian la tabla fuera de la pantalla en un telefono, y el propio esta a un click. */}
+      {rival?.equipo ? (
         <Card>
-          <h2 className="mb-3 text-lg font-semibold">Tu equipo</h2>
-          <TeamLineup drivers={miEquipo.drivers} constructor={miEquipo.constructor} />
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-lg font-semibold">Equipo de {rival.nombre}</h2>
+            <Button variant="secondary" onClick={onVolver}>
+              Volver a tu equipo
+            </Button>
+          </div>
+          <TeamLineup drivers={rival.equipo.drivers} constructor={rival.equipo.constructor} />
         </Card>
+      ) : (
+        miEquipo && (
+          <Card>
+            <h2 className="mb-3 text-lg font-semibold">Tu equipo</h2>
+            <TeamLineup drivers={miEquipo.drivers} constructor={miEquipo.constructor} />
+          </Card>
+        )
       )}
 
       <Card>
@@ -334,11 +404,11 @@ function DespuesDelDraft({
         {cargando ? (
           <p className="text-sm text-slate-500">Cargando equipos…</p>
         ) : (
-          <LeagueTeamsTable rows={rows} />
+          <LeagueTeamsTable rows={rows} onSelect={onSelect} />
         )}
       </Card>
 
-      <div>{cerrar}</div>
+      <div>{acciones}</div>
     </div>
   );
 }
@@ -358,13 +428,14 @@ function resolver(team: DraftTeam, drivers: Driver[], constructors: { id: number
   };
 }
 
-function miEquipoDe(
+// Sirve para cualquier miembro, no solo para uno mismo: buildDraftTeams ya recibe el id.
+function equipoDe(
   picks: Parameters<typeof buildDraftTeams>[0],
-  myLeagueMemberId: number | null,
+  leagueMemberId: number | null,
   drivers: Driver[],
   constructors: { id: number }[],
 ) {
-  const { mine } = buildDraftTeams(picks, myLeagueMemberId);
+  const { mine } = buildDraftTeams(picks, leagueMemberId);
   return mine ? resolver(mine, drivers, constructors) : null;
 }
 
