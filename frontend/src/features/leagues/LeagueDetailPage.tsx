@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Alert, Badge, Button, Card, ConfirmButton, PageShell } from '../../components/ui';
 import { RenameLeague } from './RenameLeague';
 import type { ConstructorRef, Driver } from '../../models/driver';
@@ -32,6 +32,10 @@ import {
 export function LeagueDetailPage() {
   const id = Number(useParams().id);
   const navigate = useNavigate();
+  // El equipo que se esta mirando vive en la URL, como el filtro de /drivers: se puede
+  // compartir el link y el boton Atras del navegador funciona.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const equipoElegido = Number(searchParams.get('equipo')) || null;
   const me = useAuthStore((s) => s.user);
   const league = useLeague(id);
   const members = useMembers(id);
@@ -203,12 +207,28 @@ export function LeagueDetailPage() {
             constructors: constructors.data ?? [],
             myLeagueMemberId: myMember?.id ?? null,
           })}
-          miEquipo={miEquipoDe(
+          miEquipo={equipoDe(
             teams.data?.picks ?? [],
             myMember?.id ?? null,
             drivers.data ?? [],
             constructors.data ?? [],
           )}
+          rival={
+            equipoElegido && equipoElegido !== myMember?.id
+              ? {
+                  nombre:
+                    members.data?.find((m) => m.id === equipoElegido)?.user.name ?? 'ese jugador',
+                  equipo: equipoDe(
+                    teams.data?.picks ?? [],
+                    equipoElegido,
+                    drivers.data ?? [],
+                    constructors.data ?? [],
+                  ),
+                }
+              : null
+          }
+          onSelect={(leagueMemberId) => setSearchParams({ equipo: String(leagueMemberId) })}
+          onVolver={() => setSearchParams({})}
           cargando={teams.isLoading}
           error={error}
           acciones={acciones}
@@ -335,6 +355,9 @@ function EnVivo({
 function DespuesDelDraft({
   rows,
   miEquipo,
+  rival,
+  onSelect,
+  onVolver,
   cargando,
   error,
   acciones,
@@ -342,17 +365,37 @@ function DespuesDelDraft({
   leagueId: number;
   rows: TeamRowData[];
   miEquipo: { drivers: Driver[]; constructor: ConstructorRef | null } | null;
+  rival: {
+    nombre: string;
+    equipo: { drivers: Driver[]; constructor: ConstructorRef | null } | null;
+  } | null;
+  onSelect: (leagueMemberId: number) => void;
+  onVolver: () => void;
   cargando: boolean;
   error: React.ReactNode;
   acciones: React.ReactNode;
 }) {
   return (
     <div className="flex flex-col gap-4">
-      {miEquipo && (
+      {/* Una sola tarjeta arriba: el equipo propio, o el del rival que se eligio. Dos a la vez
+          empujarian la tabla fuera de la pantalla en un telefono, y el propio esta a un click. */}
+      {rival?.equipo ? (
         <Card>
-          <h2 className="mb-3 text-lg font-semibold">Tu equipo</h2>
-          <TeamLineup drivers={miEquipo.drivers} constructor={miEquipo.constructor} />
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-lg font-semibold">Equipo de {rival.nombre}</h2>
+            <Button variant="secondary" onClick={onVolver}>
+              Volver a tu equipo
+            </Button>
+          </div>
+          <TeamLineup drivers={rival.equipo.drivers} constructor={rival.equipo.constructor} />
         </Card>
+      ) : (
+        miEquipo && (
+          <Card>
+            <h2 className="mb-3 text-lg font-semibold">Tu equipo</h2>
+            <TeamLineup drivers={miEquipo.drivers} constructor={miEquipo.constructor} />
+          </Card>
+        )
       )}
 
       <Card>
@@ -361,7 +404,7 @@ function DespuesDelDraft({
         {cargando ? (
           <p className="text-sm text-slate-500">Cargando equipos…</p>
         ) : (
-          <LeagueTeamsTable rows={rows} />
+          <LeagueTeamsTable rows={rows} onSelect={onSelect} />
         )}
       </Card>
 
@@ -385,13 +428,14 @@ function resolver(team: DraftTeam, drivers: Driver[], constructors: { id: number
   };
 }
 
-function miEquipoDe(
+// Sirve para cualquier miembro, no solo para uno mismo: buildDraftTeams ya recibe el id.
+function equipoDe(
   picks: Parameters<typeof buildDraftTeams>[0],
-  myLeagueMemberId: number | null,
+  leagueMemberId: number | null,
   drivers: Driver[],
   constructors: { id: number }[],
 ) {
-  const { mine } = buildDraftTeams(picks, myLeagueMemberId);
+  const { mine } = buildDraftTeams(picks, leagueMemberId);
   return mine ? resolver(mine, drivers, constructors) : null;
 }
 

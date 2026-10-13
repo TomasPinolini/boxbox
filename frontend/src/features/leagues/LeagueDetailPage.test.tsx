@@ -1,4 +1,5 @@
 import { screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ConstructorRef, Driver } from '../../models/driver';
 import type { League } from '../../models/league';
@@ -33,6 +34,8 @@ const norris: Driver = {
   constructor: mclaren,
 };
 const russell: Driver = { ...norris, id: 2, firstName: 'George', lastName: 'Russell', code: 'RUS' };
+const leclerc: Driver = { ...norris, id: 3, firstName: 'Charles', lastName: 'Leclerc', code: 'LEC' };
+const piastri: Driver = { ...norris, id: 4, firstName: 'Oscar', lastName: 'Piastri', code: 'PIA' };
 
 const yo: User = {
   id: 100,
@@ -66,17 +69,29 @@ const miMembresia = {
   user: { id: 100, name: 'Tomás' },
 };
 
+const membresiaRival = {
+  ...miMembresia,
+  id: 501,
+  userId: 200,
+  isOwner: false,
+  user: { id: 200, name: 'Rivero' },
+};
+
 // Tres picks: los dos pilotos y la escudería que el draft dejó armados.
 const misPicks = [
   { id: 1, leagueMemberId: 500, pickNumber: 1, round: 1, driverId: 1, constructorId: null, pickedAt: '2026-03-01T00:00:00.000Z' },
   { id: 2, leagueMemberId: 500, pickNumber: 2, round: 2, driverId: 2, constructorId: null, pickedAt: '2026-03-01T00:01:00.000Z' },
   { id: 3, leagueMemberId: 500, pickNumber: 3, round: 3, driverId: null, constructorId: 11, pickedAt: '2026-03-01T00:02:00.000Z' },
+  // Y los del rival: cada piloto se reparte una sola vez, por eso son otros.
+  { id: 4, leagueMemberId: 501, pickNumber: 4, round: 1, driverId: 3, constructorId: null, pickedAt: '2026-03-01T00:03:00.000Z' },
+  { id: 5, leagueMemberId: 501, pickNumber: 5, round: 2, driverId: 4, constructorId: null, pickedAt: '2026-03-01T00:04:00.000Z' },
+  { id: 6, leagueMemberId: 501, pickNumber: 6, round: 3, driverId: null, constructorId: 10, pickedAt: '2026-03-01T00:05:00.000Z' },
 ];
 
 beforeEach(() => {
   useAuthStore.setState({ user: yo, accessToken: 'token' });
   vi.mocked(leaguesService.get).mockResolvedValue(ligaCompletada);
-  vi.mocked(leaguesService.members).mockResolvedValue([miMembresia]);
+  vi.mocked(leaguesService.members).mockResolvedValue([miMembresia, membresiaRival]);
   vi.mocked(leaguesService.draftState).mockResolvedValue({
     draftStatus: 'COMPLETED',
     round: null,
@@ -85,7 +100,7 @@ beforeEach(() => {
     picks: misPicks,
   });
   vi.mocked(leaguesService.standings).mockResolvedValue({ raceId: null, standings: [] });
-  vi.mocked(driversService.list).mockResolvedValue([norris, russell]);
+  vi.mocked(driversService.list).mockResolvedValue([norris, russell, leclerc, piastri]);
   vi.mocked(driversService.constructors).mockResolvedValue([mclaren, mercedes]);
 });
 
@@ -117,5 +132,28 @@ describe('LeagueDetailPage, con el draft terminado', () => {
     // Sin esto la pantalla queda sin equipo y sin explicación: el usuario ve una liga vacía
     // y no tiene forma de saber que algo falló.
     expect(await screen.findByRole('alert')).toHaveTextContent(/Algo salió mal/i);
+  });
+
+  it('abre el equipo de un rival al elegirlo en la tabla', async () => {
+    const user = userEvent.setup();
+    renderWithQuery(<LeagueDetailPage />, { route: '/leagues/1' });
+    await screen.findByRole('heading', { name: /Tu equipo/i });
+
+    await user.click(screen.getByRole('button', { name: 'Rivero' }));
+
+    // El equipo del rival: sus pilotos y su escudería, que son otros que los míos.
+    expect(await screen.findByRole('heading', { name: /Equipo de Rivero/i })).toBeInTheDocument();
+    expect(screen.getByText(/Leclerc/)).toBeInTheDocument();
+    expect(screen.getByText(/Piastri/)).toBeInTheDocument();
+
+    // Y se puede volver al propio.
+    await user.click(screen.getByRole('button', { name: /Volver a tu equipo/i }));
+    expect(await screen.findByRole('heading', { name: /Tu equipo/i })).toBeInTheDocument();
+  });
+
+  it('el equipo elegido vive en la URL, así se puede compartir', async () => {
+    renderWithQuery(<LeagueDetailPage />, { route: '/leagues/1?equipo=501' });
+
+    expect(await screen.findByRole('heading', { name: /Equipo de Rivero/i })).toBeInTheDocument();
   });
 });
