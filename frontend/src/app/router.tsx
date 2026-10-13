@@ -4,6 +4,7 @@ import { GuestOnly } from '../features/auth/GuestOnly';
 import { LoginPage } from '../features/auth/LoginPage';
 import { RegisterPage } from '../features/auth/RegisterPage';
 import { RaceResultsPage } from '../features/admin/RaceResultsPage';
+import { SeasonsPage } from '../features/admin/SeasonsPage';
 import { RequireAdmin } from '../features/auth/RequireAdmin';
 import { RequireAuth } from '../features/auth/RequireAuth';
 import { DraftPage } from '../features/draft/DraftPage';
@@ -36,7 +37,10 @@ export const router = createBrowserRouter([
           // Segundo nivel, anidado: primero "hay sesion" (RequireAuth), despues "es ADMIN".
           {
             element: <RequireAdmin />,
-            children: [{ path: '/admin/results', element: <RaceResultsPage /> }],
+            children: [
+              { path: '/admin/results', element: <RaceResultsPage /> },
+              { path: '/admin/seasons', element: <SeasonsPage /> },
+            ],
           },
         ],
       },

@@ -20,6 +20,9 @@ const MESSAGES: Record<string, string> = {
   DRAFT_ALREADY_STARTED: 'El draft ya había arrancado',
   TOO_MANY_MEMBERS_FOR_DRAFT: 'Hay más miembros que pilotos disponibles para el draft',
   DRIVER_NOT_FOUND: 'Ese piloto no existe',
+  SEASON_ALREADY_EXISTS: 'Ya existe una temporada para ese año',
+  SEASON_HAS_DEPENDENCIES: 'No se puede dar de baja: la temporada tiene ligas asociadas',
+  SEASON_NOT_FOUND: 'Esa temporada no existe',
   NETWORK_ERROR: 'No se pudo conectar con el servidor',
   INTERNAL_ERROR: 'Algo salió mal, probá de nuevo',
 };
