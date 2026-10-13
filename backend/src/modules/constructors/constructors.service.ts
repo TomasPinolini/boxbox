@@ -133,6 +133,23 @@ export async function findDetail(id: number) {
   });
   const raceById = new Map(races.map((race) => [race.id, race]));
 
+  // Los puntos POR PILOTO. ConstructorResult no sabe de quien es cada numero: driver1Points es
+  // solo "el mayor de los dos" y se reordena carrera a carrera (BOX-65). RaceResult es la unica
+  // tabla que ata un puntaje a una persona, asi que el desglose sale de aca.
+  //
+  // `select` plano sin cast: RaceResult no tiene relacion `constructor`, asi que no sufre la
+  // colision con Object.prototype que si afecta a DriverSeason y ConstructorResult.
+  const perDriver = await prisma.raceResult.findMany({
+    where: { driverId: { in: drivers.map((d) => d.id) }, raceId: { in: results.map((r) => r.raceId) } },
+    select: { raceId: true, driverId: true, points: true },
+  });
+  const pointsByRace = new Map<number, Record<number, number>>();
+  for (const row of perDriver) {
+    const bucket = pointsByRace.get(row.raceId) ?? {};
+    bucket[row.driverId] = row.points;
+    pointsByRace.set(row.raceId, bucket);
+  }
+
   return {
     ...constructor,
     seasonId: resolvedSeasonId,
@@ -152,9 +169,12 @@ export async function findDetail(id: number) {
           raceName: race?.name ?? '',
           round: race?.round ?? 0,
           raceDate: race?.date ?? null,
+          // Se conservan por compatibilidad, pero NO son pilotos: ver BOX-65. Lo que la
+          // pantalla muestra es pointsByDriverId.
           driver1Points: r.driver1Points,
           driver2Points: r.driver2Points,
           totalPoints: r.totalPoints,
+          pointsByDriverId: pointsByRace.get(r.raceId) ?? {},
         };
       })
       .sort((a, b) => a.round - b.round),

@@ -100,6 +100,13 @@ describe('GET /api/v1/constructors/:id — detalle', () => {
         totalPoints: 26,
       },
     });
+    // Los puntos POR PILOTO viven aca: es la unica tabla que los ata a una persona.
+    await prisma.raceResult.create({
+      data: { raceId: race.id, driverId: albon.id, position: 2, points: 18 },
+    });
+    await prisma.raceResult.create({
+      data: { raceId: race.id, driverId: sainz.id, position: 4, points: 8 },
+    });
 
     const res = await request(app).get(`/api/v1/constructors/${constructor.id}`);
     expect(res.status).toBe(200);
@@ -110,6 +117,13 @@ describe('GET /api/v1/constructors/:id — detalle', () => {
     expect(data.drivers.map((d: { code: string }) => d.code).sort()).toEqual(['ALB', 'SAI']);
     expect(data.results).toHaveLength(1);
     expect(data.results[0]).toMatchObject({ raceName: 'GP de Italia', round: 1, totalPoints: 26 });
+
+    // El desglose dice QUE piloto hizo cada punto. ConstructorResult no lo sabe
+    // (driver1Points es solo "el mayor de los dos", BOX-65), asi que sale de RaceResult.
+    expect(data.results[0].pointsByDriverId).toEqual({
+      [albon.id]: 18,
+      [sainz.id]: 8,
+    });
     expect(data.stats).toEqual({ races: 1, points: 26 });
   });
 

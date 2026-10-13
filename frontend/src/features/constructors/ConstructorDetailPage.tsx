@@ -115,8 +115,14 @@ export function ConstructorDetailPage() {
                       <tr className="border-b border-slate-200 text-slate-500">
                         <th className={TH}>#</th>
                         <th className={TH}>Carrera</th>
-                        <th className="py-2 text-right font-medium">Piloto 1</th>
-                        <th className="py-2 text-right font-medium">Piloto 2</th>
+                        {/* Una columna por piloto, con su apellido. Antes decia "Piloto 1" y
+                            "Piloto 2" porque era lo unico que ConstructorResult sabia: ahi los
+                            numeros son "el mayor" y "el segundo", no dos personas (BOX-65). */}
+                        {c.drivers.map((driver) => (
+                          <th key={driver.id} className="py-2 text-right font-medium">
+                            {driver.lastName}
+                          </th>
+                        ))}
                         <th className="py-2 text-right font-medium">Total</th>
                       </tr>
                     </thead>
@@ -125,12 +131,17 @@ export function ConstructorDetailPage() {
                         <tr key={r.raceId} className="border-b border-slate-100 last:border-0">
                           <td className={`${TD} font-display tabular-nums`}>{r.round}</td>
                           <td className={TD}>{r.raceName}</td>
-                          <td className="py-2 text-right font-display tabular-nums">
-                            {r.driver1Points}
-                          </td>
-                          <td className="py-2 text-right font-display tabular-nums">
-                            {r.driver2Points}
-                          </td>
+                          {c.drivers.map((driver) => (
+                            <td
+                              key={driver.id}
+                              className="py-2 text-right font-display tabular-nums"
+                            >
+                              {/* Sin el desglose el backend es viejo: "—" dice que no se
+                                  sabe. Con desglose, un piloto sin puntos en esa carrera es
+                                  un 0 de verdad. */}
+                              {r.pointsByDriverId ? (r.pointsByDriverId[driver.id] ?? 0) : '—'}
+                            </td>
+                          ))}
                           <td className="py-2 text-right font-display tabular-nums font-semibold">
                             {r.totalPoints}
                           </td>
