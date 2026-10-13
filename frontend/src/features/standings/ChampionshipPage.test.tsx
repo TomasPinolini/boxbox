@@ -72,4 +72,25 @@ describe('ChampionshipPage', () => {
     expect(await screen.findByRole('alert')).toBeInTheDocument();
     expect(await screen.findByText('Ferrari')).toBeInTheDocument();
   });
+
+  it('el badge de escudería lleva a la escudería, y el nombre del piloto al piloto', async () => {
+    vi.mocked(driversService.standings).mockResolvedValue([
+      { position: 1, points: 40, wins: 1, driver: norris },
+    ]);
+    vi.mocked(driversService.constructorStandings).mockResolvedValue([
+      { position: 1, points: 67, constructor: mclaren },
+    ]);
+
+    renderWithQuery(<ChampionshipPage />, { route: '/standings' });
+
+    // Dos destinos distintos en la misma fila: el badge NO está adentro del link del piloto.
+    const alPiloto = await screen.findByRole('link', { name: /Norris/ });
+    expect(alPiloto).toHaveAttribute('href', '/drivers/4');
+
+    const fila = alPiloto.closest('tr') as HTMLElement;
+    const aLaEscuderia = within(fila)
+      .getAllByRole('link')
+      .find((a) => a.getAttribute('href')?.startsWith('/constructors/'));
+    expect(aLaEscuderia).toBeDefined();
+  });
 });

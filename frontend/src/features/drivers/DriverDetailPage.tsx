@@ -50,7 +50,14 @@ export function DriverDetailPage() {
               <div className="flex items-center gap-3">
                 <span className="font-display tabular-nums text-lg">#{d.number}</span>
                 <span>{d.code}</span>
-                <TeamBadge constructor={d.constructor} />
+                {/* Desde el piloto se llega a su escuderia. No hay otro click alrededor. */}
+                {d.constructor ? (
+                  <Link to={`/constructors/${d.constructor.id}`} className="hover:underline">
+                    <TeamBadge constructor={d.constructor} />
+                  </Link>
+                ) : (
+                  <TeamBadge constructor={d.constructor} />
+                )}
               </div>
               {/* El logo solo aparece si lo tenemos: faltan Ferrari, Audi y Racing Bulls. */}
               {d.constructor?.logoUrl && (
