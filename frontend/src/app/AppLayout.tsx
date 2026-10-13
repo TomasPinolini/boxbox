@@ -74,6 +74,9 @@ export function AppLayout() {
               <NavLink to="/admin/seasons" className={linkClass}>
                 Temporadas
               </NavLink>
+              <NavLink to="/admin/circuits" className={linkClass}>
+                Circuitos
+              </NavLink>
             </>
           )}
 
