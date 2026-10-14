@@ -28,7 +28,10 @@ export function Button({
   return (
     <button
       type={type}
-      className={`inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${variantClasses[variant]} ${className}`}
+      // min-h-11 (44px): minimo tactil en telefono (auditoria UX). px-4 py-2 por si solo da
+      // 36px de alto — min-h fuerza el piso sin tocar el padding, que sigue centrando el
+      // texto igual que antes.
+      className={`inline-flex min-h-11 items-center justify-center rounded-md px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${variantClasses[variant]} ${className}`}
       {...rest}
     />
   );
