@@ -245,6 +245,7 @@ export function DraftPage() {
                       <TeamLineup
                         drivers={driversOf(teams.mine)}
                         constructor={constructorOf(teams.mine)}
+                        onOpenDriver={(driverId) => navigate(`/drivers/${driverId}`)}
                       />
                     </Card>
                   )}

@@ -1,48 +1,65 @@
-import { Card } from '../../components/ui';
+import { useState } from 'react';
 import type { Driver } from '../../models/driver';
-import { DriverAvatar } from './DriverAvatar';
-import { TeamBadge } from './TeamBadge';
+import { textOn } from './team-color';
 
 // DriverCard: un piloto en la lista. Entrada: el piloto. Salida: onOpen(id). No llama a ningun
-// servicio — eso es de la pagina. Mismo contrato que LeagueCard.
+// servicio — eso es de la pagina. Mismo contrato que LeagueCard. Se reusa tal cual en
+// TeamLineup (Tu equipo / equipo de un rival): un piloto se ve igual elegido que en el
+// catalogo.
 //
-// Vertical y centrada (foto arriba, texto abajo), no la fila horizontal original — auditoria
-// de UX 2026-10-09: con la grilla fija en 2 columnas (ver DriversPage), una fila horizontal
-// quedaba apretada contra la mitad del ancho disponible. El formato "tarjeta" (mas alto que
-// ancho) es el que de verdad aprovecha una columna angosta, en celu o en desktop por igual.
+// Foto a pantalla completa, no avatar + texto abajo (version anterior, auditoria de UX
+// 2026-10-09) — pedido del usuario 2026-10-14: la card entera es la foto, con el numero
+// arriba a la derecha y nombre + escuderia sobre un degrade abajo, como una trading card real.
+// Sin foto (1 de 22 pilotos no la tiene, o el CDN externo falla) cae al color de la escuderia
+// de fondo con las iniciales — nunca una card vacia.
+//
+// No usa el componente <Card> compartido: Card trae padding fijo (p-4/md:p-6) que una foto a
+// sangrado tendria que pisar con otra clase, y Tailwind no garantiza cual de las dos gana por
+// especificidad. Mas simple armar el contenedor acá.
 //
 // La tarjeta entera es el boton, con el patron "stretched link": un <button> vacio en
-// `absolute inset-0` sobre un contenedor `relative`. Dos cosas al precio de una:
-//
-// 1. Area tactil. El unico lugar clickeable es toda la tarjeta, no un link de texto chico.
-// 2. Foco. El outline global de :focus-visible se dibuja en el borde del inset-0, o sea en el
-//    borde de la tarjeta: navegando con Tab se ve que la tarjeta esta seleccionada.
-//
-// Por que un <button> hijo y no envolver todo en uno: el content model de <button> es
-// contenido de frase, y <Card> renderiza un <section>. Anidarlo seria HTML invalido.
+// `absolute inset-0` sobre un contenedor `relative`. El outline global de :focus-visible se
+// dibuja en el borde del inset-0, o sea en el borde de la tarjeta.
 export function DriverCard({ driver, onOpen }: { driver: Driver; onOpen: (id: number) => void }) {
+  const [failed, setFailed] = useState(false);
+  const hasPhoto = Boolean(driver.headshotUrl) && !failed;
+  const color = driver.constructor?.color ?? '#64748b';
+
   return (
-    <Card
-      // Franja del equipo arriba, no a la izquierda: en una tarjeta vertical lee como el
-      // encabezado de color de una trading card. Sin escuderia cae a un gris neutro y no a
-      // "sin franja" — si desapareciera, esa tarjeta mediria 4px menos de alto que las demas.
-      className="relative border-t-4 text-center transition-shadow hover:shadow-md"
-      style={{ borderTopColor: driver.constructor?.color ?? '#e2e8f0' }}
+    <div
+      className="relative aspect-[3/4] overflow-hidden rounded-lg shadow-sm ring-1 ring-slate-200 transition-shadow hover:shadow-md"
+      style={!hasPhoto ? { backgroundColor: color } : undefined}
     >
-      <div className="flex flex-col items-center gap-2">
-        <DriverAvatar driver={driver} size={64} />
-        <div className="min-w-0">
-          <h2 className="truncate text-base font-semibold">
-            {driver.firstName} {driver.lastName}
-          </h2>
-          <div className="mt-1 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-sm text-slate-500">
-            <span className="font-display tabular-nums">#{driver.number}</span>
-            <span>{driver.code}</span>
-          </div>
-          <div className="mt-2">
-            <TeamBadge constructor={driver.constructor} />
-          </div>
-        </div>
+      {hasPhoto ? (
+        <img
+          src={driver.headshotUrl!}
+          alt=""
+          aria-hidden="true"
+          loading="lazy"
+          onError={() => setFailed(true)}
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+      ) : (
+        <span
+          aria-hidden="true"
+          className="absolute inset-0 flex items-center justify-center text-5xl font-bold"
+          style={{ color: textOn(color) }}
+        >
+          {driver.firstName[0]}
+          {driver.lastName[0]}
+        </span>
+      )}
+      {/* Degrade: asegura que el nombre blanco se lea pase lo que pase en esa zona de la foto
+          — mismo recurso que el fondo del login, por la misma razon. */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/75 to-transparent" />
+      <span className="absolute right-2.5 top-2 font-display text-2xl font-extrabold italic text-white/50">
+        {driver.number}
+      </span>
+      <div className="absolute inset-x-2.5 bottom-2.5">
+        <p className="truncate text-sm font-bold text-white">
+          {driver.firstName} {driver.lastName}
+        </p>
+        <p className="truncate text-xs text-white/85">{driver.constructor?.name ?? 'Sin equipo'}</p>
       </div>
       {/* aria-label con el nombre: la tarjeta entera es el boton, y su nombre accesible tiene
           que distinguirla de las otras 21. Sin el, un lector de pantalla lee el contenido
@@ -50,9 +67,9 @@ export function DriverCard({ driver, onOpen }: { driver: Driver; onOpen: (id: nu
       <button
         type="button"
         aria-label={`Ver piloto ${driver.firstName} ${driver.lastName}`}
-        className="absolute inset-0 cursor-pointer rounded-lg"
+        className="absolute inset-0 cursor-pointer"
         onClick={() => onOpen(driver.id)}
       />
-    </Card>
+    </div>
   );
 }

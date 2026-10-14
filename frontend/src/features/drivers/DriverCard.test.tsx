@@ -20,7 +20,7 @@ describe('DriverCard', () => {
     render(<DriverCard driver={driver} onOpen={() => {}} />);
 
     expect(screen.getByText('Max Verstappen')).toBeInTheDocument();
-    expect(screen.getByText(/#1/)).toBeInTheDocument();
+    expect(screen.getByText('1')).toBeInTheDocument();
     expect(screen.getByText('Red Bull Racing')).toBeInTheDocument();
   });
 

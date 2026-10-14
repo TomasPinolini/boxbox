@@ -1,7 +1,9 @@
 import type { ReactNode } from 'react';
 
 interface PageShellProps {
-  title: string;
+  // ReactNode y no string: LeagueDetailPage necesita meter el lapiz de "editar nombre" al
+  // lado del titulo, adentro del mismo <h1> — un string a secas no alcanza para eso.
+  title: ReactNode;
   actions?: ReactNode;
   children: ReactNode;
 }
