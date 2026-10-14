@@ -47,10 +47,10 @@ export function ConfirmButton({
   }
 
   return (
-    <div className="flex flex-col gap-2 rounded-md border border-slate-300 bg-slate-50 p-3">
+    <div className="flex flex-col gap-2 rounded-md border border-slate-300 bg-slate-50 p-3 dark:border-ink-border dark:bg-ink-surface">
       {/* role="alert" y no un <p> suelto: el texto aparece por una accion del usuario y hay
           que anunciarlo. Sin esto, quien no ve la pantalla aprieta y no se entera de nada. */}
-      <p role="alert" className="text-sm text-slate-700">
+      <p role="alert" className="text-sm text-slate-700 dark:text-ink-muted">
         {consequence}
       </p>
       <div className="flex flex-wrap gap-2">

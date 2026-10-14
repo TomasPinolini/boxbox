@@ -36,7 +36,7 @@ export function LeaguesPage() {
         <section className="flex flex-col gap-4">
           {leagues.error && <Alert code={leagues.error.code} message={leagues.error.message} />}
           {leagues.data?.length === 0 && (
-            <p className="text-slate-500">
+            <p className="text-slate-500 dark:text-ink-muted">
               Todavía no estás en ninguna liga. Creá una o unite con un código.
             </p>
           )}

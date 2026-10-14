@@ -48,12 +48,12 @@ function Tile({
       aria-pressed={disabled ? undefined : selected}
       aria-label={disabled ? `${label} (ya elegido)` : label}
       onClick={() => onSelect(id)}
-      className={`flex w-full flex-col items-center gap-2 rounded-md border-t-4 bg-slate-50 p-3 text-center transition ${
+      className={`flex w-full flex-col items-center gap-2 rounded-md border-t-4 bg-slate-50 p-3 text-center transition dark:bg-ink-surface ${
         disabled
           ? 'cursor-not-allowed grayscale opacity-50'
           : selected
             ? 'ring-2 ring-red-600'
-            : 'hover:bg-slate-100'
+            : 'hover:bg-slate-100 dark:hover:bg-ink-border'
       }`}
       style={{ borderTopColor: disabled ? '#cbd5e1' : borderColor }}
     >
@@ -97,7 +97,7 @@ export function DraftPicker({
                   <p className="truncate text-sm font-semibold">
                     {d.firstName} {d.lastName}
                   </p>
-                  <div className="mt-1 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-xs text-slate-500">
+                  <div className="mt-1 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-xs text-slate-500 dark:text-ink-muted">
                     <span className="font-display tabular-nums">#{d.number}</span>
                   </div>
                   <div className="mt-1">

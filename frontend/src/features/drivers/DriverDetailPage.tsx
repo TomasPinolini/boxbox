@@ -33,7 +33,7 @@ export function DriverDetailPage() {
   if (!driver.data) {
     return (
       <PageShell title="Piloto">
-        <p className="text-slate-500">Cargando…</p>
+        <p className="text-slate-500 dark:text-ink-muted">Cargando…</p>
       </PageShell>
     );
   }
@@ -55,7 +55,7 @@ export function DriverDetailPage() {
         <Card className="border-t-4" style={{ borderTopColor: d.constructor?.color ?? '#e2e8f0' }}>
           <div className="flex flex-wrap items-center gap-4">
             <DriverAvatar driver={d} size={88} />
-            <div className="flex flex-col gap-2 text-slate-600">
+            <div className="flex flex-col gap-2 text-slate-600 dark:text-ink-muted">
               <div className="flex items-center gap-3">
                 <span className="font-display tabular-nums text-lg">#{d.number}</span>
                 <span>{d.code}</span>
@@ -69,11 +69,14 @@ export function DriverDetailPage() {
                 )}
               </div>
               {/* El logo solo aparece si lo tenemos: faltan Ferrari, Audi y Racing Bulls. */}
+              {/* dark:bg-white: el logo es un archivo pensado para fondo claro (ver
+                  frontend/public/logos/CREDITS.md) — sin esto se perderia contra la Card
+                  oscura, igual que ya resuelve ConstructorLogo con su chip circular. */}
               {d.constructor?.logoUrl && (
                 <img
                   src={d.constructor.logoUrl}
                   alt={d.constructor.name}
-                  className="h-10 max-w-[220px] object-contain object-left"
+                  className="h-10 max-w-[220px] rounded object-contain object-left dark:bg-white dark:p-1"
                 />
               )}
             </div>
@@ -85,7 +88,7 @@ export function DriverDetailPage() {
           <dl className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
             {STAT_LABELS.map(([key, label]) => (
               <div key={key}>
-                <dt className="text-sm text-slate-500">{label}</dt>
+                <dt className="text-sm text-slate-500 dark:text-ink-muted">{label}</dt>
                 {/* bestFinish es null si nunca clasifico — no es un cero. */}
                 <dd className="font-display tabular-nums text-2xl font-semibold">
                   {d.stats[key] ?? '—'}

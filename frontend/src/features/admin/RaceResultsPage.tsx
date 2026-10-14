@@ -102,7 +102,7 @@ export function RaceResultsPage() {
     <PageShell
       title="Cargar resultados"
       actions={
-        <Link to="/leagues" className="text-sm font-semibold text-slate-600 hover:underline">
+        <Link to="/leagues" className="text-sm font-semibold text-slate-600 hover:underline dark:text-ink-muted">
           ← Mis ligas
         </Link>
       }
@@ -121,7 +121,7 @@ export function RaceResultsPage() {
         <label className="mb-4 flex flex-col gap-1 text-sm font-medium">
           Carrera
           <select
-            className="rounded border border-slate-300 px-2 py-2"
+            className="rounded border border-slate-300 px-2 py-2 dark:border-ink-border dark:bg-ink-surface dark:text-ink-text"
             value={raceId ?? ''}
             onChange={(e) => selectRace(e.target.value ? Number(e.target.value) : null)}
           >
@@ -168,7 +168,7 @@ export function RaceResultsPage() {
                 {preview.isPending ? 'Importando…' : 'Importar de Jolpica'}
               </Button>
               {preview.isSuccess && (
-                <p role="status" className="text-sm text-slate-600">
+                <p role="status" className="text-sm text-slate-600 dark:text-ink-muted">
                   Vista previa: {preview.data.results.length} resultados. Todavía no se guardó nada
                   — revisá y confirmá abajo.
                 </p>
@@ -184,7 +184,7 @@ export function RaceResultsPage() {
 
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
-                <thead className="hidden border-b border-slate-200 text-slate-500 sm:table-header-group">
+                <thead className="hidden border-b border-slate-200 text-slate-500 sm:table-header-group dark:border-ink-border dark:text-ink-muted">
                   <tr>
                     <th className="py-2 pr-3 font-medium">Piloto</th>
                     <th className="py-2 pr-3 font-medium">Posición</th>
@@ -197,14 +197,14 @@ export function RaceResultsPage() {
                     const e = entries[d.id] ?? EMPTY;
                     const name = `${d.firstName} ${d.lastName}`;
                     return (
-                      <tr key={d.id} className="block border-b border-slate-100 py-3 sm:table-row">
+                      <tr key={d.id} className="block border-b border-slate-100 py-3 sm:table-row dark:border-ink-border">
                         <td className="py-1 pr-3 font-medium sm:py-2">{name}</td>
                         <td className="py-1 pr-3 sm:py-2">
                           <input
                             type="number"
                             min={1}
                             aria-label={`Posición de ${name}`}
-                            className="w-20 rounded border border-slate-300 px-2 py-1"
+                            className="w-20 rounded border border-slate-300 px-2 py-1 dark:border-ink-border dark:bg-ink-surface dark:text-ink-text"
                             value={e.position}
                             onChange={(ev) => update(d.id, { position: ev.target.value })}
                           />
@@ -212,7 +212,7 @@ export function RaceResultsPage() {
                         <td className="py-1 pr-3 sm:py-2">
                           <select
                             aria-label={`Estado de ${name}`}
-                            className="rounded border border-slate-300 px-2 py-1"
+                            className="rounded border border-slate-300 px-2 py-1 dark:border-ink-border dark:bg-ink-surface dark:text-ink-text"
                             value={e.status}
                             onChange={(ev) =>
                               update(d.id, { status: ev.target.value as RaceResultStatus })

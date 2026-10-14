@@ -46,27 +46,31 @@ describe('DriversPage', () => {
   it('lista los pilotos que devuelve el servicio', async () => {
     renderWithQuery(<DriversPage />, { route: '/drivers' });
 
-    expect(await screen.findByText('Max Verstappen')).toBeInTheDocument();
-    expect(screen.getByText('Charles Leclerc')).toBeInTheDocument();
+    // DriverCard parte nombre y apellido en dos lineas (tarjeta horizontal) — no hay un solo
+    // nodo "Max Verstappen" que buscar.
+    expect(await screen.findByText('Max')).toBeInTheDocument();
+    expect(screen.getByText('Verstappen')).toBeInTheDocument();
+    expect(screen.getByText('Charles')).toBeInTheDocument();
+    expect(screen.getByText('Leclerc')).toBeInTheDocument();
   });
 
   it('al elegir una escuderia, se la pide al backend y se achica la lista', async () => {
     renderWithQuery(<DriversPage />, { route: '/drivers' });
-    await screen.findByText('Max Verstappen');
+    await screen.findByText('Verstappen');
 
     await userEvent.selectOptions(screen.getByRole('combobox'), '5');
 
     await waitFor(() => expect(driversService.list).toHaveBeenCalledWith(5));
-    await waitFor(() => expect(screen.queryByText('Max Verstappen')).not.toBeInTheDocument());
-    expect(screen.getByText('Charles Leclerc')).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByText('Verstappen')).not.toBeInTheDocument());
+    expect(screen.getByText('Leclerc')).toBeInTheDocument();
   });
 
   // El filtro vive en la URL, asi que entrar con ?constructorId= ya filtrado tiene que andar.
   it('respeta el constructorId que viene en la URL', async () => {
     renderWithQuery(<DriversPage />, { route: '/drivers?constructorId=5' });
 
-    await screen.findByText('Charles Leclerc');
+    await screen.findByText('Leclerc');
     expect(driversService.list).toHaveBeenCalledWith(5);
-    expect(screen.queryByText('Max Verstappen')).not.toBeInTheDocument();
+    expect(screen.queryByText('Verstappen')).not.toBeInTheDocument();
   });
 });

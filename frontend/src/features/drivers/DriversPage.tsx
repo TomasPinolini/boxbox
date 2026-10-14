@@ -34,7 +34,7 @@ export function DriversPage() {
 
         {drivers.error && <Alert code={drivers.error.code} message={drivers.error.message} />}
         {drivers.data?.length === 0 && (
-          <p className="text-slate-500">No hay pilotos para esa escudería.</p>
+          <p className="text-slate-500 dark:text-ink-muted">No hay pilotos para esa escudería.</p>
         )}
 
         {/* Una grilla de 2 columnas POR escuderia, no una sola grilla continua con los 22 —

@@ -7,7 +7,8 @@ describe('RenameLeague', () => {
   it('no muestra el formulario hasta que lo piden', () => {
     render(<RenameLeague currentName="Liga de los pibes" onRename={() => {}} />);
 
-    expect(screen.getByRole('button', { name: 'Editar nombre' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Editar nombre de la liga' })).toBeInTheDocument();
+    expect(screen.getByText('Liga de los pibes')).toBeInTheDocument();
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
   });
 
@@ -15,7 +16,7 @@ describe('RenameLeague', () => {
     const user = userEvent.setup();
     render(<RenameLeague currentName="Liga de los pibes" onRename={() => {}} />);
 
-    await user.click(screen.getByRole('button', { name: 'Editar nombre' }));
+    await user.click(screen.getByRole('button', { name: 'Editar nombre de la liga' }));
 
     expect(screen.getByLabelText('Nombre de la liga')).toHaveValue('Liga de los pibes');
   });
@@ -25,7 +26,7 @@ describe('RenameLeague', () => {
     const onRename = vi.fn();
     render(<RenameLeague currentName="Liga de los pibes" onRename={onRename} />);
 
-    await user.click(screen.getByRole('button', { name: 'Editar nombre' }));
+    await user.click(screen.getByRole('button', { name: 'Editar nombre de la liga' }));
     const input = screen.getByLabelText('Nombre de la liga');
     await user.clear(input);
     await user.type(input, 'Liga de las pibas');
@@ -40,7 +41,7 @@ describe('RenameLeague', () => {
     const onRename = vi.fn();
     render(<RenameLeague currentName="Liga de los pibes" onRename={onRename} />);
 
-    await user.click(screen.getByRole('button', { name: 'Editar nombre' }));
+    await user.click(screen.getByRole('button', { name: 'Editar nombre de la liga' }));
     await user.type(screen.getByLabelText('Nombre de la liga'), ' y las pibas');
     await user.click(screen.getByRole('button', { name: 'Cancelar' }));
 
@@ -53,25 +54,21 @@ describe('RenameLeague', () => {
     const onRename = vi.fn();
     render(<RenameLeague currentName="Liga de los pibes" onRename={onRename} />);
 
-    await user.click(screen.getByRole('button', { name: 'Editar nombre' }));
+    await user.click(screen.getByRole('button', { name: 'Editar nombre de la liga' }));
     await user.clear(screen.getByLabelText('Nombre de la liga'));
     await user.click(screen.getByRole('button', { name: 'Guardar' }));
 
     expect(onRename).not.toHaveBeenCalled();
-    // El formulario sigue abierto para que se pueda corregir, con el error a la vista.
-    //
-    // Se busca por rol y no por etiqueta a proposito: `Field` renderiza el error DENTRO del
-    // <label>, asi que con error el nombre accesible pasa a ser "Nombre de la liga Pone un
-    // nombre" y getByLabelText deja de encontrarlo. Es una deuda conocida del primitivo
-    // compartido, anotada en la auditoria de diseno del 2026-10-09; arreglarla toca todos los
-    // formularios de la app y merece su propio ticket.
-    expect(screen.getByRole('textbox')).toBeInTheDocument();
+    // El formulario sigue abierto para que se pueda corregir, con el error a la vista. El
+    // input lleva aria-label (no un <label> que lo envuelva), asi que el error en un <span>
+    // aparte no le cambia el nombre accesible.
+    expect(screen.getByLabelText('Nombre de la liga')).toBeInTheDocument();
     expect(screen.getByText('Poné un nombre')).toBeInTheDocument();
   });
 
   it('se puede deshabilitar mientras hay algo en vuelo', () => {
     render(<RenameLeague currentName="Liga" onRename={() => {}} disabled />);
 
-    expect(screen.getByRole('button', { name: 'Editar nombre' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Editar nombre de la liga' })).toBeDisabled();
   });
 });

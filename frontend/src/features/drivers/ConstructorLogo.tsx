@@ -28,7 +28,13 @@ export function ConstructorLogo({ constructor }: { constructor: ConstructorRef }
   }
 
   return (
-    <span className={BOX}>
+    // dark:bg-white: los archivos de /public/logos estan pensados para fondo claro (ver
+    // CREDITS.md) — varios tienen trazos oscuros que se perderian sobre una superficie
+    // oscura. Un solo arreglo aca en vez de en cada pantalla que usa este componente (son
+    // siete, de LeagueCard a DraftPicker); donde el que llama ya envuelve esto en su propio
+    // chip circular blanco (DriverCard, TeamLineup) esto queda blanco sobre blanco, sin
+    // cambiar nada.
+    <span className={`${BOX} dark:rounded dark:bg-white`}>
       <img
         src={constructor.logoUrl}
         alt=""
