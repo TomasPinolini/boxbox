@@ -23,10 +23,17 @@ export function Field({ label, error, children }: FieldProps) {
 }
 
 // Clases compartidas para los <input> nativos, asi las paginas no las repiten.
+//
+// dark:[color-scheme:dark]: sin esto, el popup nativo del navegador (el calendario de un
+// date picker, el menu desplegable de un <select> — ver selectClass) se sigue pintando con
+// paleta clara pase lo que pase en el resto de las clases, porque esa parte SI la decide el
+// navegador y no Tailwind. No se pone en el <html> global (index.html, meta color-scheme)
+// porque esto todavia es solo la primera pantalla con modo oscuro — forzarlo ahi le pediria
+// paleta nativa oscura a inputs de paginas que todavia no la tienen.
 export const inputClass =
-  'w-full rounded-md border border-slate-300 px-3 py-2 dark:border-ink-border dark:bg-ink-surface dark:text-ink-text';
+  'w-full rounded-md border border-slate-300 px-3 py-2 dark:border-ink-border dark:bg-ink-surface dark:text-ink-text dark:[color-scheme:dark]';
 
 // Hermano de inputClass para los <select> nativos. `bg-white` explicito porque Safari le pone
 // un gris propio, y `pr-8` para que el texto no quede debajo de la flecha.
 export const selectClass =
-  'w-full rounded-md border border-slate-300 bg-white px-3 py-2 pr-8 dark:border-ink-border dark:bg-ink-surface dark:text-ink-text';
+  'w-full rounded-md border border-slate-300 bg-white px-3 py-2 pr-8 dark:border-ink-border dark:bg-ink-surface dark:text-ink-text dark:[color-scheme:dark]';
