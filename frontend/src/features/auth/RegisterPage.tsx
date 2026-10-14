@@ -62,7 +62,7 @@ export function RegisterPage() {
             {isSubmitting ? 'Creando…' : 'Crear cuenta'}
           </Button>
         </form>
-        <p className="mt-4 text-sm text-slate-600">
+        <p className="mt-4 text-sm text-slate-600 dark:text-ink-muted">
           ¿Ya tenés cuenta?{' '}
           <Link to="/login" className="font-semibold text-red-600">
             Entrá
