@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { Driver } from '../../models/driver';
 import { ConstructorLogo } from './ConstructorLogo';
-import { BADGE_DARK, textOn } from './team-color';
 
 // DriverCard: un piloto en la lista. Entrada: el piloto. Salida: onOpen(id). No llama a ningun
 // servicio — eso es de la pagina. Mismo contrato que LeagueCard. Se reusa tal cual en
@@ -10,17 +9,23 @@ import { BADGE_DARK, textOn } from './team-color';
 // catalogo.
 //
 // Horizontal, no vertical (version anterior, pedido del usuario 2026-10-14): nombre + numero
-// grande a la izquierda, foto a la derecha. El fondo es el color de la escuderia con un patron
-// de cuadros encima — ver `CHECKER_PATTERN` — a proposito distinto del patron de lineas de
-// circuito que usa la franja de escuderia en TeamLineup, para que ambos niveles ("esto es un
-// piloto" / "esto es la escuderia") no se confundan a simple vista.
+// grande a la izquierda, foto a la derecha.
 //
-// El texto usa `textOn(color)`, no blanco fijo: el celeste de Williams o el turquesa de
-// Mercedes son demasiado claros para blanco sobre ellos (mismo problema que ya resolvio
-// `textOn` para TeamLineup). El numero va al mismo color pero mas transparente — object
-// `numberColor` abajo, porque mezclar un hex con opacidad via Tailwind no es directo cuando el
-// color es dinamico.
+// Fondo: degrade diagonal del color de la escuderia hacia INK (#1a1a1c, el mismo anclaje que
+// --color-ink en index.css) — reemplaza al cuadriculado + textOn() de la version anterior.
+// Pedido del usuario 2026-10-14: TODAS las cards con tipografia blanca, sin excepcion. Con
+// textOn() el turquesa de Mercedes o el celeste de Williams eran demasiado claros y el texto
+// pasaba a negro — correcto por contraste, pero rompia la consistencia que pedia el usuario.
+// El degrade resuelve las dos cosas a la vez: el color de la escuderia sigue siendo
+// protagonista arriba a la izquierda, pero se apaga hacia abajo a la derecha — justo donde
+// vive el texto — asi que ahi SIEMPRE hay oscuridad de sobra para blanco fijo, sea cual sea
+// el color de origen. Probado contra los 11 colores de la temporada 2026, incluidos los dos
+// mas claros, en el wireframe que aprobo el usuario antes de este cambio.
 //
+// INK fijo (no el --color-ink de modo oscuro): esta card se ve igual tenga la app el tema que
+// tenga — no depende de prefers-color-scheme, es un degrade propio de la card.
+const INK = '#1a1a1c';
+
 // La franja de escuderia (abajo) es un <Link> real, no un boton — pedido del usuario: tiene
 // que llevar a /constructors/:id. Por eso NO puede vivir dentro del <button> del piloto: HTML
 // no permite contenido interactivo anidado (un <a> dentro de un <button> es invalido). Van
@@ -30,22 +35,17 @@ import { BADGE_DARK, textOn } from './team-color';
 // que usan los numeros en standings/stats) — pedido del usuario 2026-10-14: la card tiene que
 // "destacar" con su propia tipografia, distinta tanto de la general del sitio como de la de
 // los numeros sitewide. Ver el comentario de --font-card en index.css.
-const CHECKER_PATTERN = {
-  backgroundImage: 'conic-gradient(#000 0 25%, transparent 0 50%, #000 0 75%, transparent 0)',
-  backgroundSize: '14px 14px',
-};
-
 export function DriverCard({ driver, onOpen }: { driver: Driver; onOpen: (id: number) => void }) {
   const [failed, setFailed] = useState(false);
   const hasPhoto = Boolean(driver.headshotUrl) && !failed;
   const color = driver.constructor?.color ?? '#64748b';
-  const fg = textOn(color);
-  const numberColor = fg === BADGE_DARK ? 'rgba(0,0,0,.45)' : 'rgba(255,255,255,.55)';
 
   return (
     <div className="relative flex h-44 flex-col overflow-hidden rounded-lg shadow-sm ring-1 ring-slate-200 transition-shadow hover:shadow-md dark:ring-ink-border">
-      <div className="absolute inset-0" style={{ backgroundColor: color }} />
-      <div className="absolute inset-0 opacity-[0.16]" style={CHECKER_PATTERN} />
+      <div
+        className="absolute inset-0"
+        style={{ backgroundImage: `linear-gradient(135deg, ${color} 0%, ${INK} 65%)` }}
+      />
 
       {/* aria-label con el nombre: sin el, un lector de pantalla lee el contenido suelto y los
           22 botones suenan igual. */}
@@ -56,15 +56,9 @@ export function DriverCard({ driver, onOpen }: { driver: Driver; onOpen: (id: nu
         className="relative z-10 flex flex-1 cursor-pointer items-stretch text-left"
       >
         <div className="flex min-w-0 flex-1 flex-col justify-center py-2 pl-4 pr-1">
-          <p className="font-card truncate text-base" style={{ color: fg }}>
-            {driver.firstName}
-          </p>
-          <p className="font-card truncate text-xl" style={{ color: fg }}>
-            {driver.lastName}
-          </p>
-          <p className="font-card text-5xl leading-none" style={{ color: numberColor }}>
-            {driver.number}
-          </p>
+          <p className="font-card truncate text-base text-white">{driver.firstName}</p>
+          <p className="font-card truncate text-xl text-white">{driver.lastName}</p>
+          <p className="font-card text-5xl leading-none text-white/55">{driver.number}</p>
         </div>
         <div className="flex w-2/5 shrink-0 items-end justify-center">
           {hasPhoto ? (
@@ -77,7 +71,7 @@ export function DriverCard({ driver, onOpen }: { driver: Driver; onOpen: (id: nu
               className="h-full w-full object-contain object-bottom"
             />
           ) : (
-            <span aria-hidden="true" className="font-card text-4xl" style={{ color: fg }}>
+            <span aria-hidden="true" className="font-card text-4xl text-white">
               {driver.firstName[0]}
               {driver.lastName[0]}
             </span>
