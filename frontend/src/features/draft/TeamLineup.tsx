@@ -53,8 +53,9 @@ function ConstructorStrip({ constructor }: { constructor: ConstructorRef }) {
       </span>
       <div className="relative z-10 min-w-0">
         {/* font-card, misma tipografia que DriverCard — son la misma familia visual, ver el
-            comentario ahí y el de --font-card en index.css. */}
-        <p className="font-card truncate text-lg" style={{ color: fg }}>
+            comentario ahí y el de --font-card en index.css. font-extrabold: Montserrat (a
+            diferencia de Racing Sans One, version anterior) necesita el peso explicito. */}
+        <p className="font-card truncate text-lg font-extrabold" style={{ color: fg }}>
           {constructor.name}
         </p>
         <p className="text-xs opacity-80" style={{ color: fg }}>

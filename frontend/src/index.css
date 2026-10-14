@@ -15,11 +15,12 @@
    - CARDS de piloto / franja de escuderia -> font-card, nunca font-display. Son la unica
      zona de la app que necesita "destacar" tipograficamente (pedido del usuario
      2026-10-14) sin pisar la convencion de arriba: los numeros del resto del sitio
-     (standings, stats) se quedan en Saira Condensed. Racing Sans One solo trae el peso 400
-     — es una display font ya "gruesa" de fabrica, no hace falta variarlo. */
+     (standings, stats) se quedan en Saira Condensed. Montserrat trae 600 y 800 — a
+     diferencia de Racing Sans One (un solo peso, descartada en la segunda vuelta de
+     opciones), esta SI necesita font-semibold/font-extrabold explicito en el componente. */
 @theme {
   --font-display: 'Saira Condensed', ui-sans-serif, system-ui, sans-serif;
-  --font-card: 'Racing Sans One', ui-sans-serif, system-ui, sans-serif;
+  --font-card: 'Montserrat', ui-sans-serif, system-ui, sans-serif;
 
   /* Paleta del modo oscuro — pedido del usuario 2026-10-14, arranca por /drivers para
      definir el patron antes de replicarlo al resto. Se sigue el sistema operativo

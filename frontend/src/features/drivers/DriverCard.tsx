@@ -31,10 +31,12 @@ const INK = '#1a1a1c';
 // no permite contenido interactivo anidado (un <a> dentro de un <button> es invalido). Van
 // como hermanos dentro del mismo contenedor `relative`, cada uno con su propia area de click.
 //
-// Nombre y numero van en font-card (Racing Sans One), NO font-display (Saira Condensed, la
-// que usan los numeros en standings/stats) — pedido del usuario 2026-10-14: la card tiene que
+// Nombre y numero van en font-card (Montserrat), NO font-display (Saira Condensed, la que
+// usan los numeros en standings/stats) — pedido del usuario 2026-10-14: la card tiene que
 // "destacar" con su propia tipografia, distinta tanto de la general del sitio como de la de
-// los numeros sitewide. Ver el comentario de --font-card en index.css.
+// los numeros sitewide. Ver el comentario de --font-card en index.css. A diferencia de Racing
+// Sans One (version anterior, un solo peso), Montserrat necesita font-semibold/font-extrabold
+// explicito — sin eso se ve igual de liviana que el texto de cualquier otro lado.
 export function DriverCard({ driver, onOpen }: { driver: Driver; onOpen: (id: number) => void }) {
   const [failed, setFailed] = useState(false);
   const hasPhoto = Boolean(driver.headshotUrl) && !failed;
@@ -56,9 +58,15 @@ export function DriverCard({ driver, onOpen }: { driver: Driver; onOpen: (id: nu
         className="relative z-10 flex flex-1 cursor-pointer items-stretch text-left"
       >
         <div className="flex min-w-0 flex-1 flex-col justify-center py-2 pl-4 pr-1">
-          <p className="font-card truncate text-base text-white">{driver.firstName}</p>
-          <p className="font-card truncate text-xl text-white">{driver.lastName}</p>
-          <p className="font-card text-5xl leading-none text-white/55">{driver.number}</p>
+          <p className="font-card truncate text-base font-semibold text-white">
+            {driver.firstName}
+          </p>
+          <p className="font-card truncate text-xl font-extrabold text-white">
+            {driver.lastName}
+          </p>
+          <p className="font-card text-5xl font-extrabold leading-none text-white/55">
+            {driver.number}
+          </p>
         </div>
         <div className="flex w-2/5 shrink-0 items-end justify-center">
           {hasPhoto ? (
@@ -71,7 +79,7 @@ export function DriverCard({ driver, onOpen }: { driver: Driver; onOpen: (id: nu
               className="h-full w-full object-contain object-bottom"
             />
           ) : (
-            <span aria-hidden="true" className="font-card text-4xl text-white">
+            <span aria-hidden="true" className="font-card text-4xl font-extrabold text-white">
               {driver.firstName[0]}
               {driver.lastName[0]}
             </span>
