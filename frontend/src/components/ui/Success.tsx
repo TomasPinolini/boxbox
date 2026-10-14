@@ -12,7 +12,7 @@ export function Success({ children }: { children: ReactNode }) {
   return (
     <p
       role="status"
-      className="enter-top mb-3 rounded-md bg-green-50 px-3 py-2 text-sm text-green-800 ring-1 ring-green-200"
+      className="enter-top mb-3 rounded-md bg-green-50 px-3 py-2 text-sm text-green-800 ring-1 ring-green-200 dark:bg-green-950 dark:text-green-200 dark:ring-green-900"
     >
       {children}
     </p>

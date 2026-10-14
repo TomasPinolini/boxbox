@@ -25,9 +25,11 @@ function StandingsCard<T>({
     <Card>
       <h2 className="mb-4 text-lg font-semibold">{title}</h2>
       {query.error && <Alert code={query.error.code} message={query.error.message} />}
-      {!query.data && !query.error && <p className="text-slate-500">Cargando…</p>}
+      {!query.data && !query.error && (
+        <p className="text-slate-500 dark:text-ink-muted">Cargando…</p>
+      )}
       {query.data?.length === 0 && (
-        <p className="text-slate-500">Todavía no hay datos de esta temporada.</p>
+        <p className="text-slate-500 dark:text-ink-muted">Todavía no hay datos de esta temporada.</p>
       )}
       {query.data && query.data.length > 0 && (
         <div className="overflow-x-auto">{children(query.data)}</div>
@@ -39,7 +41,7 @@ function StandingsCard<T>({
 function DriversTable({ rows }: { rows: DriverStanding[] }) {
   return (
     <table className="w-full text-left text-sm">
-      <thead className="border-b border-slate-200 text-slate-500">
+      <thead className="border-b border-slate-200 text-slate-500 dark:border-ink-border dark:text-ink-muted">
         <tr>
           <th className={TH}>#</th>
           <th className={TH}>Piloto</th>
@@ -50,7 +52,7 @@ function DriversTable({ rows }: { rows: DriverStanding[] }) {
       </thead>
       <tbody>
         {rows.map(({ position, points, wins, driver }) => (
-          <tr key={driver.id} className="border-b border-slate-100">
+          <tr key={driver.id} className="border-b border-slate-100 dark:border-ink-border">
             {/* La franja va como box-shadow interior y NO como border-left: el preflight de
                 Tailwind pone border-collapse: collapse, y con eso los bordes de celdas
                 vecinas se fusionan y el resultado varia entre navegadores. El box-shadow no
@@ -93,7 +95,7 @@ function DriversTable({ rows }: { rows: DriverStanding[] }) {
 function ConstructorsTable({ rows }: { rows: ConstructorStanding[] }) {
   return (
     <table className="w-full text-left text-sm">
-      <thead className="border-b border-slate-200 text-slate-500">
+      <thead className="border-b border-slate-200 text-slate-500 dark:border-ink-border dark:text-ink-muted">
         <tr>
           <th className={TH}>#</th>
           <th className={TH}>Escudería</th>
@@ -102,7 +104,7 @@ function ConstructorsTable({ rows }: { rows: ConstructorStanding[] }) {
       </thead>
       <tbody>
         {rows.map(({ position, points, constructor }) => (
-          <tr key={constructor.id} className="border-b border-slate-100">
+          <tr key={constructor.id} className="border-b border-slate-100 dark:border-ink-border">
             <td className={TD}>
               <Position value={position} />
             </td>
