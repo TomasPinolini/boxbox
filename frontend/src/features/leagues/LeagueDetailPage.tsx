@@ -85,7 +85,7 @@ export function LeagueDetailPage() {
     // contenido real va mucho mas adentro, y la pagina salta al llegar los datos.
     return (
       <PageShell title="Liga">
-        <p className="text-slate-500">Cargando…</p>
+        <p className="text-slate-500 dark:text-ink-muted">Cargando…</p>
       </PageShell>
     );
   }
@@ -173,7 +173,7 @@ export function LeagueDetailPage() {
         )
       }
       actions={
-        <Link to="/leagues" className="text-sm font-semibold text-slate-600 hover:underline">
+        <Link to="/leagues" className="text-sm font-semibold text-slate-600 hover:underline dark:text-ink-muted">
           ← Mis ligas
         </Link>
       }
@@ -274,11 +274,11 @@ function AntesDelDraft({
           hay para conseguirla. La lista de dos nombres no dice nada que el usuario no sepa. */}
       <Card>
         <h2 className="mb-1 text-lg font-semibold">Invitá a tus amigos</h2>
-        <p className="mb-3 text-sm text-slate-600">
+        <p className="mb-3 text-sm text-slate-600 dark:text-ink-muted">
           Pasales este código para que entren desde “Unirme con código”.
         </p>
         <div className="flex flex-wrap items-center gap-3">
-          <code className="rounded bg-slate-100 px-3 py-2 font-mono text-xl">{code}</code>
+          <code className="rounded bg-slate-100 px-3 py-2 font-mono text-xl dark:bg-ink-surface dark:text-ink-text">{code}</code>
           <Button variant="secondary" onClick={onCopy}>
             {copied ? 'Copiado' : 'Copiar'}
           </Button>
@@ -297,7 +297,7 @@ function AntesDelDraft({
         <h2 className="mb-2 text-lg font-semibold">Arrancar el draft</h2>
         {isOwner ? (
           <>
-            <p className="mb-3 text-sm text-slate-600">
+            <p className="mb-3 text-sm text-slate-600 dark:text-ink-muted">
               Una vez que arranca, no entra ni sale nadie.
             </p>
             {/* Confirmacion con la cuenta concreta: el caso que arruinaba la liga era
@@ -311,7 +311,7 @@ function AntesDelDraft({
             />
           </>
         ) : (
-          <p className="text-sm text-slate-600">Solo quien creó la liga puede arrancar el draft.</p>
+          <p className="text-sm text-slate-600 dark:text-ink-muted">Solo quien creó la liga puede arrancar el draft.</p>
         )}
       </Card>
 
@@ -336,7 +336,7 @@ function EnVivo({
     <div className="flex flex-col gap-4">
       <Card>
         <Badge tone="info">{draftLabel}</Badge>
-        <p className="mt-3 text-slate-700">
+        <p className="mt-3 text-slate-700 dark:text-ink-muted">
           El draft está en curso. Si es tu turno, tenés 60 segundos para elegir.
         </p>
         <div className="mt-4">
@@ -397,7 +397,7 @@ function DespuesDelDraft({
         <h2 className="mb-3 text-lg font-semibold">La liga</h2>
         {error}
         {cargando ? (
-          <p className="text-sm text-slate-500">Cargando equipos…</p>
+          <p className="text-sm text-slate-500 dark:text-ink-muted">Cargando equipos…</p>
         ) : (
           <LeagueTeamsTable rows={rows} onSelect={onSelect} />
         )}

@@ -127,7 +127,7 @@ export function DraftPage() {
       actions={
         <Link
           to={`/leagues/${id}`}
-          className="text-sm font-semibold text-slate-600 hover:underline"
+          className="text-sm font-semibold text-slate-600 hover:underline dark:text-ink-muted"
         >
           ← Volver a la liga
         </Link>
@@ -148,7 +148,7 @@ export function DraftPage() {
       {leagueArchived ? (
         <Card>
           <h2 className="mb-2 text-lg font-semibold">Esta liga se archivó</h2>
-          <p className="mb-4 text-slate-700">
+          <p className="mb-4 text-slate-700 dark:text-ink-muted">
             Quien creó la liga la cerró mientras el draft estaba en curso. No se puede seguir.
           </p>
           <Button onClick={() => navigate('/leagues')}>Ir a mis ligas</Button>
@@ -165,7 +165,7 @@ export function DraftPage() {
           )}
 
           {!state ? (
-            <p className="text-slate-500">{CONNECTION_LABEL[status]}</p>
+            <p className="text-slate-500 dark:text-ink-muted">{CONNECTION_LABEL[status]}</p>
           ) : (
             <div className="flex flex-col gap-4">
               {/* Toda la tarjeta de estado es de antes y durante: badge, conexion, ronda y el
@@ -177,12 +177,12 @@ export function DraftPage() {
                     <Badge tone={DRAFT_LABEL[state.draftStatus].tone}>
                       {DRAFT_LABEL[state.draftStatus].text}
                     </Badge>
-                    <span className="text-xs text-slate-400">{CONNECTION_LABEL[status]}</span>
+                    <span className="text-xs text-slate-400 dark:text-ink-muted">{CONNECTION_LABEL[status]}</span>
                   </div>
                   {state.draftStatus === 'LIVE' && state.round !== null && (
-                    <p className="mt-3 text-sm text-slate-600">
+                    <p className="mt-3 text-sm text-slate-600 dark:text-ink-muted">
                       Ronda {state.round} de 3 — le toca a{' '}
-                      <span className="font-semibold text-slate-900">
+                      <span className="font-semibold text-slate-900 dark:text-ink-text">
                         {state.currentTurnLeagueMemberId !== null
                           ? memberName(state.currentTurnLeagueMemberId)
                           : '—'}
@@ -193,7 +193,7 @@ export function DraftPage() {
                       {secondsRemaining !== null && (
                         <span
                           className={`ml-2 font-display text-base font-bold tabular-nums ${
-                            secondsRemaining <= 10 ? 'text-red-600' : 'text-slate-700'
+                            secondsRemaining <= 10 ? 'text-red-600' : 'text-slate-700 dark:text-ink-muted'
                           }`}
                         >
                           {secondsRemaining}s
@@ -203,7 +203,7 @@ export function DraftPage() {
                   )}
 
                   {isMyTurn && (
-                    <div className="enter-scale mt-4 border-t border-slate-200 pt-4">
+                    <div className="enter-scale mt-4 border-t border-slate-200 pt-4 dark:border-ink-border">
                       {/* "Te toca a vos" es la unica razon por la que esta tarjeta tiene accion
                       ahora mismo — tiene que pesar mas que cualquier otro titulo de la
                       pantalla (incluido "Picks", mas abajo), no 14px perdido entre textos
@@ -255,7 +255,7 @@ export function DraftPage() {
                       <h2 className="mb-1 text-lg font-semibold">
                         {teams.mine ? 'Los demás' : 'Equipos'}
                       </h2>
-                      <ul className="divide-y divide-slate-200">
+                      <ul className="divide-y divide-slate-200 dark:divide-ink-border">
                         {teams.others.map((team) => (
                           <TeamRow
                             key={team.leagueMemberId}
@@ -278,15 +278,15 @@ export function DraftPage() {
                 <Card>
                   <h2 className="mb-3 text-lg font-semibold">Picks</h2>
                   {state.picks.length === 0 ? (
-                    <p className="text-sm text-slate-500">Todavía no se hizo ningún pick.</p>
+                    <p className="text-sm text-slate-500 dark:text-ink-muted">Todavía no se hizo ningún pick.</p>
                   ) : (
-                    <ul className="divide-y divide-slate-200">
+                    <ul className="divide-y divide-slate-200 dark:divide-ink-border">
                       {state.picks.map((pick) => (
                         <li
                           key={pick.id}
                           className="enter-bottom flex items-center justify-between py-2 text-sm"
                         >
-                          <span className="text-slate-500">Ronda {pick.round}</span>
+                          <span className="text-slate-500 dark:text-ink-muted">Ronda {pick.round}</span>
                           <span className="font-medium">{memberName(pick.leagueMemberId)}</span>
                           <span>{pickLabel(pick)}</span>
                         </li>

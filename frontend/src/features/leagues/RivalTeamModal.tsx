@@ -50,7 +50,7 @@ export function RivalTeamModal({
           role="dialog"
           aria-modal="true"
           aria-label={`Equipo de ${nombre}`}
-          className="enter-scale w-full max-w-lg rounded-xl bg-slate-50 p-5 shadow-2xl"
+          className="enter-scale w-full max-w-lg rounded-xl bg-slate-50 p-5 shadow-2xl dark:bg-ink"
         >
           <div className="mb-4 flex items-center justify-between gap-2">
             <h2 className="text-lg font-semibold">Equipo de {nombre}</h2>
@@ -59,7 +59,7 @@ export function RivalTeamModal({
               type="button"
               aria-label="Cerrar"
               onClick={onClose}
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-200 text-slate-600 hover:bg-slate-300"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-200 text-slate-600 hover:bg-slate-300 dark:bg-ink-surface dark:text-ink-muted dark:hover:bg-ink-border"
             >
               ✕
             </button>

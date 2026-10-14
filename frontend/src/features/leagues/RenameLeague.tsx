@@ -53,7 +53,7 @@ export function RenameLeague({
           aria-label="Editar nombre de la liga"
           disabled={disabled}
           onClick={open}
-          className="shrink-0 rounded p-1 text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+          className="shrink-0 rounded p-1 text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-red-950"
         >
           {/* Lapiz, trazo simple — dos paths, nada de relleno. */}
           <svg
@@ -78,7 +78,7 @@ export function RenameLeague({
   return (
     <span className="inline-flex flex-wrap items-center gap-2 align-middle">
       <input
-        className="min-w-0 max-w-full rounded-md border border-slate-300 px-2 py-0.5 text-2xl font-bold text-slate-900 md:text-3xl"
+        className="min-w-0 max-w-full rounded-md border border-slate-300 px-2 py-0.5 text-2xl font-bold text-slate-900 md:text-3xl dark:border-ink-border dark:bg-ink-surface dark:text-ink-text"
         value={name}
         autoFocus
         maxLength={100}

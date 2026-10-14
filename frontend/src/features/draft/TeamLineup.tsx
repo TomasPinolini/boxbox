@@ -113,7 +113,7 @@ export function TeamRow({
       {constructor && (
         <span className="flex items-center gap-1.5">
           <ConstructorLogo constructor={constructor} />
-          <span className="text-sm text-slate-500">{constructor.name}</span>
+          <span className="text-sm text-slate-500 dark:text-ink-muted">{constructor.name}</span>
         </span>
       )}
     </li>
