@@ -18,7 +18,7 @@ export function Card({
 }) {
   return (
     <section
-      className={`rounded-lg bg-white p-4 shadow-sm ring-1 ring-slate-200 md:p-6 ${className}`}
+      className={`rounded-lg bg-white p-4 shadow-sm ring-1 ring-slate-200 md:p-6 dark:bg-ink-surface dark:ring-ink-border ${className}`}
       style={style}
     >
       {children}

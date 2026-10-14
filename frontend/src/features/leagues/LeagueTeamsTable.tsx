@@ -16,7 +16,7 @@ import type { Standing } from '../../models/standing';
 // Flecha de movimiento contra la carrera anterior. Texto ademas de color: el color solo no
 // alcanza para daltonismo. (Venia de StandingsTable, que este componente reemplaza.)
 function Change({ value }: { value: number }) {
-  if (value === 0) return <span className="text-slate-400">—</span>;
+  if (value === 0) return <span className="text-slate-400 dark:text-ink-muted">—</span>;
   return value > 0 ? (
     <span className="text-green-700">▲ {value}</span>
   ) : (
@@ -49,7 +49,7 @@ export function LeagueTeamsTable({
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-left text-sm">
-        <thead className="border-b border-slate-200 text-slate-500">
+        <thead className="border-b border-slate-200 text-slate-500 dark:border-ink-border dark:text-ink-muted">
           <tr>
             {hayCarreras && <th className="py-2 pr-3 font-medium">#</th>}
             <th className="py-2 pr-3 font-medium">Jugador</th>
@@ -64,7 +64,7 @@ export function LeagueTeamsTable({
               key={r.leagueMemberId}
               // Tu fila marcada con un borde y no con un fondo de color: la tabla ya tiene
               // los colores de las once escuderias adentro, y un fondo mas competiria con ellos.
-              className={`border-b border-slate-100 ${r.isMe ? 'border-l-2 border-l-red-600' : ''}`}
+              className={`border-b border-slate-100 dark:border-ink-border ${r.isMe ? 'border-l-2 border-l-red-600' : ''}`}
             >
               {hayCarreras && (
                 <td className="py-2 pr-3">
@@ -83,7 +83,7 @@ export function LeagueTeamsTable({
                 ) : (
                   r.memberName
                 )}
-                {r.isMe && <span className="ml-1 text-xs text-slate-400">(vos)</span>}
+                {r.isMe && <span className="ml-1 text-xs text-slate-400 dark:text-ink-muted">(vos)</span>}
               </td>
               <td className="py-2 pr-3">
                 {/* Los pilotos y la escuderia como iconos, en una sola celda: el nombre del
@@ -97,7 +97,7 @@ export function LeagueTeamsTable({
                       title={`${d.firstName} ${d.lastName}`}
                     >
                       <DriverAvatar driver={d} size={24} />
-                      <span className="font-display tabular-nums text-xs text-slate-500">
+                      <span className="font-display tabular-nums text-xs text-slate-500 dark:text-ink-muted">
                         {d.code}
                       </span>
                     </span>
@@ -108,7 +108,7 @@ export function LeagueTeamsTable({
                     </span>
                   )}
                   {r.drivers.length === 0 && !r.constructor && (
-                    <span className="text-slate-400">—</span>
+                    <span className="text-slate-400 dark:text-ink-muted">—</span>
                   )}
                 </span>
               </td>

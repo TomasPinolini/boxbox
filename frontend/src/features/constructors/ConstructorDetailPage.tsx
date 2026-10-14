@@ -22,7 +22,7 @@ export function ConstructorDetailPage() {
   if (!constructor.data) {
     return (
       <PageShell title="Escudería">
-        <p className="text-slate-500">Cargando…</p>
+        <p className="text-slate-500 dark:text-ink-muted">Cargando…</p>
       </PageShell>
     );
   }
@@ -52,13 +52,13 @@ export function ConstructorDetailPage() {
             {!sinTemporada && (
               <dl className="flex gap-6">
                 <div>
-                  <dt className="text-xs text-slate-500">Puntos</dt>
+                  <dt className="text-xs text-slate-500 dark:text-ink-muted">Puntos</dt>
                   <dd className="font-display text-2xl tabular-nums font-semibold">
                     {c.stats.points}
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-xs text-slate-500">Carreras</dt>
+                  <dt className="text-xs text-slate-500 dark:text-ink-muted">Carreras</dt>
                   <dd className="font-display text-2xl tabular-nums">{c.stats.races}</dd>
                 </div>
               </dl>
@@ -68,7 +68,7 @@ export function ConstructorDetailPage() {
 
         {sinTemporada ? (
           <Card>
-            <p className="text-slate-500">
+            <p className="text-slate-500 dark:text-ink-muted">
               La temporada todavía no tiene carreras procesadas, así que no hay pilotos ni
               resultados para mostrar.
             </p>
@@ -78,7 +78,7 @@ export function ConstructorDetailPage() {
             <Card>
               <h2 className="mb-3 text-lg font-semibold">Pilotos de la temporada</h2>
               {c.drivers.length === 0 ? (
-                <p className="text-slate-500">Todavía no hay pilotos asignados.</p>
+                <p className="text-slate-500 dark:text-ink-muted">Todavía no hay pilotos asignados.</p>
               ) : (
                 <ul className="flex flex-wrap gap-4">
                   {c.drivers.map((driver) => (
@@ -92,7 +92,7 @@ export function ConstructorDetailPage() {
                             que tsc espere un Function. Lo caza `npm run build`, no `tsc --noEmit`. */}
                         <DriverAvatar driver={driver} size={32} />
                         <span>
-                          <span className="font-display tabular-nums text-slate-500">
+                          <span className="font-display tabular-nums text-slate-500 dark:text-ink-muted">
                             #{driver.number}
                           </span>{' '}
                           {driver.lastName}
@@ -107,12 +107,12 @@ export function ConstructorDetailPage() {
             <Card>
               <h2 className="mb-3 text-lg font-semibold">Resultados</h2>
               {c.results.length === 0 ? (
-                <p className="text-slate-500">Todavía no hay carreras procesadas.</p>
+                <p className="text-slate-500 dark:text-ink-muted">Todavía no hay carreras procesadas.</p>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-sm">
                     <thead>
-                      <tr className="border-b border-slate-200 text-slate-500">
+                      <tr className="border-b border-slate-200 text-slate-500 dark:border-ink-border dark:text-ink-muted">
                         <th className={TH}>#</th>
                         <th className={TH}>Carrera</th>
                         {/* Una columna por piloto, con su apellido. Antes decia "Piloto 1" y
@@ -128,7 +128,7 @@ export function ConstructorDetailPage() {
                     </thead>
                     <tbody>
                       {c.results.map((r) => (
-                        <tr key={r.raceId} className="border-b border-slate-100 last:border-0">
+                        <tr key={r.raceId} className="border-b border-slate-100 last:border-0 dark:border-ink-border">
                           <td className={`${TD} font-display tabular-nums`}>{r.round}</td>
                           <td className={TD}>{r.raceName}</td>
                           {c.drivers.map((driver) => (

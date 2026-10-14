@@ -9,16 +9,19 @@ test('pilotos: filtrar por escuderia y abrir el detalle', async ({ page }) => {
   await page.goto('/drivers');
 
   await expect(page.getByRole('heading', { name: 'Pilotos' })).toBeVisible();
-  await expect(page.getByText('Max Verstappen')).toBeVisible();
-  await expect(page.getByText('Charles Leclerc')).toBeVisible();
+  // Apellido solo, no "Max Verstappen" entero: DriverCard (tarjeta horizontal) parte nombre
+  // y apellido en dos lineas, y unir texto entre bloques es un comportamiento de Playwright
+  // del que no conviene depender.
+  await expect(page.getByText('Verstappen')).toBeVisible();
+  await expect(page.getByText('Leclerc')).toBeVisible();
 
   await page.getByLabel('Escudería').selectOption({ label: 'Ferrari' });
 
   // El filtro vive en la URL, no en el estado del componente.
   await expect(page).toHaveURL(/\?constructorId=\d+$/);
-  await expect(page.getByText('Charles Leclerc')).toBeVisible();
-  await expect(page.getByText('Lewis Hamilton')).toBeVisible();
-  await expect(page.getByText('Max Verstappen')).not.toBeVisible();
+  await expect(page.getByText('Leclerc')).toBeVisible();
+  await expect(page.getByText('Hamilton')).toBeVisible();
+  await expect(page.getByText('Verstappen')).not.toBeVisible();
 
   // Ferrari tiene dos pilotos y se ordenan por apellido, asi que el primero es Hamilton.
   // Se clickea el de Leclerc por nombre en vez de por posicion.

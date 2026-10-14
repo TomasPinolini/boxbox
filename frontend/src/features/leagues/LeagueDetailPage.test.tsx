@@ -134,21 +134,23 @@ describe('LeagueDetailPage, con el draft terminado', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(/Algo salió mal/i);
   });
 
-  it('abre el equipo de un rival al elegirlo en la tabla', async () => {
+  it('abre el equipo de un rival en un popup, sin tapar el propio', async () => {
     const user = userEvent.setup();
     renderWithQuery(<LeagueDetailPage />, { route: '/leagues/1' });
     await screen.findByRole('heading', { name: /Tu equipo/i });
 
     await user.click(screen.getByRole('button', { name: 'Rivero' }));
 
-    // El equipo del rival: sus pilotos y su escudería, que son otros que los míos.
-    expect(await screen.findByRole('heading', { name: /Equipo de Rivero/i })).toBeInTheDocument();
+    // El equipo del rival aparece en un dialogo — "Tu equipo" ya no desaparece atras, que es
+    // el cambio que pidio el usuario respecto de la version anterior (reemplazaba la tarjeta).
+    expect(await screen.findByRole('dialog', { name: /Equipo de Rivero/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /Tu equipo/i })).toBeInTheDocument();
     expect(screen.getByText(/Leclerc/)).toBeInTheDocument();
     expect(screen.getByText(/Piastri/)).toBeInTheDocument();
 
-    // Y se puede volver al propio.
-    await user.click(screen.getByRole('button', { name: /Volver a tu equipo/i }));
-    expect(await screen.findByRole('heading', { name: /Tu equipo/i })).toBeInTheDocument();
+    // Y se puede cerrar con la X.
+    await user.click(screen.getByRole('button', { name: 'Cerrar' }));
+    expect(screen.queryByRole('dialog', { name: /Equipo de Rivero/i })).not.toBeInTheDocument();
   });
 
   it('el equipo elegido vive en la URL, así se puede compartir', async () => {

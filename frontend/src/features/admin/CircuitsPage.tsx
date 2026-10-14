@@ -104,7 +104,7 @@ export function CircuitsPage() {
                 {...form.register('externalId')}
               />
             </Field>
-            <p id={HINT_ID} className="mt-1 text-xs text-slate-500">
+            <p id={HINT_ID} className="mt-1 text-xs text-slate-500 dark:text-ink-muted">
               Clave con la que Jolpica identifica el circuito, por ejemplo <code>galvez</code> o{' '}
               <code>interlagos</code>. Si no coincide, el sync no lo va a reconocer.
             </p>
@@ -134,15 +134,15 @@ export function CircuitsPage() {
             <Alert code={removeCircuit.error.code} message={removeCircuit.error.message} />
           </div>
         )}
-        {circuits.isPending && <p className="text-slate-500">Cargando…</p>}
+        {circuits.isPending && <p className="text-slate-500 dark:text-ink-muted">Cargando…</p>}
         {circuits.data?.length === 0 && (
-          <p className="text-slate-500">Todavía no hay circuitos cargados.</p>
+          <p className="text-slate-500 dark:text-ink-muted">Todavía no hay circuitos cargados.</p>
         )}
         {circuits.data && circuits.data.length > 0 && (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead>
-                <tr className="border-b border-slate-200 text-slate-500">
+                <tr className="border-b border-slate-200 text-slate-500 dark:border-ink-border dark:text-ink-muted">
                   <th className="py-2">Nombre</th>
                   <th className="py-2">País</th>
                   <th className="py-2">Ciudad</th>
@@ -153,13 +153,13 @@ export function CircuitsPage() {
               </thead>
               <tbody>
                 {circuits.data.map((circuit) => (
-                  <tr key={circuit.id} className="border-b border-slate-100 last:border-0">
+                  <tr key={circuit.id} className="border-b border-slate-100 last:border-0 dark:border-ink-border">
                     <td className="py-2">{circuit.name}</td>
                     <td className="py-2">{circuit.country}</td>
                     <td className="py-2">{circuit.city}</td>
                     {/* "—" y no 0: hay circuitos del seed sin longitud, y cero seria un dato. */}
                     <td className="py-2 font-display">{circuit.circuitLength ?? '—'}</td>
-                    <td className="py-2 font-mono text-xs text-slate-600">{circuit.externalId}</td>
+                    <td className="py-2 font-mono text-xs text-slate-600 dark:text-ink-muted">{circuit.externalId}</td>
                     <td className="py-2">
                       <div className="flex flex-wrap justify-end gap-2">
                         {/* El nombre accesible lleva el circuito: con varias filas, "Editar" a

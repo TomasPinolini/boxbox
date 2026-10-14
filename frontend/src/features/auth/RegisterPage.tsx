@@ -43,7 +43,8 @@ export function RegisterPage() {
     // Mismo layout que LoginPage, pixel por pixel (foto de fondo, logo, tagline, form sin
     // card, "¿Qué es BoxBox?"): son las dos únicas pantallas sin barra de navegación, y antes
     // de este cambio solo el login tenía marca — registro era la única tarjeta blanca suelta
-    // sobre gris de toda la app.
+    // sobre gris de toda la app. Por el mismo motivo que LoginPage, no lleva clases dark: —
+    // es su propia pantalla con foto de fondo, siempre igual sin importar el tema de la app.
     <div className="relative min-h-dvh overflow-hidden">
       <img
         src="/login-hero-mobile.jpg"

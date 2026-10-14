@@ -47,7 +47,7 @@ export function LeagueCard({
         </span>
       </div>
       {/* El codigo NO se trunca: es para leerlo y tipearlo entero. */}
-      <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-slate-500">
+      <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-slate-500 dark:text-ink-muted">
         <span>
           Código: <span className="font-mono">{league.inviteCode}</span>
         </span>
@@ -55,8 +55,8 @@ export function LeagueCard({
       </div>
 
       {hayEquipo && (
-        <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-slate-100 pt-3">
-          <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+        <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-slate-100 pt-3 dark:border-ink-border">
+          <span className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-ink-muted">
             Tu equipo
           </span>
           {misPilotos.map((d) => (
@@ -66,13 +66,13 @@ export function LeagueCard({
               title={`${d.firstName} ${d.lastName}`}
             >
               <DriverAvatar driver={d} size={24} />
-              <span className="font-display tabular-nums text-slate-600">{d.code}</span>
+              <span className="font-display tabular-nums text-slate-600 dark:text-ink-muted">{d.code}</span>
             </span>
           ))}
           {miEscuderia && (
             <span className="flex items-center gap-1.5 text-sm" title={miEscuderia.name}>
               <ConstructorLogo constructor={miEscuderia} />
-              <span className="text-slate-600">{miEscuderia.name}</span>
+              <span className="text-slate-600 dark:text-ink-muted">{miEscuderia.name}</span>
             </span>
           )}
         </div>

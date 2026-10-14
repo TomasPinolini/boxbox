@@ -28,7 +28,7 @@ import { useAuthStore } from '../store/auth.store';
 const linkClass = ({ isActive }: { isActive: boolean }) =>
   isActive
     ? 'font-semibold text-red-600 underline underline-offset-4'
-    : 'font-semibold text-slate-600 hover:text-slate-900 hover:underline';
+    : 'font-semibold text-slate-600 hover:text-slate-900 dark:text-ink-muted dark:hover:text-ink-text hover:underline';
 
 // Mismo activo-en-rojo que linkClass, pero como fila de lista vertical: el acento es un borde
 // izquierdo + fondo tenue, no un subrayado — un subrayado en una fila de ancho completo no se
@@ -36,8 +36,8 @@ const linkClass = ({ isActive }: { isActive: boolean }) =>
 const drawerLinkClass = ({ isActive }: { isActive: boolean }) =>
   `block rounded-r-md py-3 pl-4 pr-3 font-semibold ${
     isActive
-      ? 'border-l-4 border-red-600 bg-red-50 text-red-600'
-      : 'border-l-4 border-transparent text-slate-600 hover:bg-slate-50'
+      ? 'border-l-4 border-red-600 bg-red-50 text-red-600 dark:bg-red-950 dark:text-red-400'
+      : 'border-l-4 border-transparent text-slate-600 hover:bg-slate-50 dark:text-ink-muted dark:hover:bg-ink-surface'
   }`;
 
 // Foto del usuario + iniciales de respaldo, mismo patron que DriverAvatar (features/drivers/):
@@ -55,7 +55,7 @@ function UserAvatar({ user, size = 44 }: { user: Pick<User, 'name' | 'avatarUrl'
   if (!user.avatarUrl || failed) {
     return (
       <span
-        className="flex shrink-0 items-center justify-center rounded-full bg-slate-200 font-semibold text-slate-600"
+        className="flex shrink-0 items-center justify-center rounded-full bg-slate-200 font-semibold text-slate-600 dark:bg-ink-surface dark:text-ink-muted"
         style={{ width: size, height: size, fontSize: Math.max(size * 0.36, 10) }}
         aria-hidden="true"
       >
@@ -74,6 +74,20 @@ function UserAvatar({ user, size = 44 }: { user: Pick<User, 'name' | 'avatarUrl'
       className="shrink-0 rounded-full bg-slate-100 object-cover"
       style={{ width: size, height: size }}
     />
+  );
+}
+
+// El logo tiene el trazo en negro de marca (#111113, ver public/logo.svg) fijo en el
+// archivo — invisible sobre el fondo oscuro. logo-dark.svg es el mismo trazo pero en
+// --color-ink-text, mismo rojo de marca sin tocar. Dos <img> y CSS puro (dark:hidden /
+// hidden dark:block) para elegir cual se ve: no hace falta JS porque el modo oscuro sigue
+// el sistema operativo, no un estado de React.
+function Logo({ className }: { className: string }) {
+  return (
+    <>
+      <img src="/logo.svg" alt="boxbox" className={`${className} dark:hidden`} />
+      <img src="/logo-dark.svg" alt="boxbox" className={`hidden ${className} dark:block`} />
+    </>
   );
 }
 
@@ -158,12 +172,12 @@ export function AppLayout() {
           que es el patron estandar: solo aparece para quien lo necesita, en el primer Tab. */}
       <a
         href="#contenido"
-        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-white focus:px-4 focus:py-2 focus:font-semibold focus:text-red-600 focus:shadow-md focus:ring-1 focus:ring-slate-300"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-white focus:px-4 focus:py-2 focus:font-semibold focus:text-red-600 focus:shadow-md focus:ring-1 focus:ring-slate-300 dark:focus:bg-ink-surface dark:focus:ring-ink-border"
       >
         Saltar al contenido
       </a>
 
-      <nav aria-label="Principal" className="border-b border-slate-200 bg-white">
+      <nav aria-label="Principal" className="border-b border-slate-200 bg-white dark:border-ink-border dark:bg-ink">
         {/* Barra angosta: hamburguesa a la izquierda (abre un drawer que entra por la
             izquierda — el boton queda del lado por el que aparece el panel) y logo a la
             derecha, para no competir por el mismo lado. Visible solo abajo de md. */}
@@ -177,12 +191,12 @@ export function AppLayout() {
             onClick={() => setDrawerOpen(true)}
             className="flex h-9 w-9 flex-col items-center justify-center gap-1"
           >
-            <span aria-hidden="true" className="block h-0.5 w-5 rounded-full bg-slate-900" />
-            <span aria-hidden="true" className="block h-0.5 w-5 rounded-full bg-slate-900" />
-            <span aria-hidden="true" className="block h-0.5 w-5 rounded-full bg-slate-900" />
+            <span aria-hidden="true" className="block h-0.5 w-5 rounded-full bg-slate-900 dark:bg-ink-text" />
+            <span aria-hidden="true" className="block h-0.5 w-5 rounded-full bg-slate-900 dark:bg-ink-text" />
+            <span aria-hidden="true" className="block h-0.5 w-5 rounded-full bg-slate-900 dark:bg-ink-text" />
           </button>
           <Link to="/leagues">
-            <img src="/logo.svg" alt="boxbox" className="h-7 w-auto" />
+            <Logo className="h-7 w-auto" />
           </Link>
         </div>
 
@@ -191,14 +205,14 @@ export function AppLayout() {
             adelante. */}
         <div className="mx-auto hidden w-full max-w-5xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 text-sm md:flex md:px-6">
           <Link to="/leagues" className="mr-auto">
-            <img src="/logo.svg" alt="boxbox" className="h-7 w-auto" />
+            <Logo className="h-7 w-auto" />
           </Link>
 
           {renderNavLinks(linkClass)}
 
           {user ? (
             <>
-              <span className="text-slate-500">{user.name}</span>
+              <span className="text-slate-500 dark:text-ink-muted">{user.name}</span>
               <Button variant="secondary" onClick={logout}>
                 Salir
               </Button>
@@ -232,23 +246,25 @@ export function AppLayout() {
             role="dialog"
             aria-modal="true"
             aria-label="Menú"
-            className="enter-left fixed inset-y-0 left-0 z-30 flex w-72 max-w-[85vw] flex-col bg-white shadow-xl md:hidden"
+            className="enter-left fixed inset-y-0 left-0 z-30 flex w-72 max-w-[85vw] flex-col bg-white shadow-xl dark:bg-ink md:hidden"
           >
-            <div className="flex items-center justify-between gap-2 border-b border-slate-200 p-4">
+            <div className="flex items-center justify-between gap-2 border-b border-slate-200 p-4 dark:border-ink-border">
               {user ? (
                 <div className="flex min-w-0 items-center gap-2.5">
                   <UserAvatar user={user} />
-                  <span className="truncate font-semibold text-slate-900">{user.name}</span>
+                  <span className="truncate font-semibold text-slate-900 dark:text-ink-text">
+                    {user.name}
+                  </span>
                 </div>
               ) : (
-                <span className="font-semibold text-slate-900">Menú</span>
+                <span className="font-semibold text-slate-900 dark:text-ink-text">Menú</span>
               )}
               <button
                 ref={closeButtonRef}
                 type="button"
                 aria-label="Cerrar menú"
                 onClick={closeDrawer}
-                className="shrink-0 px-2 py-1 text-2xl leading-none text-slate-400 hover:text-slate-600"
+                className="shrink-0 px-2 py-1 text-2xl leading-none text-slate-400 hover:text-slate-600 dark:text-ink-muted dark:hover:text-ink-text"
               >
                 ×
               </button>
@@ -261,7 +277,7 @@ export function AppLayout() {
               {renderNavLinks(drawerLinkClass)}
             </nav>
 
-            <div className="border-t border-slate-200 p-4">
+            <div className="border-t border-slate-200 p-4 dark:border-ink-border">
               {user ? (
                 <Button className="w-full" onClick={logout}>
                   Cerrar sesión

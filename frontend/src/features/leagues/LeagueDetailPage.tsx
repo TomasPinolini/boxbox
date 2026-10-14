@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Alert, Badge, Button, Card, ConfirmButton, PageShell } from '../../components/ui';
 import { RenameLeague } from './RenameLeague';
+import { RivalTeamModal } from './RivalTeamModal';
 import type { ConstructorRef, Driver } from '../../models/driver';
 import type { DraftStatus } from '../../models/league';
 import { useAuthStore } from '../../store/auth.store';
@@ -84,7 +85,7 @@ export function LeagueDetailPage() {
     // contenido real va mucho mas adentro, y la pagina salta al llegar los datos.
     return (
       <PageShell title="Liga">
-        <p className="text-slate-500">Cargando…</p>
+        <p className="text-slate-500 dark:text-ink-muted">Cargando…</p>
       </PageShell>
     );
   }
@@ -147,20 +148,13 @@ export function LeagueDetailPage() {
     />
   );
 
-  // Las acciones que viven al pie de la liga, en las tres formas de la pantalla. Renombrar es
-  // solo del dueño y es reversible; cerrar o salir no, y por eso va ultimo y en rojo.
-  const acciones = (
-    <div className="flex flex-wrap items-end gap-2">
-      {isOwner && (
-        <RenameLeague
-          currentName={l.name}
-          disabled={busy}
-          onRename={(name) => rename.mutate(name)}
-        />
-      )}
-      {cerrarOSalir}
-    </div>
-  );
+  // Las acciones que viven al pie de la liga, en las tres formas de la pantalla. Renombrar ya
+  // no esta aca — se mudo al titulo, al lado del nombre (ver PageShell mas abajo).
+  const acciones = <div className="flex flex-wrap items-end gap-2">{cerrarOSalir}</div>;
+
+  // Navegar a un piloto es lo mismo desde cualquier TeamLineup de esta pantalla (el propio o
+  // el de un rival) — vive aca y no en cada composicion para no repetirlo.
+  const onOpenDriver = (driverId: number) => navigate(`/drivers/${driverId}`);
 
   const error = actionError && (
     <div className="mb-3">
@@ -170,9 +164,16 @@ export function LeagueDetailPage() {
 
   return (
     <PageShell
-      title={l.name}
+      title={
+        // Editar el nombre es solo del dueño — para el resto, el titulo es un string normal.
+        isOwner ? (
+          <RenameLeague currentName={l.name} disabled={busy} onRename={(name) => rename.mutate(name)} />
+        ) : (
+          l.name
+        )
+      }
       actions={
-        <Link to="/leagues" className="text-sm font-semibold text-slate-600 hover:underline">
+        <Link to="/leagues" className="text-sm font-semibold text-slate-600 hover:underline dark:text-ink-muted">
           ← Mis ligas
         </Link>
       }
@@ -198,7 +199,6 @@ export function LeagueDetailPage() {
 
       {l.draftStatus === 'COMPLETED' && (
         <DespuesDelDraft
-          leagueId={id}
           rows={armarFilas({
             picks: teams.data?.picks ?? [],
             miembros: members.data ?? [],
@@ -228,7 +228,8 @@ export function LeagueDetailPage() {
               : null
           }
           onSelect={(leagueMemberId) => setSearchParams({ equipo: String(leagueMemberId) })}
-          onVolver={() => setSearchParams({})}
+          onCerrarRival={() => setSearchParams({})}
+          onOpenDriver={onOpenDriver}
           cargando={teams.isLoading}
           error={error}
           acciones={acciones}
@@ -273,11 +274,11 @@ function AntesDelDraft({
           hay para conseguirla. La lista de dos nombres no dice nada que el usuario no sepa. */}
       <Card>
         <h2 className="mb-1 text-lg font-semibold">Invitá a tus amigos</h2>
-        <p className="mb-3 text-sm text-slate-600">
+        <p className="mb-3 text-sm text-slate-600 dark:text-ink-muted">
           Pasales este código para que entren desde “Unirme con código”.
         </p>
         <div className="flex flex-wrap items-center gap-3">
-          <code className="rounded bg-slate-100 px-3 py-2 font-mono text-xl">{code}</code>
+          <code className="rounded bg-slate-100 px-3 py-2 font-mono text-xl dark:bg-ink-surface dark:text-ink-text">{code}</code>
           <Button variant="secondary" onClick={onCopy}>
             {copied ? 'Copiado' : 'Copiar'}
           </Button>
@@ -296,7 +297,7 @@ function AntesDelDraft({
         <h2 className="mb-2 text-lg font-semibold">Arrancar el draft</h2>
         {isOwner ? (
           <>
-            <p className="mb-3 text-sm text-slate-600">
+            <p className="mb-3 text-sm text-slate-600 dark:text-ink-muted">
               Una vez que arranca, no entra ni sale nadie.
             </p>
             {/* Confirmacion con la cuenta concreta: el caso que arruinaba la liga era
@@ -310,7 +311,7 @@ function AntesDelDraft({
             />
           </>
         ) : (
-          <p className="text-sm text-slate-600">Solo quien creó la liga puede arrancar el draft.</p>
+          <p className="text-sm text-slate-600 dark:text-ink-muted">Solo quien creó la liga puede arrancar el draft.</p>
         )}
       </Card>
 
@@ -335,7 +336,7 @@ function EnVivo({
     <div className="flex flex-col gap-4">
       <Card>
         <Badge tone="info">{draftLabel}</Badge>
-        <p className="mt-3 text-slate-700">
+        <p className="mt-3 text-slate-700 dark:text-ink-muted">
           El draft está en curso. Si es tu turno, tenés 60 segundos para elegir.
         </p>
         <div className="mt-4">
@@ -357,12 +358,12 @@ function DespuesDelDraft({
   miEquipo,
   rival,
   onSelect,
-  onVolver,
+  onCerrarRival,
+  onOpenDriver,
   cargando,
   error,
   acciones,
 }: {
-  leagueId: number;
   rows: TeamRowData[];
   miEquipo: { drivers: Driver[]; constructor: ConstructorRef | null } | null;
   rival: {
@@ -370,45 +371,49 @@ function DespuesDelDraft({
     equipo: { drivers: Driver[]; constructor: ConstructorRef | null } | null;
   } | null;
   onSelect: (leagueMemberId: number) => void;
-  onVolver: () => void;
+  onCerrarRival: () => void;
+  onOpenDriver: (driverId: number) => void;
   cargando: boolean;
   error: React.ReactNode;
   acciones: React.ReactNode;
 }) {
   return (
     <div className="flex flex-col gap-4">
-      {/* Una sola tarjeta arriba: el equipo propio, o el del rival que se eligio. Dos a la vez
-          empujarian la tabla fuera de la pantalla en un telefono, y el propio esta a un click. */}
-      {rival?.equipo ? (
+      {/* Tu equipo ya NO se reemplaza por el del rival (como era antes) — se queda siempre
+          ahi, y el rival flota encima en un popup (mas abajo). Pedido del usuario 2026-10-14:
+          ver el equipo de otro no tiene por que hacerte perder de vista el tuyo. */}
+      {miEquipo && (
         <Card>
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-lg font-semibold">Equipo de {rival.nombre}</h2>
-            <Button variant="secondary" onClick={onVolver}>
-              Volver a tu equipo
-            </Button>
-          </div>
-          <TeamLineup drivers={rival.equipo.drivers} constructor={rival.equipo.constructor} />
+          <h2 className="mb-3 text-lg font-semibold">Tu equipo</h2>
+          <TeamLineup
+            drivers={miEquipo.drivers}
+            constructor={miEquipo.constructor}
+            onOpenDriver={onOpenDriver}
+          />
         </Card>
-      ) : (
-        miEquipo && (
-          <Card>
-            <h2 className="mb-3 text-lg font-semibold">Tu equipo</h2>
-            <TeamLineup drivers={miEquipo.drivers} constructor={miEquipo.constructor} />
-          </Card>
-        )
       )}
 
       <Card>
         <h2 className="mb-3 text-lg font-semibold">La liga</h2>
         {error}
         {cargando ? (
-          <p className="text-sm text-slate-500">Cargando equipos…</p>
+          <p className="text-sm text-slate-500 dark:text-ink-muted">Cargando equipos…</p>
         ) : (
           <LeagueTeamsTable rows={rows} onSelect={onSelect} />
         )}
       </Card>
 
       <div>{acciones}</div>
+
+      {rival?.equipo && (
+        <RivalTeamModal
+          nombre={rival.nombre}
+          drivers={rival.equipo.drivers}
+          constructor={rival.equipo.constructor}
+          onOpenDriver={onOpenDriver}
+          onClose={onCerrarRival}
+        />
+      )}
     </div>
   );
 }

@@ -24,10 +24,12 @@ const BOX = 'inline-flex h-6 min-w-6 items-center justify-center font-display ta
 
 export function Position({ value }: { value: number | null }) {
   // null no es cero: en el historial de un piloto significa que no clasifico.
-  if (value === null) return <span className={`${BOX} text-slate-400`}>—</span>;
+  if (value === null)
+    return <span className={`${BOX} text-slate-400 dark:text-ink-muted`}>—</span>;
 
   const podium = PODIUM[value];
-  if (!podium) return <span className={`${BOX} text-slate-500`}>{value}</span>;
+  if (!podium)
+    return <span className={`${BOX} text-slate-500 dark:text-ink-muted`}>{value}</span>;
 
   return <span className={`${BOX} rounded-full px-1.5 font-bold ${podium}`}>{value}</span>;
 }

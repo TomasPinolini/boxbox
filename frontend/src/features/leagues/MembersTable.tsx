@@ -13,7 +13,7 @@ export function MembersTable({
   onKick: (userId: number) => void;
 }) {
   return (
-    <ul className="divide-y divide-slate-200">
+    <ul className="divide-y divide-slate-200 dark:divide-ink-border">
       {members.map((m) => (
         <li
           key={m.id}
@@ -23,7 +23,7 @@ export function MembersTable({
             <span className="truncate font-medium">{m.user.name}</span>
             {m.isOwner && <Badge tone="warning">owner</Badge>}
           </div>
-          <div className="flex shrink-0 items-center gap-4 text-sm text-slate-500">
+          <div className="flex shrink-0 items-center gap-4 text-sm text-slate-500 dark:text-ink-muted">
             <span>desde {new Date(m.joinedAt).toLocaleDateString('es-AR')}</span>
             {/* ConfirmButton y no un click directo: echar a alguien es irreversible desde la
                 UI (no hay forma de reinvitarla salvo que vuelva a usar el codigo), mismo

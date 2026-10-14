@@ -111,11 +111,11 @@ export function SeasonsPage() {
             <Alert code={rowError.code} message={rowError.message} />
           </div>
         )}
-        {seasons.isPending && <p className="text-slate-500">Cargando…</p>}
+        {seasons.isPending && <p className="text-slate-500 dark:text-ink-muted">Cargando…</p>}
         {seasons.data && (
           <table className="w-full text-left text-sm">
             <thead>
-              <tr className="border-b border-slate-200 text-slate-500">
+              <tr className="border-b border-slate-200 text-slate-500 dark:border-ink-border dark:text-ink-muted">
                 <th className="py-2">Año</th>
                 {/* "Cupo" y no "Pilotos": es cuantos entran, no cuantos hay cargados. La
                     columna de al lado es la otra cosa. */}
@@ -129,7 +129,7 @@ export function SeasonsPage() {
             </thead>
             <tbody>
               {seasons.data.map((season) => (
-                <tr key={season.id} className="border-b border-slate-100 last:border-0">
+                <tr key={season.id} className="border-b border-slate-100 last:border-0 dark:border-ink-border">
                   <td className="py-2 font-display">{season.year}</td>
                   <td className="py-2">
                     <span className="font-display">{season.driverCount}</span>
@@ -180,7 +180,7 @@ export function SeasonsPage() {
                       />
                     </div>
                     {deletionBlockedBy(season) && (
-                      <p className="mt-1 text-right text-xs text-slate-500">
+                      <p className="mt-1 text-right text-xs text-slate-500 dark:text-ink-muted">
                         {deletionBlockedBy(season)}
                       </p>
                     )}

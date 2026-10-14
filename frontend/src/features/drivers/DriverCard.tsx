@@ -1,58 +1,106 @@
-import { Card } from '../../components/ui';
+import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import type { Driver } from '../../models/driver';
-import { DriverAvatar } from './DriverAvatar';
-import { TeamBadge } from './TeamBadge';
+import { ConstructorLogo } from './ConstructorLogo';
 
 // DriverCard: un piloto en la lista. Entrada: el piloto. Salida: onOpen(id). No llama a ningun
-// servicio — eso es de la pagina. Mismo contrato que LeagueCard.
+// servicio — eso es de la pagina. Mismo contrato que LeagueCard. Se reusa tal cual en
+// TeamLineup (Tu equipo / equipo de un rival): un piloto se ve igual elegido que en el
+// catalogo.
 //
-// Vertical y centrada (foto arriba, texto abajo), no la fila horizontal original — auditoria
-// de UX 2026-10-09: con la grilla fija en 2 columnas (ver DriversPage), una fila horizontal
-// quedaba apretada contra la mitad del ancho disponible. El formato "tarjeta" (mas alto que
-// ancho) es el que de verdad aprovecha una columna angosta, en celu o en desktop por igual.
+// Horizontal, no vertical (version anterior, pedido del usuario 2026-10-14): nombre + numero
+// grande a la izquierda, foto a la derecha.
 //
-// La tarjeta entera es el boton, con el patron "stretched link": un <button> vacio en
-// `absolute inset-0` sobre un contenedor `relative`. Dos cosas al precio de una:
+// Fondo: degrade diagonal del color de la escuderia hacia INK (#1a1a1c, el mismo anclaje que
+// --color-ink en index.css) — reemplaza al cuadriculado + textOn() de la version anterior.
+// Pedido del usuario 2026-10-14: TODAS las cards con tipografia blanca, sin excepcion. Con
+// textOn() el turquesa de Mercedes o el celeste de Williams eran demasiado claros y el texto
+// pasaba a negro — correcto por contraste, pero rompia la consistencia que pedia el usuario.
+// El degrade resuelve las dos cosas a la vez: el color de la escuderia sigue siendo
+// protagonista arriba a la izquierda, pero se apaga hacia abajo a la derecha — justo donde
+// vive el texto — asi que ahi SIEMPRE hay oscuridad de sobra para blanco fijo, sea cual sea
+// el color de origen. Probado contra los 11 colores de la temporada 2026, incluidos los dos
+// mas claros, en el wireframe que aprobo el usuario antes de este cambio.
 //
-// 1. Area tactil. El unico lugar clickeable es toda la tarjeta, no un link de texto chico.
-// 2. Foco. El outline global de :focus-visible se dibuja en el borde del inset-0, o sea en el
-//    borde de la tarjeta: navegando con Tab se ve que la tarjeta esta seleccionada.
+// INK fijo (no el --color-ink de modo oscuro): esta card se ve igual tenga la app el tema que
+// tenga — no depende de prefers-color-scheme, es un degrade propio de la card.
+const INK = '#1a1a1c';
+
+// La franja de escuderia (abajo) es un <Link> real, no un boton — pedido del usuario: tiene
+// que llevar a /constructors/:id. Por eso NO puede vivir dentro del <button> del piloto: HTML
+// no permite contenido interactivo anidado (un <a> dentro de un <button> es invalido). Van
+// como hermanos dentro del mismo contenedor `relative`, cada uno con su propia area de click.
 //
-// Por que un <button> hijo y no envolver todo en uno: el content model de <button> es
-// contenido de frase, y <Card> renderiza un <section>. Anidarlo seria HTML invalido.
+// Nombre y numero heredan la tipografia general (Montserrat, --font-sans en index.css) —
+// nacieron con su propio font-card separado (pedido 2026-10-14: "tiene que destacar de la
+// general"), un dia despues el pedido se dio vuelta y Montserrat paso a ser la general. Con
+// las dos iguales, font-card quedo redundante y se saco. SI hace falta font-semibold/
+// font-extrabold explicito: el peso regular del body no alcanza para esta jerarquia.
 export function DriverCard({ driver, onOpen }: { driver: Driver; onOpen: (id: number) => void }) {
+  const [failed, setFailed] = useState(false);
+  const hasPhoto = Boolean(driver.headshotUrl) && !failed;
+  const color = driver.constructor?.color ?? '#64748b';
+
   return (
-    <Card
-      // Franja del equipo arriba, no a la izquierda: en una tarjeta vertical lee como el
-      // encabezado de color de una trading card. Sin escuderia cae a un gris neutro y no a
-      // "sin franja" — si desapareciera, esa tarjeta mediria 4px menos de alto que las demas.
-      className="relative border-t-4 text-center transition-shadow hover:shadow-md"
-      style={{ borderTopColor: driver.constructor?.color ?? '#e2e8f0' }}
-    >
-      <div className="flex flex-col items-center gap-2">
-        <DriverAvatar driver={driver} size={64} />
-        <div className="min-w-0">
-          <h2 className="truncate text-base font-semibold">
-            {driver.firstName} {driver.lastName}
-          </h2>
-          <div className="mt-1 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-sm text-slate-500">
-            <span className="font-display tabular-nums">#{driver.number}</span>
-            <span>{driver.code}</span>
-          </div>
-          <div className="mt-2">
-            <TeamBadge constructor={driver.constructor} />
-          </div>
-        </div>
-      </div>
-      {/* aria-label con el nombre: la tarjeta entera es el boton, y su nombre accesible tiene
-          que distinguirla de las otras 21. Sin el, un lector de pantalla lee el contenido
-          suelto y los 22 botones suenan igual. */}
+    <div className="relative flex h-44 flex-col overflow-hidden rounded-lg shadow-sm ring-1 ring-slate-200 transition-shadow hover:shadow-md dark:ring-ink-border">
+      <div
+        className="absolute inset-0"
+        style={{ backgroundImage: `linear-gradient(135deg, ${color} 0%, ${INK} 65%)` }}
+      />
+
+      {/* aria-label con el nombre: sin el, un lector de pantalla lee el contenido suelto y los
+          22 botones suenan igual. */}
       <button
         type="button"
         aria-label={`Ver piloto ${driver.firstName} ${driver.lastName}`}
-        className="absolute inset-0 cursor-pointer rounded-lg"
         onClick={() => onOpen(driver.id)}
-      />
-    </Card>
+        className="relative z-10 flex flex-1 cursor-pointer items-stretch text-left"
+      >
+        <div className="flex min-w-0 flex-1 flex-col justify-center py-2 pl-4 pr-1">
+          <p className="truncate text-base font-semibold text-white">
+            {driver.firstName}
+          </p>
+          <p className="truncate text-xl font-extrabold text-white">
+            {driver.lastName}
+          </p>
+          <p className="text-5xl font-extrabold leading-none text-white/55">
+            {driver.number}
+          </p>
+        </div>
+        <div className="flex w-2/5 shrink-0 items-end justify-center">
+          {hasPhoto ? (
+            <img
+              src={driver.headshotUrl!}
+              alt=""
+              aria-hidden="true"
+              loading="lazy"
+              onError={() => setFailed(true)}
+              className="h-full w-full object-contain object-bottom"
+            />
+          ) : (
+            <span aria-hidden="true" className="text-4xl font-extrabold text-white">
+              {driver.firstName[0]}
+              {driver.lastName[0]}
+            </span>
+          )}
+        </div>
+      </button>
+
+      {driver.constructor ? (
+        <Link
+          to={`/constructors/${driver.constructor.id}`}
+          className="relative z-10 flex min-h-11 items-center gap-2 bg-black/45 px-3 py-1.5 hover:bg-black/60"
+        >
+          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/90">
+            <ConstructorLogo constructor={driver.constructor} />
+          </span>
+          <span className="truncate text-xs font-semibold text-white">{driver.constructor.name}</span>
+        </Link>
+      ) : (
+        <div className="relative z-10 flex min-h-11 items-center bg-black/45 px-3 py-1.5">
+          <span className="truncate text-xs font-semibold text-white/70">Sin equipo</span>
+        </div>
+      )}
+    </div>
   );
 }
