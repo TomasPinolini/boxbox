@@ -557,49 +557,36 @@ const teamLogos: Record<string, string> = {
 // su CDN y este repositorio es publico, asi que bajarlas y commitearlas seria redistribuirlas.
 // Las URLs salieron del campo `headshot_url` de la API de OpenF1 (gratuita, sin credenciales).
 // El `2col` del path es el escalon de tamano: 1col=93px, 2col=206px, 3col=319px, 4col=432px.
-// Falta Hadjar, que OpenF1 no devuelve.
+// Archivos propios, no la URL de F1.com: recortadas al primer tercio (cara + torso, donde
+// vive el logo de la escudería) de la foto de cuerpo entero que manda F1.com, con
+// ImageMagick (`convert original.avif -gravity North -crop 440x422+0+0 +repage salida.png`).
+// Viven en `frontend/public/drivers/<externalId>.png`, mismo patrón que `Constructor.logoUrl`
+// con `frontend/public/logos/` — un archivo estático servido por el propio frontend, la DB
+// solo guarda la ruta relativa. Todas las 22 (antes 21 — Hadjar no tenía, OpenF1 no lo
+// devolvía) vienen del mismo lote, recortadas igual.
 const driverHeadshots: Record<string, string> = {
-  albon:
-    'https://media.formula1.com/content/dam/fom-website/drivers/A/ALEALB01_Alexander_Albon/alealb01.png.transform/2col/image.png',
-  alonso:
-    'https://media.formula1.com/content/dam/fom-website/drivers/F/FERALO01_Fernando_Alonso/feralo01.png.transform/2col/image.png',
-  antonelli:
-    'https://media.formula1.com/content/dam/fom-website/drivers/K/ANDANT01_Kimi_Antonelli/andant01.png.transform/2col/image.png',
-  bearman:
-    'https://media.formula1.com/content/dam/fom-website/drivers/O/OLIBEA01_Oliver_Bearman/olibea01.png.transform/2col/image.png',
-  bortoleto:
-    'https://media.formula1.com/content/dam/fom-website/drivers/G/GABBOR01_Gabriel_Bortoleto/gabbor01.png.transform/2col/image.png',
-  bottas:
-    'https://media.formula1.com/content/dam/fom-website/drivers/V/VALBOT01_Valtteri_Bottas/valbot01.png.transform/2col/image.png',
-  colapinto:
-    'https://media.formula1.com/content/dam/fom-website/drivers/F/FRACOL01_Franco_Colapinto/fracol01.png.transform/2col/image.png',
-  gasly:
-    'https://media.formula1.com/content/dam/fom-website/drivers/P/PIEGAS01_Pierre_Gasly/piegas01.png.transform/2col/image.png',
-  hamilton:
-    'https://media.formula1.com/content/dam/fom-website/drivers/L/LEWHAM01_Lewis_Hamilton/lewham01.png.transform/2col/image.png',
-  hulkenberg:
-    'https://media.formula1.com/content/dam/fom-website/drivers/N/NICHUL01_Nico_Hulkenberg/nichul01.png.transform/2col/image.png',
-  lawson:
-    'https://media.formula1.com/content/dam/fom-website/drivers/L/LIALAW01_Liam_Lawson/lialaw01.png.transform/2col/image.png',
-  leclerc:
-    'https://media.formula1.com/content/dam/fom-website/drivers/C/CHALEC01_Charles_Leclerc/chalec01.png.transform/2col/image.png',
-  arvid_lindblad:
-    'https://media.formula1.com/content/dam/fom-website/drivers/A/ARVLIN01_Arvid_Lindblad/arvlin01.png.transform/2col/image.png',
-  max_verstappen:
-    'https://media.formula1.com/content/dam/fom-website/drivers/M/MAXVER01_Max_Verstappen/maxver01.png.transform/2col/image.png',
-  norris:
-    'https://media.formula1.com/content/dam/fom-website/drivers/L/LANNOR01_Lando_Norris/lannor01.png.transform/2col/image.png',
-  ocon: 'https://media.formula1.com/content/dam/fom-website/drivers/E/ESTOCO01_Esteban_Ocon/estoco01.png.transform/2col/image.png',
-  perez:
-    'https://media.formula1.com/content/dam/fom-website/drivers/S/SERPER01_Sergio_Perez/serper01.png.transform/2col/image.png',
-  piastri:
-    'https://media.formula1.com/content/dam/fom-website/drivers/O/OSCPIA01_Oscar_Piastri/oscpia01.png.transform/2col/image.png',
-  russell:
-    'https://media.formula1.com/image/upload/c_lfill,w_440/q_auto/d_common:f1:2026:fallback:driver:2026fallbackdriverright.webp/v1740000001/common/f1/2026/mercedes/georus01/2026mercedesgeorus01right.webp',
-  sainz:
-    'https://media.formula1.com/content/dam/fom-website/drivers/C/CARSAI01_Carlos_Sainz/carsai01.png.transform/2col/image.png',
-  stroll:
-    'https://media.formula1.com/content/dam/fom-website/drivers/L/LANSTR01_Lance_Stroll/lanstr01.png.transform/2col/image.png',
+  albon: '/drivers/albon.png',
+  alonso: '/drivers/alonso.png',
+  antonelli: '/drivers/antonelli.png',
+  bearman: '/drivers/bearman.png',
+  bortoleto: '/drivers/bortoleto.png',
+  bottas: '/drivers/bottas.png',
+  colapinto: '/drivers/colapinto.png',
+  gasly: '/drivers/gasly.png',
+  hadjar: '/drivers/hadjar.png',
+  hamilton: '/drivers/hamilton.png',
+  hulkenberg: '/drivers/hulkenberg.png',
+  lawson: '/drivers/lawson.png',
+  leclerc: '/drivers/leclerc.png',
+  arvid_lindblad: '/drivers/arvid_lindblad.png',
+  max_verstappen: '/drivers/max_verstappen.png',
+  norris: '/drivers/norris.png',
+  ocon: '/drivers/ocon.png',
+  perez: '/drivers/perez.png',
+  piastri: '/drivers/piastri.png',
+  russell: '/drivers/russell.png',
+  sainz: '/drivers/sainz.png',
+  stroll: '/drivers/stroll.png',
 };
 
 // ───────────────────────────────────────────────────────────────────────────

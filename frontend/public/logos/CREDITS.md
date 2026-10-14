@@ -50,6 +50,22 @@ logos siguen siendo marcas registradas de cada escudería. Se usan acá para ide
 equipos reales en un trabajo práctico universitario sin fines comerciales, que es uso
 nominativo. No reutilizar en un contexto comercial sin revisar esto.
 
-Las **fotos de pilotos** no están en este repositorio: son material de prensa de Formula One
-y se referencian por URL contra su CDN, en el campo `Driver.headshotUrl` que puebla
-`backend/prisma/seed.ts`. Las URLs salieron de la API pública de OpenF1.
+## Fotos de pilotos
+
+Las **fotos de pilotos** sí están en el repositorio, en `frontend/public/drivers/` — hasta
+2026-10-14 se referenciaban por URL contra el CDN de F1.com y no se guardaban acá; se
+cambió de criterio para poder recortarlas (ver abajo) sin depender de que esa URL exista
+para siempre. Son material de prensa de Formula One, igual que antes; el repositorio las usa
+con el mismo criterio de uso nominativo que los logos de arriba — identificar a pilotos
+reales en un trabajo práctico universitario sin fines comerciales — no una licencia libre
+declarada por la fuente.
+
+Las originales se bajaron a mano del CDN de F1.com (`media.formula1.com`) y se recortaron al
+primer tercio superior (cara + torso, donde está el logo de la escudería) con ImageMagick:
+
+```
+convert original.avif -gravity North -crop 440x422+0+0 +repage frontend/public/drivers/<externalId>.png
+```
+
+`driverHeadshots` en `backend/prisma/seed.ts` guarda la ruta relativa (`/drivers/<externalId>.png`),
+mismo patrón que `teamLogos`/`Constructor.logoUrl` con `frontend/public/logos/`.
