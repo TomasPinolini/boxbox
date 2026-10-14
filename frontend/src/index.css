@@ -11,9 +11,15 @@
    La regla de reparto, que antes estaba en la cabeza de nadie:
    - NUMEROS (posiciones, puntos, victorias, dorsales, rondas) -> font-display tabular-nums
    - CODIGOS (el inviteCode de una liga) -> siguen en font-mono. Un codigo se lee y se tipea
-     caracter por caracter; una condensada junta los trazos y lo empeora. */
+     caracter por caracter; una condensada junta los trazos y lo empeora.
+   - CARDS de piloto / franja de escuderia -> font-card, nunca font-display. Son la unica
+     zona de la app que necesita "destacar" tipograficamente (pedido del usuario
+     2026-10-14) sin pisar la convencion de arriba: los numeros del resto del sitio
+     (standings, stats) se quedan en Saira Condensed. Racing Sans One solo trae el peso 400
+     — es una display font ya "gruesa" de fabrica, no hace falta variarlo. */
 @theme {
   --font-display: 'Saira Condensed', ui-sans-serif, system-ui, sans-serif;
+  --font-card: 'Racing Sans One', ui-sans-serif, system-ui, sans-serif;
 }
 
 /* Token de movimiento. Una sola curva para todo el proyecto: sin un token compartido,

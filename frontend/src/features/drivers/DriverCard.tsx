@@ -25,6 +25,11 @@ import { BADGE_DARK, textOn } from './team-color';
 // que llevar a /constructors/:id. Por eso NO puede vivir dentro del <button> del piloto: HTML
 // no permite contenido interactivo anidado (un <a> dentro de un <button> es invalido). Van
 // como hermanos dentro del mismo contenedor `relative`, cada uno con su propia area de click.
+//
+// Nombre y numero van en font-card (Racing Sans One), NO font-display (Saira Condensed, la
+// que usan los numeros en standings/stats) — pedido del usuario 2026-10-14: la card tiene que
+// "destacar" con su propia tipografia, distinta tanto de la general del sitio como de la de
+// los numeros sitewide. Ver el comentario de --font-card en index.css.
 const CHECKER_PATTERN = {
   backgroundImage: 'conic-gradient(#000 0 25%, transparent 0 50%, #000 0 75%, transparent 0)',
   backgroundSize: '14px 14px',
@@ -51,16 +56,13 @@ export function DriverCard({ driver, onOpen }: { driver: Driver; onOpen: (id: nu
         className="relative z-10 flex flex-1 cursor-pointer items-stretch text-left"
       >
         <div className="flex min-w-0 flex-1 flex-col justify-center py-2 pl-4 pr-1">
-          <p className="truncate text-sm font-semibold" style={{ color: fg }}>
+          <p className="font-card truncate text-base" style={{ color: fg }}>
             {driver.firstName}
           </p>
-          <p className="truncate text-lg font-extrabold" style={{ color: fg }}>
+          <p className="font-card truncate text-xl" style={{ color: fg }}>
             {driver.lastName}
           </p>
-          <p
-            className="font-display text-4xl font-extrabold italic leading-none"
-            style={{ color: numberColor }}
-          >
+          <p className="font-card text-5xl leading-none" style={{ color: numberColor }}>
             {driver.number}
           </p>
         </div>
@@ -75,7 +77,7 @@ export function DriverCard({ driver, onOpen }: { driver: Driver; onOpen: (id: nu
               className="h-full w-full object-contain object-bottom"
             />
           ) : (
-            <span aria-hidden="true" className="text-4xl font-bold" style={{ color: fg }}>
+            <span aria-hidden="true" className="font-card text-4xl" style={{ color: fg }}>
               {driver.firstName[0]}
               {driver.lastName[0]}
             </span>
