@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { Alert, Button } from '../../components/ui';
 import { ApiError, toApiError } from '../../services/api-error';
 import { authService } from '../../services/auth.service';
+import { AboutBoxBox } from './AboutBoxBox';
 
 // Mismas reglas que loginSchema del backend: email valido, password >= 8.
 const schema = z.object({
@@ -133,15 +134,7 @@ export function LoginPage() {
         </div>
 
         <div className="px-6 pb-10 md:px-16 md:pb-14">
-          {/* Sin destino todavia: no hay pantalla de "conoce mas". href="#" + preventDefault
-              para no mandar a nadie al tope de la pagina por error hasta que la haya. */}
-          <a
-            href="#"
-            onClick={(e) => e.preventDefault()}
-            className="text-sm font-semibold text-white hover:underline"
-          >
-            Conocé más →
-          </a>
+          <AboutBoxBox />
         </div>
       </div>
     </div>

@@ -142,6 +142,20 @@ a:active,
     transform 180ms var(--ease-out);
 }
 
+/* El scrim de un dialogo: solo fade, nunca se mueve — es el fondo, no el contenido. */
+.enter-fade {
+  transition: opacity 180ms var(--ease-out);
+}
+
+/* El cartel de "¿Qué es BoxBox?" en mobile: un bottom sheet de verdad, no un ajuste — entra
+   desde abajo del todo, por eso lleva mas desplazamiento que enter-bottom (que es para items
+   de lista, no paneles). */
+.enter-sheet {
+  transition:
+    opacity 220ms var(--ease-out),
+    transform 220ms var(--ease-out);
+}
+
 /* El panel de turno se ve 3 veces por draft, no decenas por dia. La regla de frecuencia
    dice que ahi vive el presupuesto de movimiento, asi que lleva mas escala y mas duracion
    que las entradas frecuentes: es el instante en que el sistema te dice "ahora vos". */
@@ -172,6 +186,15 @@ a:active,
     opacity: 0;
     transform: translateX(-12px);
   }
+  .enter-fade {
+    opacity: 0;
+  }
+  /* Arranca totalmente afuera de la pantalla, no con un nudge — es la diferencia entre un
+     bottom sheet y un simple fade-in. */
+  .enter-sheet {
+    opacity: 0;
+    transform: translateY(100%);
+  }
 }
 
 /* Movimiento reducido. Se conserva el fade y se descarta el desplazamiento: mas suave,
@@ -187,7 +210,8 @@ a:active,
     .enter-top,
     .enter-scale,
     .enter-bottom,
-    .enter-left {
+    .enter-left,
+    .enter-sheet {
       transform: none;
     }
   }
