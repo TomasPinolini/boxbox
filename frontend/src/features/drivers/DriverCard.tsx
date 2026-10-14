@@ -10,8 +10,13 @@ import { textOn } from './team-color';
 // Foto a pantalla completa, no avatar + texto abajo (version anterior, auditoria de UX
 // 2026-10-09) — pedido del usuario 2026-10-14: la card entera es la foto, con el numero
 // arriba a la derecha y nombre + escuderia sobre un degrade abajo, como una trading card real.
-// Sin foto (1 de 22 pilotos no la tiene, o el CDN externo falla) cae al color de la escuderia
-// de fondo con las iniciales — nunca una card vacia.
+//
+// El fondo (color de la escuderia) es SIEMPRE el mismo elemento, tenga foto o no — no
+// "aparece si falta la foto". Pedido del usuario 2026-10-14: las fotos son PNG recortados
+// (sin fondo propio), y el color de la escuderia tiene que asomar alrededor del piloto. Por
+// eso la foto va con `object-contain` (entra entera, no se recorta) y no `object-cover` (que
+// la estiraria a llenar la card tapando el fondo). Sin foto, las iniciales ocupan ese mismo
+// lugar — nunca una card vacia.
 //
 // No usa el componente <Card> compartido: Card trae padding fijo (p-4/md:p-6) que una foto a
 // sangrado tendria que pisar con otra clase, y Tailwind no garantiza cual de las dos gana por
@@ -28,7 +33,7 @@ export function DriverCard({ driver, onOpen }: { driver: Driver; onOpen: (id: nu
   return (
     <div
       className="relative aspect-[3/4] overflow-hidden rounded-lg shadow-sm ring-1 ring-slate-200 transition-shadow hover:shadow-md"
-      style={!hasPhoto ? { backgroundColor: color } : undefined}
+      style={{ backgroundColor: color }}
     >
       {hasPhoto ? (
         <img
@@ -37,7 +42,7 @@ export function DriverCard({ driver, onOpen }: { driver: Driver; onOpen: (id: nu
           aria-hidden="true"
           loading="lazy"
           onError={() => setFailed(true)}
-          className="absolute inset-0 h-full w-full object-cover"
+          className="absolute inset-0 h-full w-full object-contain"
         />
       ) : (
         <span
