@@ -1,7 +1,10 @@
+import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import type { ConstructorRef, Driver } from '../../models/driver';
 import { ConstructorLogo } from '../drivers/ConstructorLogo';
 import { DriverAvatar } from '../drivers/DriverAvatar';
 import { DriverCard } from '../drivers/DriverCard';
+import { teamMarkUrl } from '../drivers/team-marks';
 import { textOn } from '../drivers/team-color';
 
 // Las dos formas de mostrar un equipo armado: el bloque grande del dueno de la pantalla y la
@@ -16,6 +19,64 @@ import { textOn } from '../drivers/team-color';
 // la pagina, igual que en draft-announcement.ts y buildDraftTeams. Lo mismo con onOpenDriver:
 // TeamLineup no navega por su cuenta, la pagina decide que hacer con el id.
 
+// Franja compacta de la escuderia, arriba de las dos driver cards — pedido del usuario
+// 2026-10-14: antes era una tarjeta mas, al mismo nivel que cada piloto, y asi se perdia que
+// es UNA eleccion distinta (acompaña a los dos, no es un tercer piloto).
+//
+// Textura de lineas de circuito, no el cuadriculado de DriverCard: pedido explicito del
+// usuario, para que la escuderia no se confunda visualmente con un piloto mas. El emblema de
+// la escuderia sangra del borde derecho — viene de `teamMarkUrl`, no de `logoUrl` (ver ese
+// archivo: son monocromos, piensan para el color del equipo, no para el chip blanco).
+function ConstructorStrip({ constructor }: { constructor: ConstructorRef }) {
+  const [markFailed, setMarkFailed] = useState(false);
+  const fg = textOn(constructor.color);
+  const markUrl = teamMarkUrl(constructor.name);
+  const showBleed = Boolean(markUrl) && !markFailed;
+
+  return (
+    <Link
+      to={`/constructors/${constructor.id}`}
+      className="relative flex min-h-16 items-center gap-2.5 overflow-hidden rounded-md px-3 py-2.5"
+      style={{ backgroundColor: constructor.color }}
+    >
+      <svg
+        aria-hidden="true"
+        viewBox="0 0 400 56"
+        preserveAspectRatio="none"
+        className="absolute inset-0 h-full w-full opacity-30"
+      >
+        <path
+          d="M -10 40 Q 90 48 140 24 T 260 14 Q 320 8 370 26 T 430 20"
+          stroke={fg}
+          strokeWidth="2.5"
+          fill="none"
+          strokeLinecap="round"
+        />
+      </svg>
+      {showBleed && (
+        <img
+          src={markUrl!}
+          alt=""
+          aria-hidden="true"
+          onError={() => setMarkFailed(true)}
+          className="pointer-events-none absolute right-[-14px] top-1/2 h-[120px] w-[120px] -translate-y-1/2 object-contain opacity-25"
+        />
+      )}
+      <span className="relative z-10 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/90">
+        <ConstructorLogo constructor={constructor} />
+      </span>
+      <div className="relative z-10 min-w-0">
+        <p className="truncate font-semibold" style={{ color: fg }}>
+          {constructor.name}
+        </p>
+        <p className="text-xs opacity-80" style={{ color: fg }}>
+          Escudería
+        </p>
+      </div>
+    </Link>
+  );
+}
+
 export function TeamLineup({
   drivers,
   constructor,
@@ -27,27 +88,7 @@ export function TeamLineup({
 }) {
   return (
     <div className="flex flex-col gap-3">
-      {/* La escuderia arriba, como una barra de ancho completo con su color — pedido del
-          usuario 2026-10-14: antes era una tarjeta mas, al mismo nivel que cada piloto, y asi
-          se perdia que es UNA eleccion distinta (acompaña a los dos, no es un tercer piloto). */}
-      {constructor && (
-        <div
-          className="flex items-center gap-2.5 rounded-md p-3"
-          style={{ backgroundColor: constructor.color }}
-        >
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/90">
-            <ConstructorLogo constructor={constructor} />
-          </span>
-          <div className="min-w-0">
-            <p className="truncate font-semibold" style={{ color: textOn(constructor.color) }}>
-              {constructor.name}
-            </p>
-            <p className="text-xs opacity-80" style={{ color: textOn(constructor.color) }}>
-              Escudería
-            </p>
-          </div>
-        </div>
-      )}
+      {constructor && <ConstructorStrip constructor={constructor} />}
       {/* Los dos pilotos al mismo tamano, uno al lado del otro siempre — son exactamente dos,
           nunca mas ni menos (ADR-0006), asi que no hace falta una grilla que calcule columnas. */}
       <div className="grid grid-cols-2 gap-3">
