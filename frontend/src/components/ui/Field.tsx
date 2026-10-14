@@ -11,16 +11,22 @@ interface FieldProps {
 export function Field({ label, error, children }: FieldProps) {
   return (
     <label className="block">
-      <span className="mb-1 block text-sm font-medium text-slate-700">{label}</span>
+      <span className="mb-1 block text-sm font-medium text-slate-700 dark:text-ink-muted">
+        {label}
+      </span>
       {children}
-      {error && <span className="mt-1 block text-sm text-red-600">{error}</span>}
+      {error && (
+        <span className="mt-1 block text-sm text-red-600 dark:text-red-400">{error}</span>
+      )}
     </label>
   );
 }
 
 // Clases compartidas para los <input> nativos, asi las paginas no las repiten.
-export const inputClass = 'w-full rounded-md border border-slate-300 px-3 py-2';
+export const inputClass =
+  'w-full rounded-md border border-slate-300 px-3 py-2 dark:border-ink-border dark:bg-ink-surface dark:text-ink-text';
 
 // Hermano de inputClass para los <select> nativos. `bg-white` explicito porque Safari le pone
 // un gris propio, y `pr-8` para que el texto no quede debajo de la flecha.
-export const selectClass = 'w-full rounded-md border border-slate-300 bg-white px-3 py-2 pr-8';
+export const selectClass =
+  'w-full rounded-md border border-slate-300 bg-white px-3 py-2 pr-8 dark:border-ink-border dark:bg-ink-surface dark:text-ink-text';

@@ -43,7 +43,7 @@ export function DriverCard({ driver, onOpen }: { driver: Driver; onOpen: (id: nu
   const numberColor = fg === BADGE_DARK ? 'rgba(0,0,0,.45)' : 'rgba(255,255,255,.55)';
 
   return (
-    <div className="relative flex h-44 flex-col overflow-hidden rounded-lg shadow-sm ring-1 ring-slate-200 transition-shadow hover:shadow-md">
+    <div className="relative flex h-44 flex-col overflow-hidden rounded-lg shadow-sm ring-1 ring-slate-200 transition-shadow hover:shadow-md dark:ring-ink-border">
       <div className="absolute inset-0" style={{ backgroundColor: color }} />
       <div className="absolute inset-0 opacity-[0.16]" style={CHECKER_PATTERN} />
 
