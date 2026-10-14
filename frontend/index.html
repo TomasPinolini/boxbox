@@ -27,12 +27,17 @@
       name="description"
       content="Fantasy League de Fórmula 1: armá tu equipo en un draft en vivo y competí con resultados reales de la temporada."
     />
-    <!-- Color de la barra de estado del navegador. Tiene que igualar el color de ARRIBA de
-         la pagina (bg-slate-50 en app/App.tsx), no el color de marca. -->
-    <meta name="theme-color" content="#f8fafc" />
-    <!-- La app no tiene modo oscuro. Declararlo evita que el navegador fuerce un oscurecido
-         propio sobre los controles de formulario. -->
-    <meta name="color-scheme" content="light" />
+    <!-- Color de la barra de estado del navegador, uno por tema — tiene que igualar el color
+         de ARRIBA de la pagina en cada uno (bg-slate-50 / dark:bg-ink en app/App.tsx), no el
+         color de marca. El navegador elige con el mismo prefers-color-scheme que ya usa
+         Tailwind para el variant dark:. -->
+    <meta name="theme-color" content="#f8fafc" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#1a1a1c" media="(prefers-color-scheme: dark)" />
+    <!-- Antes era solo "light" (el modo oscuro no existia). Ahora que el rollout cubre toda
+         la app (2026-10-14), declarar los dos le pide al navegador sus controles nativos
+         (scrollbar, el popup de un <select> — ver dark:[color-scheme:dark] en Field.tsx, que
+         ya no hace falta ahi pero no molesta dejarlo) en el tema que corresponda. -->
+    <meta name="color-scheme" content="light dark" />
     <title>BoxBox — Fantasy League de F1</title>
   </head>
   <body>
