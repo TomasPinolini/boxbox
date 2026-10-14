@@ -23,9 +23,9 @@ import { textOn } from '../drivers/team-color';
 // 2026-10-14: antes era una tarjeta mas, al mismo nivel que cada piloto, y asi se perdia que
 // es UNA eleccion distinta (acompaña a los dos, no es un tercer piloto).
 //
-// Textura de lineas de circuito, no el cuadriculado de DriverCard: pedido explicito del
-// usuario, para que la escuderia no se confunda visualmente con un piloto mas. El emblema de
-// la escuderia sangra del borde derecho — viene de `teamMarkUrl`, no de `logoUrl` (ver ese
+// Sin textura de fondo — se probo un patron de lineas de circuito y no convencio (pedido del
+// usuario 2026-10-14). Color solido del equipo, el emblema sangrando del borde derecho es
+// suficiente guiño visual. El emblema viene de `teamMarkUrl`, no de `logoUrl` (ver ese
 // archivo: son monocromos, piensan para el color del equipo, no para el chip blanco).
 function ConstructorStrip({ constructor }: { constructor: ConstructorRef }) {
   const [markFailed, setMarkFailed] = useState(false);
@@ -39,20 +39,6 @@ function ConstructorStrip({ constructor }: { constructor: ConstructorRef }) {
       className="relative flex min-h-16 items-center gap-2.5 overflow-hidden rounded-md px-3 py-2.5"
       style={{ backgroundColor: constructor.color }}
     >
-      <svg
-        aria-hidden="true"
-        viewBox="0 0 400 56"
-        preserveAspectRatio="none"
-        className="absolute inset-0 h-full w-full opacity-30"
-      >
-        <path
-          d="M -10 40 Q 90 48 140 24 T 260 14 Q 320 8 370 26 T 430 20"
-          stroke={fg}
-          strokeWidth="2.5"
-          fill="none"
-          strokeLinecap="round"
-        />
-      </svg>
       {showBleed && (
         <img
           src={markUrl!}
