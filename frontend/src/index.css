@@ -1,26 +1,32 @@
 @import 'tailwindcss';
 
-/* Tipografia de marca, SOLO para numeros.
+/* Tipografia general: Montserrat.
    Tailwind v4 es CSS-first: un token se declara en @theme y Tailwind genera la utilidad
-   sola. `--font-display` produce la clase `font-display`. Es el primer @theme del proyecto;
-   hasta aca todo heredaba el tema por defecto.
+   sola. `--font-sans` es el que Tailwind usa como tipografia POR DEFECTO de toda la app
+   (preflight.css define `--default-font-family: --theme(--font-sans)` y lo aplica al
+   <html>) — no hace falta ninguna clase en ningun componente, se hereda sola.
 
-   La oficial de F1 (Formula1 Display) es propietaria y no puede viajar en un repo publico.
-   Saira Condensed es la alternativa libre mas cercana al tono de un timing screen.
+   Historia: nacio en las driver cards el 2026-10-14 ("la card tiene que destacar de la
+   general"), con su propio token `--font-card` separado. Un dia despues, mismo usuario, pidio
+   lo contrario: generalizarla a todo el programa. Con las dos iguales, mantener `--font-card`
+   aparte era duplicar un valor sin ninguna diferencia — se saco, y DriverCard/TeamLineup ya
+   no necesitan la clase, la heredan del body.
 
-   La regla de reparto, que antes estaba en la cabeza de nadie:
+   Pesos 400/500/600/700/800 (ver index.html): los cinco que usa el proyecto, de font-normal a
+   font-extrabold. Con menos, un peso sin archivo propio cae al bold sintetico del navegador.
+
+   Tipografia de marca aparte, SOLO para numeros: la oficial de F1 (Formula1 Display) es
+   propietaria y no puede viajar en un repo publico, Saira Condensed es la alternativa libre
+   mas cercana al tono de un timing screen.
+
+   La regla de reparto:
    - NUMEROS (posiciones, puntos, victorias, dorsales, rondas) -> font-display tabular-nums
    - CODIGOS (el inviteCode de una liga) -> siguen en font-mono. Un codigo se lee y se tipea
      caracter por caracter; una condensada junta los trazos y lo empeora.
-   - CARDS de piloto / franja de escuderia -> font-card, nunca font-display. Son la unica
-     zona de la app que necesita "destacar" tipograficamente (pedido del usuario
-     2026-10-14) sin pisar la convencion de arriba: los numeros del resto del sitio
-     (standings, stats) se quedan en Saira Condensed. Montserrat trae 600 y 800 — a
-     diferencia de Racing Sans One (un solo peso, descartada en la segunda vuelta de
-     opciones), esta SI necesita font-semibold/font-extrabold explicito en el componente. */
+   - Todo lo demas -> hereda --font-sans, no hace falta pedirlo. */
 @theme {
+  --font-sans: 'Montserrat', ui-sans-serif, system-ui, sans-serif;
   --font-display: 'Saira Condensed', ui-sans-serif, system-ui, sans-serif;
-  --font-card: 'Montserrat', ui-sans-serif, system-ui, sans-serif;
 
   /* Paleta del modo oscuro — pedido del usuario 2026-10-14, arranca por /drivers para
      definir el patron antes de replicarlo al resto. Se sigue el sistema operativo
