@@ -1,4 +1,4 @@
-import { Badge, Button } from '../../components/ui';
+import { Badge, ConfirmButton } from '../../components/ui';
 import type { LeagueMember } from '../../models/league-member';
 
 // MembersTable: lista de miembros. En SM se apila (cada miembro = 2 lineas); desde md: fila.
@@ -25,18 +25,21 @@ export function MembersTable({
           </div>
           <div className="flex shrink-0 items-center gap-4 text-sm text-slate-500">
             <span>desde {new Date(m.joinedAt).toLocaleDateString('es-AR')}</span>
-            {/* Boton y no un link de texto: echar a alguien es destructivo e irreversible
-                desde la UI, y hasta aca era el elemento con MENOS peso visual de la pantalla
-                y 20px de alto tactil. El aria-label nombra a quien se echa: "Echar" repetido
-                una vez por miembro no distingue nada para un lector de pantalla. */}
+            {/* ConfirmButton y no un click directo: echar a alguien es irreversible desde la
+                UI (no hay forma de reinvitarla salvo que vuelva a usar el codigo), mismo
+                criterio que "Archivar liga" y "Salir de la liga" en esta misma pantalla — las
+                tres acciones sin vuelta atras se confirman igual. El aria-label nombra a quien
+                se echa: "Echar" repetido una vez por miembro no distingue nada para un lector
+                de pantalla. */}
             {canKick && !m.isOwner && (
-              <Button
+              <ConfirmButton
                 variant="danger"
-                aria-label={`Echar a ${m.user.name} de la liga`}
-                onClick={() => onKick(m.userId)}
-              >
-                Echar
-              </Button>
+                label="Echar"
+                ariaLabel={`Echar a ${m.user.name} de la liga`}
+                confirmLabel="Sí, echar"
+                consequence={`${m.user.name} va a salir de la liga. Para volver a entrar, va a necesitar el código de invitación de nuevo.`}
+                onConfirm={() => onKick(m.userId)}
+              />
             )}
           </div>
         </li>
