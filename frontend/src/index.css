@@ -28,15 +28,16 @@
 
      NO es la escala `slate` que ya usa el modo claro en toda la app (bg-slate-50,
      text-slate-900, etc.): probada en wireframe, se veia claramente azulada. En su lugar,
-     ancla en el NEGRO REAL de la marca — `#111113`, el mismo fill que usa public/logo.svg
-     — en vez de sumar una escala de grises mas (`neutral`) que hubiera quedado identica a
-     simple vista pero sin ninguna relacion con un color que el proyecto ya tiene. Los
-     cuatro pasos de abajo son esa base + 3 variaciones de brillo para superficie/borde/texto
-     secundario, mismo rol que cumple `slate` en el modo claro (50/200/500/900 ahi vs.
-     ink/ink-surface/ink-border/ink-muted/ink-text aca). */
-  --color-ink: #111113;
-  --color-ink-surface: #1c1c1f;
-  --color-ink-border: #3a3a3d;
+     arranca cerca del NEGRO REAL de la marca — `#111113`, el mismo fill que usa
+     public/logo.svg — un paso mas clara (`#1a1a1c`): el negro exacto de marca, probado en
+     /drivers contra el build real, se sentia demasiado oscuro para una pantalla completa
+     (pedido del usuario 2026-10-14). Los cuatro pasos de abajo son esa base + 3
+     variaciones de brillo para superficie/borde/texto secundario, mismo rol que cumple
+     `slate` en el modo claro (50/200/500/900 ahi vs. ink/ink-surface/ink-border/
+     ink-muted/ink-text aca). */
+  --color-ink: #1a1a1c;
+  --color-ink-surface: #27272a;
+  --color-ink-border: #434346;
   --color-ink-muted: #9a9a9d;
   --color-ink-text: #f4f4f5;
 }
