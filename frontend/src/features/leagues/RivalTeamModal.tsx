@@ -9,12 +9,14 @@ import { TeamLineup } from '../draft/TeamLineup';
 // mientras esta abierto.
 export function RivalTeamModal({
   nombre,
+  motto,
   drivers,
   constructor,
   onOpenDriver,
   onClose,
 }: {
   nombre: string;
+  motto: string | null;
   drivers: Driver[];
   constructor: ConstructorRef | null;
   onOpenDriver: (id: number) => void;
@@ -64,6 +66,13 @@ export function RivalTeamModal({
               ✕
             </button>
           </div>
+          {/* Pedido del usuario 2026-10-15: el lema que cada quien pone en "Editar perfil"
+              (features/profile/EditProfileModal.tsx) se ve acá, como cita arriba del equipo —
+              no en ningún otro lado de la app. Sin lema, no se dibuja nada (null, no un
+              placeholder tipo "Sin lema"): la mayoría de los rivales no va a tener uno puesto. */}
+          {motto && (
+            <p className="mb-3 text-sm italic text-slate-500 dark:text-ink-muted">&ldquo;{motto}&rdquo;</p>
+          )}
           <TeamLineup drivers={drivers} constructor={constructor} onOpenDriver={onOpenDriver} />
         </div>
       </div>

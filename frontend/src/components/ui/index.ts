@@ -8,4 +8,6 @@ export { errorMessageFor } from './error-messages';
 export { HelpPopover } from './HelpPopover';
 export { PageShell } from './PageShell';
 export { Position } from './Position';
+export { SelectedBadge } from './SelectedBadge';
 export { Success } from './Success';
+export { UserAvatar } from './UserAvatar';

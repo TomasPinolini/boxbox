@@ -802,7 +802,7 @@ describe('GET /api/v1/leagues/:id/members', () => {
       .set('Authorization', `Bearer ${alice.token}`);
 
     expect(res.status).toBe(200);
-    expect(res.body.data[0].user).toEqual({ name: 'User a' });
+    expect(res.body.data[0].user).toEqual({ name: 'User a', motto: null, avatarUrl: null });
   });
 });
 

@@ -15,6 +15,14 @@ const envSchema = z.object({
     .min(32, 'REFRESH_TOKEN_SECRET debe tener >= 32 chars (256 bits de entropia)'),
   REFRESH_TOKEN_EXPIRES_IN: z.string().default('7d'),
   FRONTEND_URL: z.string().url().default('http://localhost:5173'),
+  // Foto de perfil (Slice ??): shared/supabase-storage.ts sube directo a Storage con fetch
+  // nativo, sin el SDK de supabase-js — el resto del proyecto ya habla con el Postgres de
+  // Supabase via Prisma/@prisma/adapter-pg, no via ese cliente. SERVICE_ROLE_KEY bypassea RLS;
+  // quien es el usuario ya lo validamos con NUESTRO JWT antes de llegar ahí. Opcionales: sin
+  // ellas, POST /auth/me/avatar tira 503 en vez de tumbar el boot entero — la app funciona
+  // igual sin foto de perfil.
+  SUPABASE_URL: z.string().url().optional(),
+  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);

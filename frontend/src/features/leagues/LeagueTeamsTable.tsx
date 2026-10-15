@@ -1,4 +1,4 @@
-import { Position } from '../../components/ui';
+import { Position, UserAvatar } from '../../components/ui';
 import type { ConstructorRef, Driver } from '../../models/driver';
 import { ConstructorLogo } from '../drivers/ConstructorLogo';
 import { DriverAvatar } from '../drivers/DriverAvatar';
@@ -43,6 +43,7 @@ function Change({ value }: { value: number }) {
 export interface TeamRowData {
   leagueMemberId: number;
   memberName: string;
+  memberAvatarUrl: string | null;
   isMe: boolean;
   drivers: Driver[];
   constructor: ConstructorRef | null;
@@ -88,18 +89,21 @@ export function LeagueTeamsTable({
                 </td>
               )}
               <td className="py-2 pr-3 font-medium">
-                {onSelect ? (
-                  <button
-                    type="button"
-                    className="underline-offset-2 hover:underline"
-                    onClick={() => onSelect(r.leagueMemberId)}
-                  >
-                    {r.memberName}
-                  </button>
-                ) : (
-                  r.memberName
-                )}
-                {r.isMe && <span className="ml-1 text-xs text-slate-400 dark:text-ink-muted">(vos)</span>}
+                <span className="flex items-center gap-2">
+                  <UserAvatar user={{ name: r.memberName, avatarUrl: r.memberAvatarUrl }} size={28} />
+                  {onSelect ? (
+                    <button
+                      type="button"
+                      className="underline-offset-2 hover:underline"
+                      onClick={() => onSelect(r.leagueMemberId)}
+                    >
+                      {r.memberName}
+                    </button>
+                  ) : (
+                    r.memberName
+                  )}
+                  {r.isMe && <span className="text-xs text-slate-400 dark:text-ink-muted">(vos)</span>}
+                </span>
               </td>
               <td className="py-2 pr-3">
                 {/* Los pilotos y la escuderia como iconos, en una sola celda: el nombre del

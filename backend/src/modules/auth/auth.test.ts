@@ -1,7 +1,7 @@
 // TESTS — integración HTTP → controller → service → Prisma → DB real.
 // Sin mocks (ADR-0003). Cada test arranca con `users` truncado por src/tests/setup.ts.
 
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from 'vitest';
 import request from 'supertest';
 import jwt from 'jsonwebtoken';
 import app from '../../app';
@@ -230,6 +230,152 @@ describe('GET /api/v1/auth/me', () => {
 
     expect(res.status).toBe(404);
     expect(res.body.error.code).toBe('USER_NOT_FOUND');
+  });
+});
+
+describe('PATCH /api/v1/auth/me', () => {
+  it('actualiza nombre y lema', async () => {
+    const register = await request(app).post('/api/v1/auth/register').send(validRegister);
+    const token = register.body.data.accessToken;
+
+    const res = await request(app)
+      .patch('/api/v1/auth/me')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ name: 'Max V', motto: 'Campeón hace 3 años' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.user.name).toBe('Max V');
+    expect(res.body.data.user.motto).toBe('Campeón hace 3 años');
+  });
+
+  it('motto vacío se guarda como null, no como string vacío', async () => {
+    const register = await request(app).post('/api/v1/auth/register').send(validRegister);
+    const token = register.body.data.accessToken;
+    await request(app)
+      .patch('/api/v1/auth/me')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ motto: 'algo' });
+
+    const res = await request(app)
+      .patch('/api/v1/auth/me')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ motto: '' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.user.motto).toBeNull();
+  });
+
+  it('rechaza un lema de más de 40 caracteres (400 VALIDATION_ERROR)', async () => {
+    const register = await request(app).post('/api/v1/auth/register').send(validRegister);
+    const token = register.body.data.accessToken;
+
+    const res = await request(app)
+      .patch('/api/v1/auth/me')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ motto: 'x'.repeat(41) });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    expect(res.body.error.details).toHaveProperty('motto');
+  });
+
+  it('rechaza request sin sesión (401 TOKEN_MISSING)', async () => {
+    const res = await request(app).patch('/api/v1/auth/me').send({ name: 'Alguien' });
+
+    expect(res.status).toBe(401);
+    expect(res.body.error.code).toBe('TOKEN_MISSING');
+  });
+});
+
+// Un PNG 1x1 real, no un string cualquiera — el service decodifica el base64 de verdad para
+// medir el tamaño del buffer (ver auth.service.ts, MAX_AVATAR_BYTES).
+const ONE_PIXEL_PNG =
+  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
+
+describe('POST /api/v1/auth/me/avatar', () => {
+  // La red no es Jolpica acá, es Supabase Storage — mismo criterio que sync.test.ts: se
+  // stubea `fetch` global con una respuesta fija, supertest no lo toca para nada más.
+  function stubStorage(ok = true) {
+    const fetchMock = vi.fn(async (_url: string) => ({ ok, status: ok ? 200 : 500 }));
+    vi.stubGlobal('fetch', fetchMock);
+    return fetchMock;
+  }
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    env.SUPABASE_URL = undefined;
+    env.SUPABASE_SERVICE_ROLE_KEY = undefined;
+  });
+
+  it('sube la foto y guarda la URL pública', async () => {
+    env.SUPABASE_URL = 'https://proyecto-test.supabase.co';
+    env.SUPABASE_SERVICE_ROLE_KEY = 'service-role-key-de-test';
+    const fetchMock = stubStorage();
+
+    const register = await request(app).post('/api/v1/auth/register').send(validRegister);
+    const token = register.body.data.accessToken;
+    const userId = register.body.data.user.id;
+
+    const res = await request(app)
+      .post('/api/v1/auth/me/avatar')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ avatar: ONE_PIXEL_PNG });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.user.avatarUrl).toBe(
+      `https://proyecto-test.supabase.co/storage/v1/object/public/avatars/${userId}.png`,
+    );
+    // El path pisa el archivo anterior (x-upsert), no acumula uno por usuario.
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      `https://proyecto-test.supabase.co/storage/v1/object/avatars/${userId}.png`,
+    );
+  });
+
+  it('rechaza un data URL que no es imagen (400 INVALID_AVATAR_FORMAT)', async () => {
+    env.SUPABASE_URL = 'https://proyecto-test.supabase.co';
+    env.SUPABASE_SERVICE_ROLE_KEY = 'service-role-key-de-test';
+    stubStorage();
+
+    const register = await request(app).post('/api/v1/auth/register').send(validRegister);
+    const token = register.body.data.accessToken;
+
+    const res = await request(app)
+      .post('/api/v1/auth/me/avatar')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ avatar: 'data:text/plain;base64,aG9sYQ==' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('INVALID_AVATAR_FORMAT');
+  });
+
+  it('sin SUPABASE_URL configurado, 503 AVATAR_STORAGE_NOT_CONFIGURED', async () => {
+    const register = await request(app).post('/api/v1/auth/register').send(validRegister);
+    const token = register.body.data.accessToken;
+
+    const res = await request(app)
+      .post('/api/v1/auth/me/avatar')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ avatar: ONE_PIXEL_PNG });
+
+    expect(res.status).toBe(503);
+    expect(res.body.error.code).toBe('AVATAR_STORAGE_NOT_CONFIGURED');
+  });
+
+  it('si Supabase Storage devuelve error, 502 AVATAR_UPLOAD_FAILED', async () => {
+    env.SUPABASE_URL = 'https://proyecto-test.supabase.co';
+    env.SUPABASE_SERVICE_ROLE_KEY = 'service-role-key-de-test';
+    stubStorage(false);
+
+    const register = await request(app).post('/api/v1/auth/register').send(validRegister);
+    const token = register.body.data.accessToken;
+
+    const res = await request(app)
+      .post('/api/v1/auth/me/avatar')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ avatar: ONE_PIXEL_PNG });
+
+    expect(res.status).toBe(502);
+    expect(res.body.error.code).toBe('AVATAR_UPLOAD_FAILED');
   });
 });
 

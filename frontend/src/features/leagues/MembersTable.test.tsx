@@ -9,7 +9,7 @@ const member = (over: Partial<LeagueMember> = {}): LeagueMember => ({
   isOwner: false,
   status: 'ACTIVE',
   joinedAt: '2026-09-01T00:00:00Z',
-  user: { name: 'Tomás Rivero' },
+  user: { name: 'Tomás Rivero', motto: null, avatarUrl: null },
   ...over,
 });
 

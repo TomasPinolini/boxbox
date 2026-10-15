@@ -767,9 +767,15 @@ async function main() {
   // sigue sin el — un clone recien hecho funciona igual, solo que el campeonato queda en cero.
   const stored = loadStoredResults(2026);
   if (!stored) {
+    // Dos motivos distintos para no tener resultados, y el mensaje tiene que decir cual: si
+    // mandaba a generar el archivo cuando el archivo esta y fue una decision, el log pide una
+    // accion equivocada.
     console.log(
-      'Sin prisma/seed-data/results-2026.json: no se cargan resultados. ' +
-        'Generalo con `npx ts-node src/scripts/fetch-jolpica-results.ts 2026`.',
+      process.env.SEED_SKIP_RESULTS === '1'
+        ? 'SEED_SKIP_RESULTS=1: resultados salteados a proposito, el campeonato arranca en cero. ' +
+            'Cargalos por fecha desde /admin/results, o re-corre el seed sin la variable.'
+        : 'Sin prisma/seed-data/results-2026.json: no se cargan resultados. ' +
+            'Generalo con `npx ts-node src/scripts/fetch-jolpica-results.ts 2026`.',
     );
   } else {
     const sinPiloto = new Set<string>();

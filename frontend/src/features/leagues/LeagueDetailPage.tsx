@@ -226,6 +226,7 @@ export function LeagueDetailPage() {
               ? {
                   nombre:
                     members.data?.find((m) => m.id === equipoElegido)?.user.name ?? 'ese jugador',
+                  motto: members.data?.find((m) => m.id === equipoElegido)?.user.motto ?? null,
                   equipo: equipoDe(
                     teams.data?.picks ?? [],
                     equipoElegido,
@@ -401,6 +402,7 @@ function DespuesDelDraft({
   miEquipo: { drivers: Driver[]; constructor: ConstructorRef | null } | null;
   rival: {
     nombre: string;
+    motto: string | null;
     equipo: { drivers: Driver[]; constructor: ConstructorRef | null } | null;
   } | null;
   onSelect: (leagueMemberId: number) => void;
@@ -441,6 +443,7 @@ function DespuesDelDraft({
       {rival?.equipo && (
         <RivalTeamModal
           nombre={rival.nombre}
+          motto={rival.motto}
           drivers={rival.equipo.drivers}
           constructor={rival.equipo.constructor}
           onOpenDriver={onOpenDriver}
@@ -486,7 +489,7 @@ function armarFilas({
   myLeagueMemberId,
 }: {
   picks: Parameters<typeof buildDraftTeams>[0];
-  miembros: { id: number; user: { name: string } }[];
+  miembros: { id: number; user: { name: string; avatarUrl: string | null } }[];
   standings: TeamRowData['standing'][];
   drivers: Driver[];
   constructors: { id: number }[];
@@ -502,6 +505,7 @@ function armarFilas({
       memberName:
         miembros.find((m) => m.id === team.leagueMemberId)?.user.name ??
         `miembro ${team.leagueMemberId}`,
+      memberAvatarUrl: miembros.find((m) => m.id === team.leagueMemberId)?.user.avatarUrl ?? null,
       isMe: team.leagueMemberId === myLeagueMemberId,
       standing,
       ...resolver(team, drivers, constructors),

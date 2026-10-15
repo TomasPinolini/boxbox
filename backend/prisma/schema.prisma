@@ -69,6 +69,10 @@ model User {
   passwordHash String
   name         String
   avatarUrl    String?
+  // Frase corta, opcional — se ve en el popup "Ver equipo del rival" (RivalTeamModal). Limite
+  // de 40 chars en motto.max de updateProfileSchema (auth.schema.ts), no acá: Prisma String
+  // mapea a TEXT sin tope, igual que League.name.
+  motto        String?
   role         Role     @default(USER)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -92,13 +96,13 @@ model Driver {
   updatedAt   DateTime  @updatedAt
   deletedAt   DateTime?
 
-  seasons     DriverSeason[]
-  raceResults RaceResult[]
-  teamsAsD1   FantasyTeam[]  @relation("Driver1")
-  teamsAsD2   FantasyTeam[]  @relation("Driver2")
-  draftsAsPick DraftPick[]
-  predictedWinner Prediction[] @relation("PredictedWinner")
-  predictedPole   Prediction[] @relation("PredictedPole")
+  seasons         DriverSeason[]
+  raceResults     RaceResult[]
+  teamsAsD1       FantasyTeam[]  @relation("Driver1")
+  teamsAsD2       FantasyTeam[]  @relation("Driver2")
+  draftsAsPick    DraftPick[]
+  predictedWinner Prediction[]   @relation("PredictedWinner")
+  predictedPole   Prediction[]   @relation("PredictedPole")
 
   @@map("drivers")
 }
@@ -117,7 +121,7 @@ model Constructor {
   constructorResults ConstructorResult[]
   teams              FantasyTeam[]
   draftsAsPick       DraftPick[]
-  predictedTop       Prediction[] @relation("PredictedTopConstructor")
+  predictedTop       Prediction[]        @relation("PredictedTopConstructor")
 
   @@map("constructors")
 }
@@ -145,9 +149,9 @@ model Season {
   driverCount Int      @default(20)
   createdAt   DateTime @default(now())
 
-  races          Race[]
-  leagues        League[]
-  driverSeasons  DriverSeason[]
+  races         Race[]
+  leagues       League[]
+  driverSeasons DriverSeason[]
 
   @@map("seasons")
 }
@@ -167,18 +171,18 @@ model DriverSeason {
 }
 
 model Race {
-  id              Int        @id @default(autoincrement())
-  name            String
-  round           Int
-  date            DateTime
-  qualifyingDate  DateTime?
-  sprintDate      DateTime?
-  lockDate        DateTime
-  seasonId        Int
-  circuitId       Int
-  status          RaceStatus @default(UPCOMING)
-  createdAt       DateTime   @default(now())
-  updatedAt       DateTime   @updatedAt
+  id             Int        @id @default(autoincrement())
+  name           String
+  round          Int
+  date           DateTime
+  qualifyingDate DateTime?
+  sprintDate     DateTime?
+  lockDate       DateTime
+  seasonId       Int
+  circuitId      Int
+  status         RaceStatus @default(UPCOMING)
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
 
   season             Season              @relation(fields: [seasonId], references: [id])
   circuit            Circuit             @relation(fields: [circuitId], references: [id])
@@ -203,9 +207,9 @@ model League {
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
-  season    Season         @relation(fields: [seasonId], references: [id])
-  createdBy User           @relation(fields: [createdById], references: [id])
-  members   LeagueMember[]
+  season     Season         @relation(fields: [seasonId], references: [id])
+  createdBy  User           @relation(fields: [createdById], references: [id])
+  members    LeagueMember[]
   draftPicks DraftPick[]
 
   @@map("leagues")
@@ -231,12 +235,12 @@ model LeagueMember {
 }
 
 model FantasyTeam {
-  id              Int  @id @default(autoincrement())
-  leagueMemberId  Int  @unique
-  driver1Id       Int?
-  driver2Id       Int?
-  constructorId   Int?
-  createdAt       DateTime @default(now())
+  id             Int      @id @default(autoincrement())
+  leagueMemberId Int      @unique
+  driver1Id      Int?
+  driver2Id      Int?
+  constructorId  Int?
+  createdAt      DateTime @default(now())
 
   leagueMember LeagueMember @relation(fields: [leagueMemberId], references: [id])
   driver1      Driver?      @relation("Driver1", fields: [driver1Id], references: [id])
@@ -247,14 +251,14 @@ model FantasyTeam {
 }
 
 model DraftPick {
-  id             Int       @id @default(autoincrement())
+  id             Int      @id @default(autoincrement())
   leagueId       Int
   leagueMemberId Int
   pickNumber     Int
   round          Int
   driverId       Int?
   constructorId  Int?
-  pickedAt       DateTime  @default(now())
+  pickedAt       DateTime @default(now())
 
   league       League       @relation(fields: [leagueId], references: [id])
   leagueMember LeagueMember @relation(fields: [leagueMemberId], references: [id])
@@ -301,23 +305,23 @@ model ConstructorResult {
 }
 
 model Prediction {
-  id                       Int      @id @default(autoincrement())
-  leagueMemberId           Int
-  raceId                   Int
-  predictedWinnerId        Int?
-  predictedPoleId          Int?
+  id                        Int      @id @default(autoincrement())
+  leagueMemberId            Int
+  raceId                    Int
+  predictedWinnerId         Int?
+  predictedPoleId           Int?
   predictedTopConstructorId Int?
-  winnerCorrect            Boolean?
-  poleCorrect              Boolean?
-  topConstructorCorrect    Boolean?
-  bonusPoints              Int?
-  createdAt                DateTime @default(now())
-  updatedAt                DateTime @updatedAt
+  winnerCorrect             Boolean?
+  poleCorrect               Boolean?
+  topConstructorCorrect     Boolean?
+  bonusPoints               Int?
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
 
-  leagueMember          LeagueMember @relation(fields: [leagueMemberId], references: [id])
-  race                  Race         @relation(fields: [raceId], references: [id])
-  predictedWinner       Driver?      @relation("PredictedWinner", fields: [predictedWinnerId], references: [id])
-  predictedPole         Driver?      @relation("PredictedPole", fields: [predictedPoleId], references: [id])
+  leagueMember            LeagueMember @relation(fields: [leagueMemberId], references: [id])
+  race                    Race         @relation(fields: [raceId], references: [id])
+  predictedWinner         Driver?      @relation("PredictedWinner", fields: [predictedWinnerId], references: [id])
+  predictedPole           Driver?      @relation("PredictedPole", fields: [predictedPoleId], references: [id])
   predictedTopConstructor Constructor? @relation("PredictedTopConstructor", fields: [predictedTopConstructorId], references: [id])
 
   @@unique([leagueMemberId, raceId])
@@ -325,15 +329,15 @@ model Prediction {
 }
 
 model LeagueStanding {
-  id                Int @id @default(autoincrement())
+  id                Int      @id @default(autoincrement())
   leagueMemberId    Int
   raceId            Int
-  driverPoints      Int @default(0)
-  constructorPoints Int @default(0)
-  predictionPoints  Int @default(0)
-  totalPoints       Int @default(0)
+  driverPoints      Int      @default(0)
+  constructorPoints Int      @default(0)
+  predictionPoints  Int      @default(0)
+  totalPoints       Int      @default(0)
   position          Int
-  positionChange    Int @default(0)
+  positionChange    Int      @default(0)
   createdAt         DateTime @default(now())
 
   leagueMember LeagueMember @relation(fields: [leagueMemberId], references: [id])

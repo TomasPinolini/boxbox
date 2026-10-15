@@ -49,6 +49,24 @@ export async function getMe(req: Request, res: Response, next: NextFunction) {
   }
 }
 
+export async function updateProfile(req: Request, res: Response, next: NextFunction) {
+  try {
+    const user = await authService.updateProfile(req.user!.userId, req.body);
+    res.json({ data: { user } });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function updateAvatar(req: Request, res: Response, next: NextFunction) {
+  try {
+    const user = await authService.updateAvatar(req.user!.userId, req.body.avatar);
+    res.json({ data: { user } });
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function refresh(req: Request, res: Response, next: NextFunction) {
   try {
     // cookie-parser middleware (en app.ts) parseo las cookies de req.headers.cookie a req.cookies.

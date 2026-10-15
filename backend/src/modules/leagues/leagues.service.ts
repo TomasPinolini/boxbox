@@ -46,7 +46,9 @@ const memberSelect = {
   isOwner: true,
   status: true,
   joinedAt: true,
-  user: { select: { name: true } },
+  // motto: lo que RivalTeamModal muestra como cita arriba del equipo (frontend).
+  // avatarUrl: la foto de perfil en la tabla de miembros (frontend, Slice 17).
+  user: { select: { name: true, motto: true, avatarUrl: true } },
 } as const;
 
 // fantasyTeamSelect — shape de FantasyTeam en responses publicas (GET /:id/teams/me).

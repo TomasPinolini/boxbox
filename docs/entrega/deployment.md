@@ -80,15 +80,32 @@ runtime necesita rompiendo el build.
 | Variable | Valor |
 | :------- | :---- |
 | `NODE_ENV` | `production` |
-| `DATABASE_URL` | el de `backend/.env.supabase-dev.local` — ref `inmbedbcedksbjypsjlm`, región **us-west-2**, puerto **5432** |
+| `DATABASE_URL` | `backend/.env.supabase-dev.local` para la defensa; `.env.supabase-prod.local` cuando la app se abra a usuarios reales |
 | `JWT_SECRET` | nuevo, `openssl rand -hex 32` |
 | `REFRESH_TOKEN_SECRET` | nuevo y distinto del anterior |
 | `FRONTEND_URL` | la URL de Vercel (ver paso 4) |
 
 **Ojo con cuál base.** Hay dos proyectos en Supabase y se distinguen por región:
-`boxbox-dev` es **us-west-2** (`inmbedbcedksbjypsjlm`, con seed y resultados) y
-`boxbox-prod` es **us-east-1** (`qtwsblwfoceamuvothww`, vacía a propósito). Apuntar a prod
-da `(ENOTFOUND) tenant/user postgres.<ref> not found` o una app sin datos.
+`boxbox-dev` es **us-west-2** (`inmbedbcedksbjypsjlm`) y `boxbox-prod` es **us-east-1**
+(`qtwsblwfoceamuvothww`).
+
+**Para la defensa la app pública usa `boxbox-dev`**, que es la base con la Liga Demo, las
+fechas importadas de Jolpica y los standings poblados. `boxbox-prod` quedó migrada y
+seedeada en cero, lista para el día que la app se abra a usuarios reales: cambiar entre una
+y otra es un solo campo en Render y ~90 segundos de redeploy.
+
+Lo que sigue describe por qué existe esa segunda base y cómo se llegó a ella.
+
+**El 2026-10-15 se probó apuntar a `boxbox-prod`**, y ahí algo cambió de sentido: antes
+este runbook decía que apuntar a prod daba `(ENOTFOUND) tenant/user postgres.<ref> not
+found`. Ese error no era del string —que siempre fue correcto— sino de que el proyecto
+estaba **pausado**: nunca había tenido actividad, y Supabase saca del pooler a los proyectos
+pausados. Se resuelve con *Restore* en el dashboard, y después el string conecta sin
+cambiarle nada.
+
+El motivo del cambio: desde que la app es alcanzable por gente real, sus cuentas no pueden
+vivir en la base de desarrollo, que es la que se trunca, se re-seedea y se resetea mientras
+se programa. Un `prisma migrate reset` local borraría datos de terceros.
 
 **No crees `FRONTEND_URL` vacía.** `env.ts` la valida con `z.string().url()`, y el
 `.default()` de Zod **sólo aplica cuando la clave es `undefined`** — con string vacío el
@@ -258,15 +275,21 @@ deployar con anticipación.
 | :-- | :---- |
 | API | **https://boxbox-api.onrender.com** |
 | Health check | https://boxbox-api.onrender.com/api/v1/health |
-| Frontend | **https://boxbox-tomas-pinolinis-projects.vercel.app** |
-| Usuario admin | `admin@boxbox.test` / `admin1234` |
-| Miembro de liga 1 | `demo1@boxbox.test` / `demo1234` |
-| Miembro de liga 2 | `demo2@boxbox.test` / `demo1234` |
-| Base de datos | Supabase `boxbox-dev` (us-west-2, `inmbedbcedksbjypsjlm`) |
+| Frontend | **https://boxbox-three.vercel.app** — único dominio propio del proyecto |
+| Base de datos | Supabase `boxbox-dev` (us-west-2, `inmbedbcedksbjypsjlm`) — la de la demo |
+| Usuario admin | `admin@boxbox.test` — **password NO publicada**, ver abajo |
 
-El admin sale del seed (`backend/prisma/seed.ts`) y es deliberadamente público: es una
-credencial de demostración sobre la base de desarrollo. `boxbox-prod` **nunca se seedea**
-— ver [`ADR-0007`](../adr/ADR-0007-supabase-postgres-hosting.md).
+`admin1234`, `demo1@boxbox.test` y `demo2@boxbox.test` son de `boxbox-dev`, junto con la
+"Liga Demo BoxBox" (`liga-demo-2026`) y su draft `COMPLETED`. Los dos usuarios `demo*` se
+crearon **a mano**: ningún script los reproduce, así que **no existen en `boxbox-prod`** —
+si algún día la app pública pasa a esa base, la demo hay que rearmarla.
+
+En `boxbox-prod` el admin se creó con `SEED_ADMIN_PASSWORD`, una password generada con
+`openssl rand -base64 18` que **no se commitea**. Si se pierde, se rota re-corriendo el seed
+con una nueva: el `upsert` del admin aplica el hash también en su rama `update`. Sin esa
+variable el seed usaría `admin1234`, que está publicada en este repo — y en una base
+alcanzable desde internet eso es acceso ADMIN para cualquiera que lo lea. Con
+`NODE_ENV=production` la variable es obligatoria y el seed aborta si falta.
 
 Los dos usuarios `demo*` son miembros de **"Liga Demo BoxBox"** (código de invitación
 `liga-demo-2026`), con el draft `COMPLETED`. Hacen falta para mostrar la vista de un
@@ -302,14 +325,25 @@ ya documentada en BOX-9, y el sync la reporta como `skipped` en vez de fallar.
 > `(ENOTFOUND) tenant/user postgres.<ref> not found`, que parece un error de credenciales
 > y no lo es.
 >
-> **El día anterior a la defensa**: entrar al dashboard de Supabase, reactivar `boxbox-dev`
+> **El día anterior a la defensa**: entrar al dashboard de Supabase, reactivar la base
 > si está pausada, y confirmar con
 > `curl https://boxbox-api.onrender.com/api/v1/drivers` → tiene que traer 22 pilotos.
 > Si devuelve `500`, la base está dormida.
+>
+> **Con usuarios reales usando la app esto deja de ser un ritual de un día.** Un ping
+> automático cada 10 minutos (UptimeRobot, cron-job.org) lo evita, pero tiene que apuntar a
+> **`/api/v1/drivers`**, no a `/api/v1/health`: `health` no toca la base, así que responde
+> `200` con el proyecto pausado y no la mantiene despierta. Un ping a `/drivers` hace una
+> query real y de paso evita el arranque en frío de Render. Un solo chequeo cubre los dos
+> problemas.
 
 - **El plan free de Render suspende el servicio tras 15 minutos sin tráfico**, y el
   arranque en frío tarda ~50s. Antes de la defensa, abrir la URL una vez para despertarlo.
 - **El draft no reconecta.** Si el socket se corta, hay que recargar la página. Está
   declarado fuera de alcance en [`roadmap.md`](../roadmap.md).
-- **Una sola base para la demo.** El deploy apunta a `boxbox-dev`, que tiene el seed y las
-  14 fechas importadas de Jolpica. `boxbox-prod` queda migrada y vacía.
+- **Dos bases con contenido distinto.** La app pública apunta a `boxbox-dev` (seed completo,
+  fechas de Jolpica, Liga Demo) porque es la que sirve para la defensa. `boxbox-prod` está
+  migrada y seedeada con `SEED_SKIP_RESULTS=1`: grilla y calendario completos y **campeonato
+  en cero**, para que una liga nueva se pueda jugar de verdad — con los 17 resultados de 2026
+  ya cargados, el draft reparte pilotos y la tabla sale resuelta de entrada. Los resultados
+  se cargan fecha por fecha desde `/admin/results`.

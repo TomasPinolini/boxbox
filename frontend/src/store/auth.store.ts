@@ -8,6 +8,9 @@ interface AuthState {
   sessionReady: boolean;
   isLoggedIn: () => boolean;
   setSession: (user: User, accessToken: string) => void;
+  // Para PATCH /auth/me y POST /auth/me/avatar: el user ya está logueado, solo cambió un
+  // campo — no hay un accessToken nuevo que guardar, a diferencia de setSession.
+  updateUser: (user: User) => void;
   clear: () => void;
   markReady: () => void;
 }
@@ -20,6 +23,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   sessionReady: false,
   isLoggedIn: () => get().accessToken !== null,
   setSession: (user, accessToken) => set({ user, accessToken }),
+  updateUser: (user) => set({ user }),
   clear: () => set({ user: null, accessToken: null }),
   markReady: () => set({ sessionReady: true }),
 }));

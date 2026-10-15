@@ -1,8 +1,18 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import type { ReactElement } from 'react';
+import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 import type { ConstructorRef, Driver } from '../../models/driver';
 import { DraftPicker } from './DraftPicker';
+
+// DraftPicker ahora dibuja DriverCard/ConstructorStrip de verdad (Slice 17), no una tarjeta
+// propia — y las dos tienen una franja que es un <Link> real a /constructors/:id. Necesita
+// Router alrededor aunque el picker no navegue por su cuenta, mismo criterio que
+// DriverCard.test.tsx.
+function renderPicker(ui: ReactElement) {
+  return render(<MemoryRouter>{ui}</MemoryRouter>);
+}
 
 const redBull: ConstructorRef = { id: 3, name: 'Red Bull Racing', color: '#3671C6', logoUrl: null };
 const ferrari: ConstructorRef = { id: 5, name: 'Ferrari', color: '#E8002D', logoUrl: null };
@@ -30,7 +40,7 @@ const drivers: Driver[] = [
 
 describe('DraftPicker', () => {
   it('lista los pilotos con numero y escudería', () => {
-    render(
+    renderPicker(
       <DraftPicker
         category="DRIVER"
         drivers={drivers}
@@ -42,13 +52,15 @@ describe('DraftPicker', () => {
     );
 
     expect(screen.getByRole('button', { name: /Max Verstappen/ })).toBeInTheDocument();
-    expect(screen.getByText('#1')).toBeInTheDocument();
+    // DriverCard dibuja el dorsal pelado, sin "#" — es la misma card que /drivers, sin
+    // aproximaciones propias del picker (el Tile anterior sí le agregaba el "#").
+    expect(screen.getByText('1')).toBeInTheDocument();
     expect(screen.getByText('Red Bull Racing')).toBeInTheDocument();
   });
 
   it('avisa el id del piloto elegido', async () => {
     const onSelect = vi.fn();
-    render(
+    renderPicker(
       <DraftPicker
         category="DRIVER"
         drivers={drivers}
@@ -65,7 +77,7 @@ describe('DraftPicker', () => {
   });
 
   it('marca con aria-pressed la opcion seleccionada', () => {
-    render(
+    renderPicker(
       <DraftPicker
         category="DRIVER"
         drivers={drivers}
@@ -87,7 +99,7 @@ describe('DraftPicker', () => {
   });
 
   it('en categoria CONSTRUCTOR lista escuderias, no pilotos', () => {
-    render(
+    renderPicker(
       <DraftPicker
         category="CONSTRUCTOR"
         drivers={drivers}
@@ -108,7 +120,7 @@ describe('DraftPicker', () => {
   // se apaga, no se va.
   describe('pilotos ya elegidos (takenIds)', () => {
     it('siguen en la lista, pero deshabilitados y sin aria-pressed', () => {
-      render(
+      renderPicker(
         <DraftPicker
           category="DRIVER"
           drivers={drivers}
@@ -129,7 +141,7 @@ describe('DraftPicker', () => {
 
     it('no se pueden clickear', async () => {
       const onSelect = vi.fn();
-      render(
+      renderPicker(
         <DraftPicker
           category="DRIVER"
           drivers={drivers}
@@ -146,7 +158,7 @@ describe('DraftPicker', () => {
     });
 
     it('tambien aplica a escuderias en categoria CONSTRUCTOR', () => {
-      render(
+      renderPicker(
         <DraftPicker
           category="CONSTRUCTOR"
           drivers={[]}

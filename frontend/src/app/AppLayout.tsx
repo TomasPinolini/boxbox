@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { Button } from '../components/ui';
+import { Button, UserAvatar } from '../components/ui';
 import type { User } from '../models/user';
+import { EditProfileModal } from '../features/profile/EditProfileModal';
 import { authService } from '../services/auth.service';
 import { useAuthStore } from '../store/auth.store';
 
@@ -100,43 +101,6 @@ function AdminLinksGroup({
   );
 }
 
-// Foto del usuario + iniciales de respaldo, mismo patron que DriverAvatar (features/drivers/):
-// avatarUrl es un recurso remoto que puede fallar, y bastantes usuarios ni lo van a tener.
-function UserAvatar({ user, size = 44 }: { user: Pick<User, 'name' | 'avatarUrl'>; size?: number }) {
-  const [failed, setFailed] = useState(false);
-  const initials = user.name
-    .split(' ')
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0])
-    .join('')
-    .toUpperCase();
-
-  if (!user.avatarUrl || failed) {
-    return (
-      <span
-        className="flex shrink-0 items-center justify-center rounded-full bg-slate-200 font-semibold text-slate-600 dark:bg-ink-surface dark:text-ink-muted"
-        style={{ width: size, height: size, fontSize: Math.max(size * 0.36, 10) }}
-        aria-hidden="true"
-      >
-        {initials}
-      </span>
-    );
-  }
-
-  return (
-    <img
-      src={user.avatarUrl}
-      alt=""
-      aria-hidden="true"
-      loading="lazy"
-      onError={() => setFailed(true)}
-      className="shrink-0 rounded-full bg-slate-100 object-cover"
-      style={{ width: size, height: size }}
-    />
-  );
-}
-
 // El logo tiene el trazo en negro de marca (#111113, ver public/logo.svg) fijo en el
 // archivo — invisible sobre el fondo oscuro. logo-dark.svg es el mismo trazo pero en
 // --color-ink-text, mismo rojo de marca sin tocar. Dos <img> y CSS puro (dark:hidden /
@@ -160,7 +124,15 @@ function Logo({ className }: { className: string }) {
 // nunca debe cerrarlo antes de que el item corra su propio onClick) y con Escape, mismo
 // criterio que el drawer mobile y RivalTeamModal. Sin bloqueo de scroll del body: a diferencia
 // de esos dos, este menu no tapa la pantalla, no hace falta.
-function UserMenu({ user, onLogout }: { user: User; onLogout: () => void }) {
+function UserMenu({
+  user,
+  onLogout,
+  onEditProfile,
+}: {
+  user: User;
+  onLogout: () => void;
+  onEditProfile: () => void;
+}) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -208,9 +180,36 @@ function UserMenu({ user, onLogout }: { user: User; onLogout: () => void }) {
           aria-label="Opciones de la cuenta"
           className="absolute right-0 top-full z-20 mt-2 w-48 rounded-md bg-white py-1 shadow-lg ring-1 ring-slate-200 dark:bg-ink-surface dark:ring-ink-border"
         >
-          <p className="truncate border-b border-slate-200 px-4 py-2 text-sm font-semibold text-slate-900 dark:border-ink-border dark:text-ink-text">
-            {user.name}
-          </p>
+          <div className="flex items-center justify-between gap-1 border-b border-slate-200 py-2 pl-4 pr-1 dark:border-ink-border">
+            <p className="truncate text-sm font-semibold text-slate-900 dark:text-ink-text">
+              {user.name}
+            </p>
+            {/* Mismo lápiz que RenameLeague.tsx — trazo simple, dos paths, nada de relleno. */}
+            <button
+              type="button"
+              aria-label="Editar perfil"
+              onClick={() => {
+                close();
+                onEditProfile();
+              }}
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded text-red-600 hover:bg-red-50 dark:hover:bg-red-950"
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M12 20h9" />
+                <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z" />
+              </svg>
+            </button>
+          </div>
           {user.role === 'ADMIN' && (
             <div className="border-b border-slate-200 py-1 dark:border-ink-border">
               <AdminLinksGroup
@@ -242,6 +241,7 @@ export function AppLayout() {
   const user = useAuthStore((s) => s.user);
   const navigate = useNavigate();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [editingProfile, setEditingProfile] = useState(false);
   const hamburgerRef = useRef<HTMLButtonElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
 
@@ -344,7 +344,7 @@ export function AppLayout() {
           {renderNavLinks(linkClass)}
 
           {user ? (
-            <UserMenu user={user} onLogout={logout} />
+            <UserMenu user={user} onLogout={logout} onEditProfile={() => setEditingProfile(true)} />
           ) : (
             // /drivers y /standings son publicas, asi que la barra tambien se ve sin sesion.
             <Link to="/login" className="font-semibold text-red-600 hover:underline">
@@ -433,6 +433,10 @@ export function AppLayout() {
             </div>
           </div>
         </>
+      )}
+
+      {editingProfile && user && (
+        <EditProfileModal user={user} onClose={() => setEditingProfile(false)} />
       )}
 
       <Outlet />
