@@ -52,7 +52,7 @@ describe('DriverCard', () => {
     const onOpen = vi.fn();
     renderCard(<DriverCard driver={driver} onOpen={onOpen} />);
 
-    await userEvent.click(screen.getByRole('button', { name: 'Ver piloto Max Verstappen' }));
+    await userEvent.click(screen.getByRole('button', { name: /Ver piloto Max Verstappen/ }));
 
     expect(onOpen).toHaveBeenCalledWith(7);
   });

@@ -140,7 +140,14 @@ export function LeaguesPage() {
               )}
               className="flex flex-col gap-3"
             >
-              <Field label="Código" error={joinForm.formState.errors.inviteCode?.message}>
+              {/* "Código que te pasaron" y no "Código" a secas: en esta misma pantalla el form
+                  de crear tiene un "Código de invitación", y dos campos que se llaman casi
+                  igual pero significan cosas distintas (uno lo elegís vos, el otro te lo dan)
+                  se confunden. */}
+              <Field
+                label="Código que te pasaron"
+                error={joinForm.formState.errors.inviteCode?.message}
+              >
                 <input className={`${inputClass} font-mono`} {...joinForm.register('inviteCode')} />
               </Field>
               {joinLeague.error && (

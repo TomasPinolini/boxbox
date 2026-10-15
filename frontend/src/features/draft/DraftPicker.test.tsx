@@ -41,7 +41,7 @@ describe('DraftPicker', () => {
       />,
     );
 
-    expect(screen.getByRole('button', { name: 'Max Verstappen' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Max Verstappen/ })).toBeInTheDocument();
     expect(screen.getByText('#1')).toBeInTheDocument();
     expect(screen.getByText('Red Bull Racing')).toBeInTheDocument();
   });
@@ -59,7 +59,7 @@ describe('DraftPicker', () => {
       />,
     );
 
-    await userEvent.click(screen.getByRole('button', { name: 'Charles Leclerc' }));
+    await userEvent.click(screen.getByRole('button', { name: /Charles Leclerc/ }));
 
     expect(onSelect).toHaveBeenCalledWith(2);
   });
@@ -76,11 +76,11 @@ describe('DraftPicker', () => {
       />,
     );
 
-    expect(screen.getByRole('button', { name: 'Max Verstappen' })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: /Max Verstappen/ })).toHaveAttribute(
       'aria-pressed',
       'true',
     );
-    expect(screen.getByRole('button', { name: 'Charles Leclerc' })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: /Charles Leclerc/ })).toHaveAttribute(
       'aria-pressed',
       'false',
     );
@@ -119,11 +119,11 @@ describe('DraftPicker', () => {
         />,
       );
 
-      const taken = screen.getByRole('button', { name: 'Max Verstappen (ya elegido)' });
+      const taken = screen.getByRole('button', { name: /Max Verstappen.*ya elegido/ });
       expect(taken).toBeDisabled();
       expect(taken).not.toHaveAttribute('aria-pressed');
 
-      const free = screen.getByRole('button', { name: 'Charles Leclerc' });
+      const free = screen.getByRole('button', { name: /Charles Leclerc/ });
       expect(free).toBeEnabled();
     });
 
@@ -140,7 +140,7 @@ describe('DraftPicker', () => {
         />,
       );
 
-      await userEvent.click(screen.getByRole('button', { name: 'Max Verstappen (ya elegido)' }));
+      await userEvent.click(screen.getByRole('button', { name: /Max Verstappen.*ya elegido/ }));
 
       expect(onSelect).not.toHaveBeenCalled();
     });

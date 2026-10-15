@@ -75,7 +75,11 @@ export function DriverDetailPage() {
               {d.constructor?.logoUrl && (
                 <img
                   src={d.constructor.logoUrl}
-                  alt={d.constructor.name}
+                  // alt vacio + aria-hidden: el <Link> con el TeamBadge, tres lineas mas
+                  // arriba, YA se llama como la escuderia. Con alt se escuchaba "Ferrari,
+                  // enlace" e inmediatamente despues "Ferrari, imagen".
+                  alt=""
+                  aria-hidden="true"
                   className="h-10 max-w-[220px] object-contain object-left"
                 />
               )}

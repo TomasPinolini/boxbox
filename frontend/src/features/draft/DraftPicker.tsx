@@ -90,7 +90,11 @@ export function DraftPicker({
                 disabled={takenIds.has(d.id)}
                 onSelect={onSelect}
                 borderColor={d.constructor?.color ?? '#e2e8f0'}
-                label={`${d.firstName} ${d.lastName}`}
+                // El aria-label REEMPLAZA el contenido del boton para el nombre accesible, no
+                // se suma: con solo el nombre, el dorsal y la escuderia que se dibujan adentro
+                // no llegaban al lector. Y la escuderia es la mitad de la decision en esta
+                // pantalla, con 60 segundos corriendo.
+                label={`${d.firstName} ${d.lastName}, número ${d.number}, ${d.constructor?.name ?? 'sin escudería'}`}
               >
                 <DriverAvatar driver={d} size={48} />
                 <div className="min-w-0">

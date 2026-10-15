@@ -66,7 +66,18 @@ export function LeagueCard({
               title={`${d.firstName} ${d.lastName}`}
             >
               <DriverAvatar driver={d} size={24} />
-              <span className="font-display tabular-nums text-slate-600 dark:text-ink-muted">{d.code}</span>
+              {/* El title es un tooltip de mouse: no se anuncia y el teclado no llega. El
+                  nombre para el lector va en sr-only, y el codigo de 3 letras se oculta para
+                  no escuchar "Max Verstappen VER". El avatar ya es aria-hidden. */}
+              <span className="sr-only">
+                {d.firstName} {d.lastName}
+              </span>
+              <span
+                aria-hidden="true"
+                className="font-display tabular-nums text-slate-600 dark:text-ink-muted"
+              >
+                {d.code}
+              </span>
             </span>
           ))}
           {miEscuderia && (

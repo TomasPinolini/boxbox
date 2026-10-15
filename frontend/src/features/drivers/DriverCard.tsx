@@ -63,7 +63,9 @@ export function DriverCard({ driver, onOpen }: { driver: Driver; onOpen: (id: nu
           alto explicito, el <img> adentro SI tiene un porcentaje que resolver y listo. */}
       <button
         type="button"
-        aria-label={`Ver piloto ${driver.firstName} ${driver.lastName}`}
+        // El dorsal entra en el aria-label porque el aria-label REEMPLAZA el contenido del
+        // boton para el nombre accesible: el numero que se dibuja adentro no llegaba al lector.
+        aria-label={`Ver piloto ${driver.firstName} ${driver.lastName}, número ${driver.number}`}
         onClick={() => onOpen(driver.id)}
         className="relative z-10 flex h-[132px] cursor-pointer items-stretch text-left"
       >
