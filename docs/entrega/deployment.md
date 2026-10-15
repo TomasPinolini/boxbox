@@ -80,7 +80,7 @@ runtime necesita rompiendo el build.
 | Variable | Valor |
 | :------- | :---- |
 | `NODE_ENV` | `production` |
-| `DATABASE_URL` | el de `backend/.env.supabase-prod.local` — ref `qtwsblwfoceamuvothww`, región **us-east-1**, pooler puerto **5432** |
+| `DATABASE_URL` | `backend/.env.supabase-dev.local` para la defensa; `.env.supabase-prod.local` cuando la app se abra a usuarios reales |
 | `JWT_SECRET` | nuevo, `openssl rand -hex 32` |
 | `REFRESH_TOKEN_SECRET` | nuevo y distinto del anterior |
 | `FRONTEND_URL` | la URL de Vercel (ver paso 4) |
@@ -89,7 +89,14 @@ runtime necesita rompiendo el build.
 `boxbox-dev` es **us-west-2** (`inmbedbcedksbjypsjlm`) y `boxbox-prod` es **us-east-1**
 (`qtwsblwfoceamuvothww`).
 
-**Desde el 2026-10-15 la app pública usa `boxbox-prod`**, y esto cambió de sentido: antes
+**Para la defensa la app pública usa `boxbox-dev`**, que es la base con la Liga Demo, las
+fechas importadas de Jolpica y los standings poblados. `boxbox-prod` quedó migrada y
+seedeada en cero, lista para el día que la app se abra a usuarios reales: cambiar entre una
+y otra es un solo campo en Render y ~90 segundos de redeploy.
+
+Lo que sigue describe por qué existe esa segunda base y cómo se llegó a ella.
+
+**El 2026-10-15 se probó apuntar a `boxbox-prod`**, y ahí algo cambió de sentido: antes
 este runbook decía que apuntar a prod daba `(ENOTFOUND) tenant/user postgres.<ref> not
 found`. Ese error no era del string —que siempre fue correcto— sino de que el proyecto
 estaba **pausado**: nunca había tenido actividad, y Supabase saca del pooler a los proyectos
@@ -269,13 +276,13 @@ deployar con anticipación.
 | API | **https://boxbox-api.onrender.com** |
 | Health check | https://boxbox-api.onrender.com/api/v1/health |
 | Frontend | **https://boxbox-three.vercel.app** — único dominio propio del proyecto |
-| Base de datos | Supabase `boxbox-prod` (us-east-1, `qtwsblwfoceamuvothww`) |
+| Base de datos | Supabase `boxbox-dev` (us-west-2, `inmbedbcedksbjypsjlm`) — la de la demo |
 | Usuario admin | `admin@boxbox.test` — **password NO publicada**, ver abajo |
 
-**Las credenciales de demo son de `boxbox-dev`, no de la app pública.** `admin1234`,
-`demo1@boxbox.test` y `demo2@boxbox.test` existen en la base de desarrollo, con la "Liga
-Demo BoxBox" (`liga-demo-2026`) y su draft `COMPLETED`. Esos dos usuarios se crearon **a
-mano**: ningún script los reproduce, así que no están en `boxbox-prod`.
+`admin1234`, `demo1@boxbox.test` y `demo2@boxbox.test` son de `boxbox-dev`, junto con la
+"Liga Demo BoxBox" (`liga-demo-2026`) y su draft `COMPLETED`. Los dos usuarios `demo*` se
+crearon **a mano**: ningún script los reproduce, así que **no existen en `boxbox-prod`** —
+si algún día la app pública pasa a esa base, la demo hay que rearmarla.
 
 En `boxbox-prod` el admin se creó con `SEED_ADMIN_PASSWORD`, una password generada con
 `openssl rand -base64 18` que **no se commitea**. Si se pierde, se rota re-corriendo el seed
@@ -334,9 +341,9 @@ ya documentada en BOX-9, y el sync la reporta como `skipped` en vez de fallar.
   arranque en frío tarda ~50s. Antes de la defensa, abrir la URL una vez para despertarlo.
 - **El draft no reconecta.** Si el socket se corta, hay que recargar la página. Está
   declarado fuera de alcance en [`roadmap.md`](../roadmap.md).
-- **Dos bases con contenido distinto** (desde el 2026-10-15). La app pública usa
-  `boxbox-prod`: grilla y calendario completos, **campeonato en cero** porque se seedeó con
-  `SEED_SKIP_RESULTS=1`, y los resultados se cargan fecha por fecha desde `/admin/results`.
-  Es lo que hace que una liga nueva se pueda jugar: con los 17 resultados de 2026 ya
-  cargados, el draft reparte pilotos y la tabla sale resuelta de entrada. `boxbox-dev`
-  conserva el seed completo, las fechas de Jolpica y la Liga Demo.
+- **Dos bases con contenido distinto.** La app pública apunta a `boxbox-dev` (seed completo,
+  fechas de Jolpica, Liga Demo) porque es la que sirve para la defensa. `boxbox-prod` está
+  migrada y seedeada con `SEED_SKIP_RESULTS=1`: grilla y calendario completos y **campeonato
+  en cero**, para que una liga nueva se pueda jugar de verdad — con los 17 resultados de 2026
+  ya cargados, el draft reparte pilotos y la tabla sale resuelta de entrada. Los resultados
+  se cargan fecha por fecha desde `/admin/results`.
