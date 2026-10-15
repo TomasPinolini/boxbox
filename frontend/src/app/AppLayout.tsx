@@ -91,6 +91,81 @@ function Logo({ className }: { className: string }) {
   );
 }
 
+// Menu de cuenta de escritorio: el avatar (foto o iniciales, UserAvatar de mas arriba) abre un
+// menu chico con el nombre y "Cerrar sesion" — reemplaza el nombre suelto + boton "Salir" que
+// estaban como hermanos en la barra. Pedido del usuario 2026-10-15: patron estandar (Gmail,
+// GitHub, Slack), asi que no hace falta inventar nada.
+//
+// Cierra con click afuera (el listener en document, no en el boton: un click ADENTRO del menu
+// nunca debe cerrarlo antes de que el item corra su propio onClick) y con Escape, mismo
+// criterio que el drawer mobile y RivalTeamModal. Sin bloqueo de scroll del body: a diferencia
+// de esos dos, este menu no tapa la pantalla, no hace falta.
+function UserMenu({ user, onLogout }: { user: User; onLogout: () => void }) {
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+
+  function close() {
+    setOpen(false);
+    buttonRef.current?.focus();
+  }
+
+  useEffect(() => {
+    if (!open) return;
+    function onPointerDown(e: PointerEvent) {
+      if (!containerRef.current?.contains(e.target as Node)) setOpen(false);
+    }
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') close();
+    }
+    document.addEventListener('pointerdown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [open]);
+
+  return (
+    <div ref={containerRef} className="relative">
+      <button
+        ref={buttonRef}
+        type="button"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label={`Cuenta de ${user.name}`}
+        onClick={() => setOpen((o) => !o)}
+        className="flex h-11 w-11 items-center justify-center rounded-full hover:bg-slate-100 dark:hover:bg-ink-surface"
+      >
+        <UserAvatar user={user} size={32} />
+      </button>
+
+      {open && (
+        <div
+          role="menu"
+          aria-label="Cuenta"
+          className="absolute right-0 top-full z-20 mt-2 w-48 rounded-md bg-white py-1 shadow-lg ring-1 ring-slate-200 dark:bg-ink-surface dark:ring-ink-border"
+        >
+          <p className="truncate border-b border-slate-200 px-4 py-2 text-sm font-semibold text-slate-900 dark:border-ink-border dark:text-ink-text">
+            {user.name}
+          </p>
+          <button
+            role="menuitem"
+            type="button"
+            onClick={() => {
+              close();
+              onLogout();
+            }}
+            className="block w-full px-4 py-2 text-left text-sm font-semibold text-red-600 hover:bg-slate-50 dark:hover:bg-ink-border"
+          >
+            Cerrar sesión
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function AppLayout() {
   const user = useAuthStore((s) => s.user);
   const navigate = useNavigate();
@@ -211,12 +286,7 @@ export function AppLayout() {
           {renderNavLinks(linkClass)}
 
           {user ? (
-            <>
-              <span className="text-slate-500 dark:text-ink-muted">{user.name}</span>
-              <Button variant="secondary" onClick={logout}>
-                Salir
-              </Button>
-            </>
+            <UserMenu user={user} onLogout={logout} />
           ) : (
             // /drivers y /standings son publicas, asi que la barra tambien se ve sin sesion.
             <Link to="/login" className="font-semibold text-red-600 hover:underline">

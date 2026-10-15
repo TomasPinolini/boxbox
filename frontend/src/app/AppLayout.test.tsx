@@ -1,4 +1,5 @@
 import { screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { UserRole } from '../models/user';
 import { useAuthStore } from '../store/auth.store';
@@ -39,17 +40,26 @@ describe('AppLayout — navegacion', () => {
   });
 
   // La barra se ve tambien sin sesion, porque /drivers y /standings son publicas.
-  it('sin sesion muestra Ingresar y no muestra Salir', () => {
+  it('sin sesion muestra Ingresar y no el menu de cuenta', () => {
     renderWithQuery(<AppLayout />);
     expect(screen.getByRole('link', { name: 'Ingresar' })).toHaveAttribute('href', '/login');
-    expect(screen.queryByRole('button', { name: 'Salir' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Cuenta de/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Mis ligas' })).not.toBeInTheDocument();
   });
 
-  it('con sesion muestra el nombre y el boton de salir', () => {
+  // Reemplaza nombre + "Salir" sueltos en la barra: con sesion aparece un boton de cuenta
+  // (el avatar) que al clickear despliega el nombre y "Cerrar sesion" — pedido del usuario
+  // 2026-10-15, mismo patron que Gmail/GitHub/Slack.
+  it('con sesion el menu de cuenta muestra el nombre y cerrar sesion', async () => {
     renderAs('USER');
-    expect(screen.getByText('Ana')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Salir' })).toBeInTheDocument();
+    const trigger = screen.getByRole('button', { name: 'Cuenta de Ana' });
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+
+    await userEvent.click(trigger);
+
+    const menu = screen.getByRole('menu', { name: 'Cuenta' });
+    expect(menu).toHaveTextContent('Ana');
+    expect(screen.getByRole('menuitem', { name: 'Cerrar sesión' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Mis ligas' })).toHaveAttribute('href', '/leagues');
   });
 });
