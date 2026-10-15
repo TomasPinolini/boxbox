@@ -4,13 +4,9 @@ import type { ConstructorRef } from '../../models/driver';
 // Logo de la escuderia, servido de /public/logos (ver CREDITS.md por las licencias).
 // Calcado de DriverAvatar a proposito: mismo contrato, mismo manejo de fallo.
 //
-// Tres de las once no tienen logo —Ferrari, Audi F1 Team y Racing Bulls— porque no habia en
-// Commons un archivo usable con fondo transparente. No es un error ni un dato faltante: es
-// una limitacion conocida y registrada.
-//
-// El fallback NO es "no dibujar nada". Un hueco haria que esas tres filas alinearan su texto
-// 28px a la izquierda de las otras ocho, y la tabla se veria rota. Es un cuadrado con el
-// color oficial del equipo: ocupa lo mismo y sigue identificando al equipo.
+// Las 11 escuderias tienen logo. El fallback (logoUrl null, o la imagen rota) sigue existiendo
+// por las dudas — un hueco haria que esa fila alineara su texto 28px a la izquierda de las
+// demas, y la tabla se veria rota — pero hoy no deberia disparar para ninguna.
 // Caja cuadrada de 24px. Depende de que el archivo sea la MARCA sola (el speedmark de
 // McLaren, la estrella de Mercedes, la "A" de Alpine) y no el wordmark con el nombre
 // adentro: un logo apaisado encerrado en 24x24 queda ilegible. Ver CREDITS.md.
