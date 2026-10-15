@@ -50,11 +50,22 @@ export function DriverCard({ driver, onOpen }: { driver: Driver; onOpen: (id: nu
 
       {/* aria-label con el nombre: sin el, un lector de pantalla lee el contenido suelto y los
           22 botones suenan igual. */}
+      {/* h-[132px] fijo, NO flex-1: la foto (headshotUrl, casi cuadrada) tiene h-full dentro de
+          w-2/5, y un <img> con altura en porcentaje dentro de un flex item con altura "auto"
+          (flex-1) no resuelve el porcentaje contra el alto ya ocupado — el browser cae a la
+          relacion de aspecto de la imagen, calculada desde el ANCHO disponible. En una card
+          angosta esa altura "propuesta" queda por debajo del espacio real y no se nota; en una
+          card ancha (grid de 2 columnas en pantallas grandes) pide mas alto del que hay, el
+          boton se desborda mas alla de los 176px fijos de la card (h-44) y el overflow-hidden
+          del contenedor tapa la franja de escuderia de abajo entera — bug reportado por el
+          usuario 2026-10-15, reproducido con el DOM real a dos anchos de ventana distintos.
+          132px = 176px (h-44) menos 44px (min-h-11 de la franja de abajo): con el boton en un
+          alto explicito, el <img> adentro SI tiene un porcentaje que resolver y listo. */}
       <button
         type="button"
         aria-label={`Ver piloto ${driver.firstName} ${driver.lastName}`}
         onClick={() => onOpen(driver.id)}
-        className="relative z-10 flex flex-1 cursor-pointer items-stretch text-left"
+        className="relative z-10 flex h-[132px] cursor-pointer items-stretch text-left"
       >
         <div className="flex min-w-0 flex-1 flex-col justify-center py-2 pl-4 pr-1">
           <p className="truncate text-base font-semibold text-white">
