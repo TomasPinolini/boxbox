@@ -18,10 +18,15 @@ import { useAuthStore } from '../store/auth.store';
 // la lista era distinta en cada una, desde una pantalla de detalle solo se podia volver, y
 // "Salir" existia unicamente en Mis ligas.
 //
-// Dos barras, no una que se reacomoda: con hasta 6 links + usuario + Salir, apretarlo todo en
-// una fila con flex-wrap (como era antes) dejaba la navegacion en 2-3 lineas en un telefono.
-// Abajo de md es la barra angosta (hamburguesa + logo) con un drawer; de md para arriba es la
-// fila horizontal de siempre, sin tocar.
+// Dos barras, no una que se reacomoda: apretar varios links + usuario + Salir en una fila con
+// flex-wrap (como era antes) dejaba la navegacion en 2-3 lineas en un telefono. Abajo de md es
+// la barra angosta (hamburguesa + logo) con un drawer; de md para arriba es la fila horizontal
+// de siempre, sin tocar.
+//
+// Resultados/Temporadas/Circuitos (ADMIN) ya no estan en esa fila ni en esa lista: son una
+// capacidad del rol, no navegacion de catalogo como Pilotos/Campeonato, asi que viven
+// agrupadas bajo "Carga" — en escritorio adentro de UserMenu, en movil en su propia seccion
+// del drawer. Pedido del usuario 2026-10-15; ver ADMIN_LINKS/AdminLinksGroup mas abajo.
 
 // NavLink pone aria-current="page" solo en el link activo. El color marca donde estas: el
 // acento rojo es la posicion actual, no un link cualquiera.
@@ -39,6 +44,61 @@ const drawerLinkClass = ({ isActive }: { isActive: boolean }) =>
       ? 'border-l-4 border-red-600 bg-red-50 text-red-600 dark:bg-red-950 dark:text-red-400'
       : 'border-l-4 border-transparent text-slate-600 hover:bg-slate-50 dark:text-ink-muted dark:hover:bg-ink-surface'
   }`;
+
+// Igual que linkClass pero como item de un menu angosto (el de cuenta, UserMenu mas abajo):
+// fondo en hover en vez de subrayado, mismo tratamiento que "Cerrar sesion" en ese mismo menu.
+const menuLinkClass = ({ isActive }: { isActive: boolean }) =>
+  `block px-4 py-2 text-sm font-semibold ${
+    isActive
+      ? 'text-red-600'
+      : 'text-slate-700 hover:bg-slate-50 dark:text-ink-text dark:hover:bg-ink-border'
+  }`;
+
+// Las 3 pantallas de carga de datos, pedido del usuario 2026-10-15: antes vivian sueltas en la
+// barra de navegacion (Cargar resultados, Temporadas, Circuitos) compitiendo con Pilotos/
+// Campeonato/Mis ligas como si fueran contenido mas. Son una capacidad del rol ADMIN, no
+// navegacion de catalogo, asi que se agrupan aparte — en escritorio adentro del menu de
+// cuenta (UserMenu), en movil en su propia seccion con el mismo label "Carga" arriba de los
+// tres, sin moverlos del drawer (pedido explicito: ahi se quedan, solo agrupados).
+const ADMIN_LINKS = [
+  { to: '/admin/results', label: 'Resultados' },
+  { to: '/admin/seasons', label: 'Temporadas' },
+  { to: '/admin/circuits', label: 'Circuitos' },
+];
+
+// uppercase + tracking-wide: patron de encabezado de grupo no clickeable (no es un link, no
+// se confunde con uno), mismo criterio que separar visualmente sin agregar jerarquia de
+// navegacion real.
+function AdminLinksGroup({
+  className,
+  labelClassName,
+  onNavigate,
+  asMenuItems = false,
+}: {
+  className: (props: { isActive: boolean }) => string;
+  labelClassName: string;
+  onNavigate: () => void;
+  // true adentro de UserMenu (role="menu"): cada link necesita role="menuitem" para el
+  // patron ARIA de menu. false en el drawer, que es un <nav> con links comunes.
+  asMenuItems?: boolean;
+}) {
+  return (
+    <>
+      <p className={labelClassName}>Carga</p>
+      {ADMIN_LINKS.map((link) => (
+        <NavLink
+          key={link.to}
+          to={link.to}
+          role={asMenuItems ? 'menuitem' : undefined}
+          className={className}
+          onClick={onNavigate}
+        >
+          {link.label}
+        </NavLink>
+      ))}
+    </>
+  );
+}
 
 // Foto del usuario + iniciales de respaldo, mismo patron que DriverAvatar (features/drivers/):
 // avatarUrl es un recurso remoto que puede fallar, y bastantes usuarios ni lo van a tener.
@@ -149,6 +209,16 @@ function UserMenu({ user, onLogout }: { user: User; onLogout: () => void }) {
           <p className="truncate border-b border-slate-200 px-4 py-2 text-sm font-semibold text-slate-900 dark:border-ink-border dark:text-ink-text">
             {user.name}
           </p>
+          {user.role === 'ADMIN' && (
+            <div className="border-b border-slate-200 py-1 dark:border-ink-border">
+              <AdminLinksGroup
+                className={menuLinkClass}
+                labelClassName="px-4 pb-1 pt-2 text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-ink-muted"
+                onNavigate={close}
+                asMenuItems
+              />
+            </div>
+          )}
           <button
             role="menuitem"
             type="button"
@@ -220,20 +290,6 @@ export function AppLayout() {
           <NavLink to="/leagues" className={className} onClick={closeDrawer}>
             Mis ligas
           </NavLink>
-        )}
-        {/* Solo ADMIN: un link muerto para un USER es peor que no tenerlo (BOX-37). */}
-        {user?.role === 'ADMIN' && (
-          <>
-            <NavLink to="/admin/results" className={className} onClick={closeDrawer}>
-              Cargar resultados
-            </NavLink>
-            <NavLink to="/admin/seasons" className={className} onClick={closeDrawer}>
-              Temporadas
-            </NavLink>
-            <NavLink to="/admin/circuits" className={className} onClick={closeDrawer}>
-              Circuitos
-            </NavLink>
-          </>
         )}
       </>
     );
@@ -345,6 +401,13 @@ export function AppLayout() {
                 por regiones de un lector de pantalla. */}
             <nav aria-label="Menú" className="flex flex-1 flex-col gap-0.5 overflow-y-auto py-2">
               {renderNavLinks(drawerLinkClass)}
+              {user?.role === 'ADMIN' && (
+                <AdminLinksGroup
+                  className={drawerLinkClass}
+                  labelClassName="pb-1 pl-4 pr-3 pt-3 text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-ink-muted"
+                  onNavigate={closeDrawer}
+                />
+              )}
             </nav>
 
             <div className="border-t border-slate-200 p-4 dark:border-ink-border">

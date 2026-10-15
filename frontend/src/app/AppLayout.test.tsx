@@ -24,19 +24,55 @@ describe('AppLayout — navegacion', () => {
     useAuthStore.getState().clear();
   });
 
-  it('un ADMIN ve el link a la carga de resultados', () => {
+  // Los links de carga (Resultados/Temporadas/Circuitos) viven agrupados bajo "Carga" — en
+  // escritorio adentro del menu de cuenta, no sueltos en la barra. Pedido del usuario
+  // 2026-10-15: son una capacidad del rol, no navegacion de catalogo como Pilotos/Campeonato.
+  it('un ADMIN ve los links de carga agrupados en el menu de cuenta', async () => {
     renderAs('ADMIN');
-    expect(screen.getByRole('link', { name: 'Cargar resultados' })).toHaveAttribute(
+    await userEvent.click(screen.getByRole('button', { name: 'Cuenta de Ana' }));
+
+    // menuitem, no link: AdminLinksGroup pone role="menuitem" en estos <a> adentro de
+    // UserMenu (asMenuItems), siguiendo el patron ARIA de menu — un role explicito pisa el
+    // implicito del elemento.
+    const menu = screen.getByRole('menu', { name: 'Cuenta' });
+    expect(menu).toHaveTextContent('Carga');
+    expect(screen.getByRole('menuitem', { name: 'Resultados' })).toHaveAttribute(
       'href',
       '/admin/results',
+    );
+    expect(screen.getByRole('menuitem', { name: 'Temporadas' })).toHaveAttribute(
+      'href',
+      '/admin/seasons',
+    );
+    expect(screen.getByRole('menuitem', { name: 'Circuitos' })).toHaveAttribute(
+      'href',
+      '/admin/circuits',
     );
     expect(screen.getByRole('link', { name: 'Campeonato' })).toHaveAttribute('href', '/standings');
   });
 
-  it('un USER no lo ve', () => {
+  it('un USER no ve el grupo de carga', async () => {
     renderAs('USER');
-    expect(screen.queryByRole('link', { name: 'Cargar resultados' })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Cuenta de Ana' }));
+
+    const menu = screen.getByRole('menu', { name: 'Cuenta' });
+    expect(menu).not.toHaveTextContent('Carga');
+    expect(screen.queryByRole('menuitem', { name: 'Resultados' })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Campeonato' })).toBeInTheDocument();
+  });
+
+  // Mismos tres links, pero en el drawer mobile no se movieron de la lista de navegacion —
+  // pedido explicito del usuario: ahi se quedan, solo agrupados con su propio label "Carga".
+  it('un ADMIN ve el grupo de carga en el drawer mobile', async () => {
+    renderAs('ADMIN');
+    await userEvent.click(screen.getByRole('button', { name: 'Abrir menú' }));
+
+    const drawer = screen.getByRole('dialog', { name: 'Menú' });
+    expect(drawer).toHaveTextContent('Carga');
+    expect(screen.getByRole('link', { name: 'Resultados' })).toHaveAttribute(
+      'href',
+      '/admin/results',
+    );
   });
 
   // La barra se ve tambien sin sesion, porque /drivers y /standings son publicas.
