@@ -34,7 +34,7 @@ describe('useDraftState', () => {
   beforeEach(() => {
     useAuthStore
       .getState()
-      .setSession({ id: 1, email: 'a@b.c', name: 'Ana', avatarUrl: null, role: 'USER' }, 'tok');
+      .setSession({ id: 1, email: 'a@b.c', name: 'Ana', avatarUrl: null, motto: null, role: 'USER' }, 'tok');
   });
 
   it('arranca conectando y pasa a connected en el evento connect', async () => {

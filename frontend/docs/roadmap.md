@@ -39,6 +39,17 @@ el hub, [`../../docs/roadmap.md`](../../docs/roadmap.md) → "Trámites de cáte
 
 ## Completados
 
+### Slice 17 (frontend) — perfil editable (nombre, lema, foto)
+
+- **Status**: done (branch `feat/perfil-editable-lema-foto`). Mitad frontend; los endpoints están en [el carril backend](../../backend/docs/roadmap.md).
+- **Goal**: desde el menú de cuenta, poder cambiar nombre, poner un "lema" y subir una foto de perfil.
+- **Shipped**: `features/profile/EditProfileModal.tsx` — mismo patrón dual mobile/desktop que `HelpPopover` (hoja inferior en mobile vía `md:hidden`, diálogo centrado en desktop vía `hidden md:flex`, los dos siempre en el DOM, CSS decide cuál se ve). Se abre con el lápiz nuevo al lado del nombre en `UserMenu` (`app/AppLayout.tsx`). `components/ui/UserAvatar.tsx` se extrajo de `AppLayout` (antes vivía ahí sin exportar) porque ahora lo usan dos lugares. El lema, si existe, se muestra en cursiva en `RivalTeamModal` ("Ver equipo del rival").
+- **Decisiones clave**:
+  - **Foto: `<input type="file">` → `FileReader.readAsDataURL` → un string base64 adentro del JSON del `POST`.** No multipart/`FormData`. Es la primera subida de archivo de usuario del repo — no hay un patrón previo que seguir — y a esta escala (tope 2MB, pensado para una foto de perfil, no un archivo cualquiera) evita sumar `multer` como dependencia nueva solo para este endpoint. El costo real: el string base64 pesa ~33% más que el archivo original, y pasa entero por memoria del proceso Node en vez de ir en streaming — aceptable con el tope de 2MB, no escalaría a archivos grandes.
+  - **El popup no sube nada hasta tocar "Guardar"**: la foto elegida se previsualiza desde el propio `FileReader`, y `onSave` llama primero a `updateAvatar` (si hay foto nueva) y después a `updateProfile` (si nombre/lema cambiaron) — ninguno de los dos si no hace falta.
+  - **El "?" de "Lema"** usa el `HelpPopover` real importado de `components/ui`, no una aproximación — primer intento copió los valores a mano (18px/11px) en lugar de las constantes reales del componente (círculo de 22px, texto de 13px, tap-target de 44px), corregido tras revisión.
+- **Tests**: `EditProfileModal.test.tsx`, 8 — todos con `getAllBy*`/`[0]` por la duplicación mobile/desktop, mismo criterio que `HelpPopover.test.tsx`. Services mockeados (`vi.mock('../../services/auth.service')`), sin backend real — ver el carril backend para la verificación contra Postgres real, que corrió aparte.
+
 ### Slice 13b — Draft en vivo
 
 Partida en dos tramos (Pino, 2026-09-21) para no apostar toda la entrega del 12/10 a tener

@@ -17,10 +17,11 @@
 
 import { prisma } from '../../shared/prisma';
 import { Prisma } from '../../generated/prisma/client';
-import { ConflictError, NotFoundError, UnauthorizedError } from '../../shared/errors';
+import { ConflictError, NotFoundError, UnauthorizedError, AppError } from '../../shared/errors';
 import { hashPassword, comparePassword } from '../../shared/password';
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from '../../shared/jwt';
-import type { RegisterInput, LoginInput } from './auth.schema';
+import { uploadAvatar } from '../../shared/supabase-storage';
+import type { RegisterInput, LoginInput, UpdateProfileInput } from './auth.schema';
 
 // userSelect — campos que SÍ devolvemos al cliente.
 // passwordHash nunca aparece acá. Si lo necesitamos internamente (login), pedimos la fila entera sin select.
@@ -29,6 +30,7 @@ const userSelect = {
   email: true,
   name: true,
   avatarUrl: true,
+  motto: true,
   role: true,
   createdAt: true,
   updatedAt: true,
@@ -120,4 +122,49 @@ export async function getMe(userId: number) {
     throw new NotFoundError('User');
   }
   return user;
+}
+
+// PATCH /me — nombre y/o lema. motto === '' (el campo se vació en el popup) se guarda como
+// null, no como string vacío: así `rival.motto &&` en RivalTeamModal no tiene que distinguir
+// entre "nunca puso uno" y "lo puso y lo borró", y el "x/40" del popup arranca en 0 las dos veces.
+export async function updateProfile(userId: number, data: UpdateProfileInput) {
+  const motto = data.motto === '' ? null : data.motto;
+  return prisma.user.update({
+    where: { id: userId },
+    data: { name: data.name, motto },
+    select: userSelect,
+  });
+}
+
+// data:image/png;base64,iVBORw0KG... — no multipart, ver auth.schema.ts.
+const DATA_URL_RE = /^data:(image\/(?:png|jpeg|webp));base64,([a-zA-Z0-9+/]+=*)$/;
+const MAX_AVATAR_BYTES = 2 * 1024 * 1024; // matchea el file_size_limit del bucket en Supabase
+const EXT_BY_MIME: Record<string, string> = {
+  'image/png': 'png',
+  'image/jpeg': 'jpg',
+  'image/webp': 'webp',
+};
+
+// POST /me/avatar — el path es `<userId>.<ext>` a propósito: re-subir pisa el archivo viejo
+// (x-upsert en supabase-storage.ts) en vez de acumular uno por cada cambio de foto, y evita
+// que alguien escriba el archivo de OTRO usuario (no depende de nada que mande el cliente).
+export async function updateAvatar(userId: number, dataUrl: string) {
+  const match = DATA_URL_RE.exec(dataUrl);
+  if (!match) {
+    throw new AppError(400, 'INVALID_AVATAR_FORMAT', 'La imagen tiene que ser PNG, JPEG o WebP');
+  }
+  const [, contentType, base64] = match;
+  const buffer = Buffer.from(base64, 'base64');
+  if (buffer.byteLength > MAX_AVATAR_BYTES) {
+    throw new AppError(400, 'AVATAR_TOO_LARGE', 'La imagen no puede pesar más de 2MB');
+  }
+
+  const path = `${userId}.${EXT_BY_MIME[contentType]}`;
+  const avatarUrl = await uploadAvatar(path, buffer, contentType);
+
+  return prisma.user.update({
+    where: { id: userId },
+    data: { avatarUrl },
+    select: userSelect,
+  });
 }

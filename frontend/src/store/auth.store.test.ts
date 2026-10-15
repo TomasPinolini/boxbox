@@ -1,7 +1,7 @@
 import { useAuthStore } from './auth.store';
 import type { User } from '../models/user';
 
-const user: User = { id: 1, email: 'a@b.c', name: 'Ana', avatarUrl: null, role: 'USER' };
+const user: User = { id: 1, email: 'a@b.c', name: 'Ana', avatarUrl: null, motto: null, role: 'USER' };
 
 describe('useAuthStore', () => {
   beforeEach(() => useAuthStore.getState().clear());

@@ -42,7 +42,10 @@ app.use(helmet());
 app.use(cors({ origin: env.FRONTEND_URL, credentials: true }));
 
 // Parse JSON bodies
-app.use(express.json());
+// 3mb, no el default de 100kb: POST /auth/me/avatar manda la imagen como data URL base64 (sin
+// multer — ver auth.schema.ts), y base64 infla el tamaño original ~33%. El bucket de Supabase
+// ya tope-a el archivo real en 2MB; 3mb deja margen para ese overhead más el resto del JSON.
+app.use(express.json({ limit: '3mb' }));
 
 // Parse cookies — necesario para leer req.cookies.refreshToken en POST /auth/refresh y /auth/logout (Slice 1c).
 app.use(cookieParser());

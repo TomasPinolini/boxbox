@@ -5,7 +5,7 @@ import { Router } from 'express';
 import * as authController from './auth.controller';
 import { validate } from '../../middleware/validate';
 import { requireAuth } from '../../middleware/auth';
-import { registerSchema, loginSchema } from './auth.schema';
+import { registerSchema, loginSchema, updateProfileSchema, updateAvatarSchema } from './auth.schema';
 import { loginLimiter, registerLimiter } from '../../middleware/rateLimit';
 
 const router = Router();
@@ -19,6 +19,8 @@ router.post('/login', loginLimiter, validate(loginSchema), authController.login)
 // Protegido — requireAuth corre primero. Si falla → 401 TOKEN_MISSING o TOKEN_INVALID.
 // Si pasa → req.user esta seteado y el controller lo usa para fetch.
 router.get('/me', requireAuth, authController.getMe);
+router.patch('/me', requireAuth, validate(updateProfileSchema), authController.updateProfile);
+router.post('/me/avatar', requireAuth, validate(updateAvatarSchema), authController.updateAvatar);
 
 // Refresh + logout NO usan requireAuth (eso requiere access token en header).
 // Refresh autentica via la cookie del refresh token; logout siempre limpia la cookie aunque no la traiga.
