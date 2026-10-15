@@ -25,6 +25,9 @@ async function registrar(page: Page, nombre: string) {
   await page.getByLabel('Contraseña').fill('hunter22test');
   await page.getByRole('button', { name: 'Crear cuenta' }).click();
   await expect(page).toHaveURL(/\/leagues$/);
+  // Un usuario reción registrado cae en /leagues con el tour de bienvenida abierto. Se saltea:
+  // lo que este helper prepara es una liga, el tour lo prueba leagues.spec.ts.
+  await page.getByRole('button', { name: 'Saltear' }).click();
 }
 
 /**
@@ -42,7 +45,9 @@ async function ligaConDosJugadores(browser: Browser) {
 
   const code = unico('e2e').slice(0, 20);
   await duenio.getByLabel('Nombre').fill('Liga Draft E2E');
-  await duenio.getByLabel('Código de invitación').fill(code);
+  // exact: true — ver el comentario del mismo locator en leagues.spec.ts: el "?" de ayuda al
+  // lado de "Crear liga" tambien matchea "codigo de invitacion" por subcadena.
+  await duenio.getByLabel('Código de invitación', { exact: true }).fill(code);
   await duenio.getByRole('button', { name: 'Crear', exact: true }).click();
   await expect(duenio).toHaveURL(/\/leagues\/\d+$/);
   const id = Number(/\/leagues\/(\d+)/.exec(duenio.url())![1]);

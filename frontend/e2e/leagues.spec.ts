@@ -13,10 +13,18 @@ test('registrarse, crear una liga y verla como owner', async ({ page }) => {
   await page.getByRole('button', { name: 'Crear cuenta' }).click();
 
   await expect(page).toHaveURL(/\/leagues$/);
+  // Reción registrado, /leagues abre el tour de bienvenida encima de todo. Hay que cerrarlo
+  // antes de seguir: el scrim tapa el formulario de crear liga.
+  await expect(page.getByRole('dialog', { name: 'Bienvenido a BoxBox' })).toBeVisible();
+  await page.getByRole('button', { name: 'Saltear' }).click();
+
   await expect(page.getByRole('heading', { name: 'Mis ligas' })).toBeVisible();
 
   await page.getByLabel('Nombre').fill('Liga E2E');
-  await page.getByLabel('Código de invitación').fill(code);
+  // exact: true obligatorio desde que el titulo "Crear liga" tiene un "?" al lado cuyo
+  // aria-label es "¿Que es el codigo de invitacion?". getByLabel matchea por SUBCADENA sin
+  // distinguir mayusculas, asi que sin exact el locator resuelve al input Y al boton.
+  await page.getByLabel('Código de invitación', { exact: true }).fill(code);
   await page.getByRole('button', { name: 'Crear', exact: true }).click();
 
   await expect(page).toHaveURL(/\/leagues\/\d+$/);

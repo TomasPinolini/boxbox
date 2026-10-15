@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Alert, Badge, Button, Card, PageShell } from '../../components/ui';
+import { Alert, Badge, Button, Card, HelpPopover, PageShell } from '../../components/ui';
 import type { Driver } from '../../models/driver';
 import type { DraftState } from '../../models/draft';
 import { useAuthStore } from '../../store/auth.store';
@@ -179,27 +179,47 @@ export function DraftPage() {
                     </Badge>
                     <span className="text-xs text-slate-400 dark:text-ink-muted">{CONNECTION_LABEL[status]}</span>
                   </div>
+                  {/* Fila flex y no un solo <p> como era antes: HelpPopover tiene un <div> en
+                  la raiz (necesita envolver el panel posicionado), y un <div> adentro de un <p>
+                  es HTML invalido — el parser cierra el <p> solo antes del div y la linea se
+                  parte en dos. El contador tambien salio del <p> por eso, y perdio su ml-2
+                  porque ahora el gap de la fila hace ese trabajo. */}
                   {state.draftStatus === 'LIVE' && state.round !== null && (
-                    <p className="mt-3 text-sm text-slate-600 dark:text-ink-muted">
-                      Ronda {state.round} de 3 — le toca a{' '}
-                      <span className="font-semibold text-slate-900 dark:text-ink-text">
-                        {state.currentTurnLeagueMemberId !== null
-                          ? memberName(state.currentTurnLeagueMemberId)
-                          : '—'}
-                      </span>
+                    <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1">
+                      <p className="text-sm text-slate-600 dark:text-ink-muted">
+                        Ronda {state.round} de 3 — le toca a{' '}
+                        <span className="font-semibold text-slate-900 dark:text-ink-text">
+                          {state.currentTurnLeagueMemberId !== null
+                            ? memberName(state.currentTurnLeagueMemberId)
+                            : '—'}
+                        </span>
+                      </p>
+                      <HelpPopover title="¿Cómo funcionan las tres rondas?">
+                        En la ronda 1 y en la 2 elegís un piloto; en la 3, una escudería. Así todos
+                        terminan con 2 pilotos y 1 escudería. El orden va y vuelve: el último en
+                        elegir en una ronda es el primero en la siguiente, así nadie queda siempre
+                        último.
+                      </HelpPopover>
                       {/* El contador tiene que poder leerse de un vistazo (no un detalle gris
                       entre parentesis) y avisar cuando se acaba el tiempo, no solo cuando
                       llega a cero — por eso cambia de color antes, no en el ultimo instante. */}
                       {secondsRemaining !== null && (
-                        <span
-                          className={`ml-2 font-display text-base font-bold tabular-nums ${
-                            secondsRemaining <= 10 ? 'text-red-600' : 'text-slate-700 dark:text-ink-muted'
-                          }`}
-                        >
-                          {secondsRemaining}s
-                        </span>
+                        <>
+                          <span
+                            className={`font-display text-base font-bold tabular-nums ${
+                              secondsRemaining <= 10 ? 'text-red-600' : 'text-slate-700 dark:text-ink-muted'
+                            }`}
+                          >
+                            {secondsRemaining}s
+                          </span>
+                          <HelpPopover title="¿Qué pasa si se me acaba el tiempo?">
+                            El sistema elige por vos, al azar entre los que quedan disponibles, y
+                            el turno sigue. No te quedás sin equipo, pero el piloto no lo elegiste
+                            vos.
+                          </HelpPopover>
+                        </>
                       )}
-                    </p>
+                    </div>
                   )}
 
                   {isMyTurn && (
