@@ -53,7 +53,7 @@ export function RenameLeague({
           aria-label="Editar nombre de la liga"
           disabled={disabled}
           onClick={open}
-          className="shrink-0 rounded p-1 text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-red-950"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-red-950"
         >
           {/* Lapiz, trazo simple — dos paths, nada de relleno. */}
           <svg

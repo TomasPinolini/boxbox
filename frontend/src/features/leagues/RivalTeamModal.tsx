@@ -59,7 +59,7 @@ export function RivalTeamModal({
               type="button"
               aria-label="Cerrar"
               onClick={onClose}
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-200 text-slate-600 hover:bg-slate-300 dark:bg-ink-surface dark:text-ink-muted dark:hover:bg-ink-border"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-slate-200 text-slate-600 hover:bg-slate-300 dark:bg-ink-surface dark:text-ink-muted dark:hover:bg-ink-border"
             >
               ✕
             </button>
