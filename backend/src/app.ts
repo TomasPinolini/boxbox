@@ -16,12 +16,24 @@ import syncRoutes from './modules/sync/sync.routes';
 
 const app = express();
 
-// TRUST PROXY — en Render el browser habla con el proxy y el proxy con este proceso, asi que
-// sin esto req.ip es SIEMPRE la IP del proxy y los limiters por IP (auth) meterian a todos los
-// usuarios en un solo bucket. El 1 es "confia en un salto": Express descarta el ultimo valor de
-// X-Forwarded-For (el proxy) y toma el anterior (el cliente). `true` confiaria en la cadena
-// entera, que el cliente puede falsificar — un header por intento y el limiter no sirve.
-app.set('trust proxy', 1);
+// TRUST PROXY — sin esto req.ip es la IP del proxy y los limiters por IP (auth) meten a todos
+// los usuarios en un solo bucket. El numero es cuantos saltos hay entre el cliente y este
+// proceso, contados desde la DERECHA. MEDIDO en produccion el 2026-10-15, no estimado:
+//
+//   X-Forwarded-For: 190.18.147.247, 172.64.217.175, 10.28.178.210
+//                    ^ cliente       ^ Cloudflare     ^ LB interno de Render
+//
+// Son 3: el socket peer (interno), el LB y Cloudflare. Con 1, req.ip daba 10.28.178.210 — una
+// IP interna identica para todo el mundo, y dos personas en IPs reales distintas compartian el
+// contador del rate limit (verificado con laptop por WiFi y celular por datos moviles).
+//
+// `true` NO es alternativa: toma el primer valor del header, que el cliente puede falsificar
+// mandando su propio X-Forwarded-For. Un numero fijo cuenta desde la derecha, asi que lo que
+// agregue un cliente por la izquierda queda afuera.
+// `'uniquelocal'` tampoco: pararia en 172.64.x.x, que es publica (Cloudflare), no privada.
+//
+// Para re-medir si Render cambia su topologia, ver docs/entrega/deployment.md.
+app.set('trust proxy', 3);
 
 // Security headers
 app.use(helmet());
@@ -34,22 +46,6 @@ app.use(express.json());
 
 // Parse cookies — necesario para leer req.cookies.refreshToken en POST /auth/refresh y /auth/logout (Slice 1c).
 app.use(cookieParser());
-
-// DIAGNOSTICO TEMPORAL — BORRAR despues de medir (ver nota al final de este archivo).
-// trust proxy cuenta saltos desde la DERECHA de X-Forwarded-For, y esa punta la escribe la
-// infraestructura de Render: no se puede inferir desde afuera. Esto imprime lo que Express ve
-// de verdad para elegir el numero con datos en vez de adivinarlo. No expone nada sensible: son
-// los headers del propio request de quien llama.
-app.get('/api/v1/debug/ip', (req, res) => {
-  res.json({
-    ip: req.ip,
-    ips: req.ips,
-    xForwardedFor: req.headers['x-forwarded-for'] ?? null,
-    cfConnectingIp: req.headers['cf-connecting-ip'] ?? null,
-    xRealIp: req.headers['x-real-ip'] ?? null,
-    trustProxySetting: app.get('trust proxy'),
-  });
-});
 
 // Health check
 app.get('/api/v1/health', (_req, res) => {
