@@ -47,4 +47,17 @@ export const authService = {
       useAuthStore.getState().clear();
     }
   },
+
+  async updateProfile(data: { name?: string; motto?: string }): Promise<User> {
+    const { user } = await apiClient.patch<{ user: User }>('/auth/me', data);
+    useAuthStore.getState().updateUser(user);
+    return user;
+  },
+
+  // dataUrl: "data:image/png;base64,..." — ver EditProfileModal.tsx por el FileReader que arma esto.
+  async updateAvatar(dataUrl: string): Promise<User> {
+    const { user } = await apiClient.post<{ user: User }>('/auth/me/avatar', { avatar: dataUrl });
+    useAuthStore.getState().updateUser(user);
+    return user;
+  },
 };

@@ -27,7 +27,7 @@ describe('RequireAuth', () => {
   it('con token renderiza la ruta protegida', () => {
     useAuthStore
       .getState()
-      .setSession({ id: 1, email: 'a@b.c', name: 'Ana', avatarUrl: null, role: 'USER' }, 'tok');
+      .setSession({ id: 1, email: 'a@b.c', name: 'Ana', avatarUrl: null, motto: null, role: 'USER' }, 'tok');
     renderAt('/leagues');
     expect(screen.getByText('mis ligas')).toBeInTheDocument();
   });

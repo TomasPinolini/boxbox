@@ -9,3 +9,4 @@ export { HelpPopover } from './HelpPopover';
 export { PageShell } from './PageShell';
 export { Position } from './Position';
 export { Success } from './Success';
+export { UserAvatar } from './UserAvatar';

@@ -7,7 +7,7 @@ import { RequireAdmin } from './RequireAdmin';
 function renderAs(role: UserRole) {
   useAuthStore
     .getState()
-    .setSession({ id: 1, email: 'a@b.c', name: 'Ana', avatarUrl: null, role }, 'tok');
+    .setSession({ id: 1, email: 'a@b.c', name: 'Ana', avatarUrl: null, motto: null, role }, 'tok');
   return render(
     <MemoryRouter initialEntries={['/admin/results']}>
       <Routes>

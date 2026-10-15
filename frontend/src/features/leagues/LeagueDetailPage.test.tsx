@@ -42,6 +42,7 @@ const yo: User = {
   email: 'yo@boxbox.test',
   name: 'Tomás',
   avatarUrl: null,
+  motto: null,
   role: 'USER',
 };
 
@@ -66,7 +67,7 @@ const miMembresia = {
   isOwner: true,
   status: 'ACTIVE' as const,
   joinedAt: '2026-03-01T00:00:00.000Z',
-  user: { id: 100, name: 'Tomás' },
+  user: { id: 100, name: 'Tomás', motto: null },
 };
 
 const membresiaRival = {
@@ -74,7 +75,7 @@ const membresiaRival = {
   id: 501,
   userId: 200,
   isOwner: false,
-  user: { id: 200, name: 'Rivero' },
+  user: { id: 200, name: 'Rivero', motto: 'Campeón hace 3 años' },
 };
 
 // Tres picks: los dos pilotos y la escudería que el draft dejó armados.
@@ -147,6 +148,8 @@ describe('LeagueDetailPage, con el draft terminado', () => {
     expect(screen.getByRole('heading', { name: /Tu equipo/i })).toBeInTheDocument();
     expect(screen.getByText(/Leclerc/)).toBeInTheDocument();
     expect(screen.getByText(/Piastri/)).toBeInTheDocument();
+    // El lema que puso en "Editar perfil" se ve como cita, pedido del usuario 2026-10-15.
+    expect(screen.getByText('“Campeón hace 3 años”')).toBeInTheDocument();
 
     // Y se puede cerrar con la X.
     await user.click(screen.getByRole('button', { name: 'Cerrar' }));

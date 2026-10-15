@@ -6,7 +6,7 @@ export interface LeagueMember {
   isOwner: boolean;
   status: MemberStatus;
   joinedAt: string;
-  user: { name: string }; // Task 0 lo agrego al backend
+  user: { name: string; motto: string | null }; // Task 0 agrego name; motto 2026-10-15
 }
 
 export interface FantasyTeam {
