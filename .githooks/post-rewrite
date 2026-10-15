@@ -1,0 +1,11 @@
+#!/bin/sh
+# Un `git pull` con pull.rebase=true (que es como está configurado este repo) dispara hooks
+# distintos según si hubo algo que rebasear:
+#
+#   sin commits locales (fast-forward) -> post-merge
+#   con commits locales (rebase real)  -> post-checkout + post-rewrite
+#
+# Medido, no supuesto: ver el script de la sesión del 2026-10-15. Por eso el mismo aviso
+# cuelga de los dos. post-rewrite recibe por stdin la lista de commits reescritos; no nos
+# hace falta, el diff contra ORIG_HEAD ya dice todo.
+exec "$(dirname "$0")/post-merge"

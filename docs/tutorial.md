@@ -62,6 +62,22 @@ Si dejás alguno vacío o mal formado, el server no arranca — lo validamos al 
 npm install
 ```
 
+**Y activá los git hooks del repo, una sola vez:**
+
+```bash
+cd ..   # a la raíz del repo
+git config core.hooksPath .githooks
+```
+
+Git ignora `.githooks/` hasta que se lo decís, porque `.git/hooks/` no se versiona y por
+eso no viaja en el clone. Con esa línea, cuando un `pull` traiga cambios en
+`backend/prisma/` te avisa que tenés que correr `db:migrate` o `db seed`. No corre nada
+solo: sólo te lo dice.
+
+Sin esto la app se ve rota de una forma que no apunta a su causa — nos pasó el 15/10/2026
+con los logos de las escuderías: el código al día, la DB vieja, y un cuadradito de color
+gris en `/standings` como única pista.
+
 ### 5. Aplicar las migraciones (crear las tablas)
 
 ```bash
