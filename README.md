@@ -81,10 +81,12 @@ documentación vive en el directorio [`/docs`](./docs/):
 
 ## Integrantes
 
-| Legajo | Nombre                 |
-| ------ | ---------------------- |
-| 52265  | Pinolini, Tomás |
-| 51070  | Rivero, Tomás |
+| Legajo | Nombre          | Contacto                    |
+| ------ | --------------- | --------------------------- |
+| 52265  | Pinolini, Tomás | tomaspinolini2003@gmail.com |
+| 51070  | Rivero, Tomás   | tomasrivero16@gmail.com     |
+
+Para coordinar la defensa oral, cualquiera de los dos mails sirve.
 
 ## Gestión del Proyecto
 
