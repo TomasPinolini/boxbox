@@ -298,3 +298,35 @@ Dos cosas abiertas, las dos esperando al learner:
   de Claude. Es una posición legítima y se tomó como tal, pero el criterio quedó sin enunciar por
   segunda vez (la primera, 2026-10-07). Lo que falta ejercitar no es la elección sino poder
   decir la regla en voz alta — que es la forma en que lo va a preguntar un profesor.
+
+## Nombres accesibles (2026-10-15, segunda mitad de la sesión)
+
+**Introduced** (explicado por Claude, durante la auditoría de los 47 archivos del frontend)
+- [observado] **El nombre accesible es lo que un lector anuncia**, y normalmente sale del texto
+  visible adentro del elemento. Cuando adentro hay sólo un ícono o un símbolo, no hay nombre: un
+  `<button>?</button>` se anuncia "signo de interrogación, botón".
+- [observado] **`aria-label` REEMPLAZA el contenido, no se suma.** Por eso `DraftPicker` anunciaba
+  sólo el nombre del piloto y tapaba el dorsal y la escudería que sí se dibujan adentro del botón.
+  Es el error más fácil de cometer con `aria-label`: se siente aditivo y no lo es.
+- [observado] **`title` no es accesibilidad.** Sobre un elemento no focusable es un tooltip de
+  mouse: no se anuncia y el teclado no llega. Era el único lugar donde vivía el nombre de la
+  escudería en la tabla de la liga, así que la celda se leía "VER, HAM" y después silencio.
+- [observado] **`sr-only` es el reverso de `aria-hidden`**: texto en el DOM, invisible en pantalla,
+  presente para el lector. Pero está EN el DOM, así que `getByText` lo ve — eso rompió dos tests
+  de `LeagueDetailPage` y obligó a acotarlos con `within`, que los dejó más estrictos que antes.
+- [observado] **Playwright `toMatchAriaSnapshot()`** captura el árbol de accesibilidad real del
+  navegador. Es la diferencia entre razonar las reglas y medirlas. Ya está disponible en la
+  versión instalada (1.62.1) y no se está usando. Habría atrapado el bug grave de esta sesión.
+- [observado] **El residuo que ninguna herramienta cierra**: el árbol es el mismo para todos los
+  lectores, pero cada uno decide cómo verbalizarlo. Cómo se pronuncia un ▲ varía entre NVDA,
+  VoiceOver y Orca, y eso sólo se sabe escuchando.
+
+**Demonstrated understanding**
+- Pidió barrer todo el código en vez de arreglar sólo el caso que había aparecido. El criterio
+  —un defecto encontrado una vez probablemente esté en otros lados— lo puso él.
+- Preguntó "¿para qué era esto?" sobre `aria-label` en lugar de aceptar el arreglo sin entenderlo.
+
+**Needs reinforcement**
+- Varios comandos de git ejecutados sobre la rama equivocada (`push origin main` estando en `dev`,
+  `pull origin main` estando en `dev`). Ninguno hizo daño y uno salió bien de casualidad, pero el
+  hábito de mirar en qué rama estás antes de un comando que toca ramas no está todavía.
