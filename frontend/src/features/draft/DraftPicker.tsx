@@ -68,7 +68,10 @@ export function DraftPicker({
   }
 
   return (
-    <div className="grid grid-cols-2 gap-2" role="group" aria-label="Elegí una escudería">
+    // Una columna, no grid-cols-2: ConstructorStrip es horizontal a lo ancho (así se ve en
+    // "Tu equipo"), apretarla a la mitad del ancho la deja desproporcionada. Pedido del
+    // usuario 2026-10-15.
+    <div className="flex flex-col gap-2" role="group" aria-label="Elegí una escudería">
       {constructors.map((c) => (
         <ConstructorStrip
           key={c.id}
