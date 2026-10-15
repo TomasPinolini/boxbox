@@ -1,6 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Alert, Badge, Button, Card, ConfirmButton, PageShell } from '../../components/ui';
+import {
+  Alert,
+  Badge,
+  Button,
+  Card,
+  ConfirmButton,
+  HelpPopover,
+  PageShell,
+} from '../../components/ui';
 import { RenameLeague } from './RenameLeague';
 import { RivalTeamModal } from './RivalTeamModal';
 import type { ConstructorRef, Driver } from '../../models/driver';
@@ -273,7 +281,13 @@ function AntesDelDraft({
       {/* Manda el codigo: en este momento lo que falta es gente, y es la unica palanca que
           hay para conseguirla. La lista de dos nombres no dice nada que el usuario no sepa. */}
       <Card>
-        <h2 className="mb-1 text-lg font-semibold">Invitá a tus amigos</h2>
+        <div className="mb-1 flex items-center gap-2">
+          <h2 className="text-lg font-semibold">Invitá a tus amigos</h2>
+          <HelpPopover title="¿Hasta cuándo puede entrar gente?">
+            Mientras el draft no arranque, entra y sale quien quiera. Una vez que arranca, la lista
+            queda cerrada: no entra nadie nuevo, y quien se fue no puede volver.
+          </HelpPopover>
+        </div>
         <p className="mb-3 text-sm text-slate-600 dark:text-ink-muted">
           Pasales este código para que entren desde “Unirme con código”.
         </p>
@@ -286,15 +300,34 @@ function AntesDelDraft({
       </Card>
 
       <Card>
-        <h2 className="mb-3 text-lg font-semibold">
-          Ya están ({cantidad}/{maxMembers})
-        </h2>
+        <div className="mb-3 flex items-center gap-2">
+          <h2 className="text-lg font-semibold">
+            Ya están ({cantidad}/{maxMembers})
+          </h2>
+          {/* El texto NO dice "hay 22 pilotos": el tope es floor(driverCount / 2) de la
+              temporada, y de maxMembers no se puede volver a driverCount (23 pilotos también
+              dan 11). Se explica la regla, que es lo que no cambia, y no el número. */}
+          <HelpPopover title={`¿Por qué el tope es ${maxMembers}?`}>
+            Porque cada equipo se lleva 2 pilotos de la grilla y nadie puede repetir el de otro.
+            El tope sale de cuántos pilotos tiene la temporada: con más gente no alcanzarían para
+            que todos armen equipo.
+          </HelpPopover>
+        </div>
         {error}
         <MembersTable members={miembros} canKick={isOwner} onKick={onKick} />
       </Card>
 
       <Card>
-        <h2 className="mb-2 text-lg font-semibold">Arrancar el draft</h2>
+        <div className="mb-2 flex items-center gap-2">
+          <h2 className="text-lg font-semibold">Arrancar el draft</h2>
+          {/* Este "?" responde la decisión de ESTA pantalla (¿aprieto el botón ya?). La mecánica
+              de las rondas la explica el "?" de la pantalla del draft, donde sirve. */}
+          <HelpPopover title="¿Qué es el draft?">
+            Es el reparto de la grilla: eligen por turnos hasta que todos tengan 2 pilotos y 1
+            escudería. Arrancalo cuando estén todos los que esperás, porque después la liga queda
+            cerrada.
+          </HelpPopover>
+        </div>
         {isOwner ? (
           <>
             <p className="mb-3 text-sm text-slate-600 dark:text-ink-muted">

@@ -33,7 +33,11 @@ export function RegisterPage() {
     setError(null);
     try {
       await authService.register(values.email, values.password, values.name);
-      navigate('/leagues');
+      // El flag viaja en el state de la ruta y lo levanta LeaguesPage. NO se puede mostrar el
+      // tour acá encima del registro: register() deja el token en el store, GuestOnly ve sesión
+      // y hace <Navigate to="/leagues"> en el mismo tick, así que esta pantalla se desmonta
+      // antes de que nada pinte. Lo encontró el e2e; los unit tests no montan el router.
+      void navigate('/leagues', { state: { tour: true } });
     } catch (err) {
       setError(toApiError(err));
     }

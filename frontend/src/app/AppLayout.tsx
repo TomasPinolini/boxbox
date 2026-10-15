@@ -18,10 +18,15 @@ import { useAuthStore } from '../store/auth.store';
 // la lista era distinta en cada una, desde una pantalla de detalle solo se podia volver, y
 // "Salir" existia unicamente en Mis ligas.
 //
-// Dos barras, no una que se reacomoda: con hasta 6 links + usuario + Salir, apretarlo todo en
-// una fila con flex-wrap (como era antes) dejaba la navegacion en 2-3 lineas en un telefono.
-// Abajo de md es la barra angosta (hamburguesa + logo) con un drawer; de md para arriba es la
-// fila horizontal de siempre, sin tocar.
+// Dos barras, no una que se reacomoda: apretar varios links + usuario + Salir en una fila con
+// flex-wrap (como era antes) dejaba la navegacion en 2-3 lineas en un telefono. Abajo de md es
+// la barra angosta (hamburguesa + logo) con un drawer; de md para arriba es la fila horizontal
+// de siempre, sin tocar.
+//
+// Resultados/Temporadas/Circuitos (ADMIN) ya no estan en esa fila ni en esa lista: son una
+// capacidad del rol, no navegacion de catalogo como Pilotos/Campeonato, asi que viven
+// agrupadas bajo "Carga" — en escritorio adentro de UserMenu, en movil en su propia seccion
+// del drawer. Pedido del usuario 2026-10-15; ver ADMIN_LINKS/AdminLinksGroup mas abajo.
 
 // NavLink pone aria-current="page" solo en el link activo. El color marca donde estas: el
 // acento rojo es la posicion actual, no un link cualquiera.
@@ -39,6 +44,61 @@ const drawerLinkClass = ({ isActive }: { isActive: boolean }) =>
       ? 'border-l-4 border-red-600 bg-red-50 text-red-600 dark:bg-red-950 dark:text-red-400'
       : 'border-l-4 border-transparent text-slate-600 hover:bg-slate-50 dark:text-ink-muted dark:hover:bg-ink-surface'
   }`;
+
+// Igual que linkClass pero como item de un menu angosto (el de cuenta, UserMenu mas abajo):
+// fondo en hover en vez de subrayado, mismo tratamiento que "Cerrar sesion" en ese mismo menu.
+const menuLinkClass = ({ isActive }: { isActive: boolean }) =>
+  `block px-4 py-2 text-sm font-semibold ${
+    isActive
+      ? 'text-red-600'
+      : 'text-slate-700 hover:bg-slate-50 dark:text-ink-text dark:hover:bg-ink-border'
+  }`;
+
+// Las 3 pantallas de carga de datos, pedido del usuario 2026-10-15: antes vivian sueltas en la
+// barra de navegacion (Cargar resultados, Temporadas, Circuitos) compitiendo con Pilotos/
+// Campeonato/Mis ligas como si fueran contenido mas. Son una capacidad del rol ADMIN, no
+// navegacion de catalogo, asi que se agrupan aparte — en escritorio adentro del menu de
+// cuenta (UserMenu), en movil en su propia seccion con el mismo label "Carga" arriba de los
+// tres, sin moverlos del drawer (pedido explicito: ahi se quedan, solo agrupados).
+const ADMIN_LINKS = [
+  { to: '/admin/results', label: 'Resultados' },
+  { to: '/admin/seasons', label: 'Temporadas' },
+  { to: '/admin/circuits', label: 'Circuitos' },
+];
+
+// uppercase + tracking-wide: patron de encabezado de grupo no clickeable (no es un link, no
+// se confunde con uno), mismo criterio que separar visualmente sin agregar jerarquia de
+// navegacion real.
+function AdminLinksGroup({
+  className,
+  labelClassName,
+  onNavigate,
+  asMenuItems = false,
+}: {
+  className: (props: { isActive: boolean }) => string;
+  labelClassName: string;
+  onNavigate: () => void;
+  // true adentro de UserMenu (role="menu"): cada link necesita role="menuitem" para el
+  // patron ARIA de menu. false en el drawer, que es un <nav> con links comunes.
+  asMenuItems?: boolean;
+}) {
+  return (
+    <>
+      <p className={labelClassName}>Carga</p>
+      {ADMIN_LINKS.map((link) => (
+        <NavLink
+          key={link.to}
+          to={link.to}
+          role={asMenuItems ? 'menuitem' : undefined}
+          className={className}
+          onClick={onNavigate}
+        >
+          {link.label}
+        </NavLink>
+      ))}
+    </>
+  );
+}
 
 // Foto del usuario + iniciales de respaldo, mismo patron que DriverAvatar (features/drivers/):
 // avatarUrl es un recurso remoto que puede fallar, y bastantes usuarios ni lo van a tener.
@@ -88,6 +148,91 @@ function Logo({ className }: { className: string }) {
       <img src="/logo.svg" alt="boxbox" className={`${className} dark:hidden`} />
       <img src="/logo-dark.svg" alt="boxbox" className={`hidden ${className} dark:block`} />
     </>
+  );
+}
+
+// Menu de cuenta de escritorio: el avatar (foto o iniciales, UserAvatar de mas arriba) abre un
+// menu chico con el nombre y "Cerrar sesion" — reemplaza el nombre suelto + boton "Salir" que
+// estaban como hermanos en la barra. Pedido del usuario 2026-10-15: patron estandar (Gmail,
+// GitHub, Slack), asi que no hace falta inventar nada.
+//
+// Cierra con click afuera (el listener en document, no en el boton: un click ADENTRO del menu
+// nunca debe cerrarlo antes de que el item corra su propio onClick) y con Escape, mismo
+// criterio que el drawer mobile y RivalTeamModal. Sin bloqueo de scroll del body: a diferencia
+// de esos dos, este menu no tapa la pantalla, no hace falta.
+function UserMenu({ user, onLogout }: { user: User; onLogout: () => void }) {
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+
+  function close() {
+    setOpen(false);
+    buttonRef.current?.focus();
+  }
+
+  useEffect(() => {
+    if (!open) return;
+    function onPointerDown(e: PointerEvent) {
+      if (!containerRef.current?.contains(e.target as Node)) setOpen(false);
+    }
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') close();
+    }
+    document.addEventListener('pointerdown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [open]);
+
+  return (
+    <div ref={containerRef} className="relative">
+      <button
+        ref={buttonRef}
+        type="button"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label={`Cuenta de ${user.name}`}
+        onClick={() => setOpen((o) => !o)}
+        className="flex h-11 w-11 items-center justify-center rounded-full hover:bg-slate-100 dark:hover:bg-ink-surface"
+      >
+        <UserAvatar user={user} size={32} />
+      </button>
+
+      {open && (
+        <div
+          role="menu"
+          aria-label="Cuenta"
+          className="absolute right-0 top-full z-20 mt-2 w-48 rounded-md bg-white py-1 shadow-lg ring-1 ring-slate-200 dark:bg-ink-surface dark:ring-ink-border"
+        >
+          <p className="truncate border-b border-slate-200 px-4 py-2 text-sm font-semibold text-slate-900 dark:border-ink-border dark:text-ink-text">
+            {user.name}
+          </p>
+          {user.role === 'ADMIN' && (
+            <div className="border-b border-slate-200 py-1 dark:border-ink-border">
+              <AdminLinksGroup
+                className={menuLinkClass}
+                labelClassName="px-4 pb-1 pt-2 text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-ink-muted"
+                onNavigate={close}
+                asMenuItems
+              />
+            </div>
+          )}
+          <button
+            role="menuitem"
+            type="button"
+            onClick={() => {
+              close();
+              onLogout();
+            }}
+            className="block w-full px-4 py-2 text-left text-sm font-semibold text-red-600 hover:bg-slate-50 dark:hover:bg-ink-border"
+          >
+            Cerrar sesión
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -146,20 +291,6 @@ export function AppLayout() {
             Mis ligas
           </NavLink>
         )}
-        {/* Solo ADMIN: un link muerto para un USER es peor que no tenerlo (BOX-37). */}
-        {user?.role === 'ADMIN' && (
-          <>
-            <NavLink to="/admin/results" className={className} onClick={closeDrawer}>
-              Cargar resultados
-            </NavLink>
-            <NavLink to="/admin/seasons" className={className} onClick={closeDrawer}>
-              Temporadas
-            </NavLink>
-            <NavLink to="/admin/circuits" className={className} onClick={closeDrawer}>
-              Circuitos
-            </NavLink>
-          </>
-        )}
       </>
     );
   }
@@ -211,12 +342,7 @@ export function AppLayout() {
           {renderNavLinks(linkClass)}
 
           {user ? (
-            <>
-              <span className="text-slate-500 dark:text-ink-muted">{user.name}</span>
-              <Button variant="secondary" onClick={logout}>
-                Salir
-              </Button>
-            </>
+            <UserMenu user={user} onLogout={logout} />
           ) : (
             // /drivers y /standings son publicas, asi que la barra tambien se ve sin sesion.
             <Link to="/login" className="font-semibold text-red-600 hover:underline">
@@ -275,6 +401,13 @@ export function AppLayout() {
                 por regiones de un lector de pantalla. */}
             <nav aria-label="Menú" className="flex flex-1 flex-col gap-0.5 overflow-y-auto py-2">
               {renderNavLinks(drawerLinkClass)}
+              {user?.role === 'ADMIN' && (
+                <AdminLinksGroup
+                  className={drawerLinkClass}
+                  labelClassName="pb-1 pl-4 pr-3 pt-3 text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-ink-muted"
+                  onNavigate={closeDrawer}
+                />
+              )}
             </nav>
 
             <div className="border-t border-slate-200 p-4 dark:border-ink-border">
