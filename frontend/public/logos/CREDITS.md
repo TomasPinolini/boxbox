@@ -12,6 +12,16 @@ Mercedes —degradé plateado con zonas casi blancas— perdía esos brillos com
 transparentes, un efecto "apolillado" visible en el chip. 3% saca el fondo blanco de verdad
 sin tocar los grises claros que son parte del propio logo.
 
+`cadillac.png` es la excepción a `-transparent white`: su escudo tiene bloques **blancos
+rellenos** como parte del propio dibujo (alternan con los negros en el patrón del crest), no
+son huecos — a diferencia de los aros de Audi o la estrella de Mercedes, donde el blanco
+adentro SÍ es espacio abierto. Un `-transparent white` global los hacía transparentes
+igual que el fondo; sin la caja blanca de rescate que tenía `ConstructorLogo.tsx` antes (ver
+más abajo), esos bloques se veían como agujeros contra un fondo oscuro. Se recortó en cambio
+con un flood-fill desde la esquina (`-fuzz 3% -fill none -draw "color 0,0 floodfill"`), que
+solo transparenta el blanco conectado al fondo y para en el borde negro del escudo — los
+bloques internos quedan blancos de verdad.
+
 Lo cuadrado no es estético, es necesario: `ConstructorLogo.tsx` pone `object-left` en el
 `<img>` (no `object-center`), así que una marca con una proporción muy apaisada — como salió
 de este recorte antes de cuadrarla, hasta 3.8:1 en Aston Martin — queda pegada al borde
