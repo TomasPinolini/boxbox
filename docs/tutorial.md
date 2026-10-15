@@ -62,6 +62,22 @@ Si dejás alguno vacío o mal formado, el server no arranca — lo validamos al 
 npm install
 ```
 
+**Y activá los git hooks del repo, una sola vez:**
+
+```bash
+cd ..   # a la raíz del repo
+git config core.hooksPath .githooks
+```
+
+Git ignora `.githooks/` hasta que se lo decís, porque `.git/hooks/` no se versiona y por
+eso no viaja en el clone. Con esa línea, cuando un `pull` traiga cambios en
+`backend/prisma/` te avisa que tenés que correr `db:migrate` o `db seed`. No corre nada
+solo: sólo te lo dice.
+
+Sin esto la app se ve rota de una forma que no apunta a su causa — nos pasó el 15/10/2026
+con los logos de las escuderías: el código al día, la DB vieja, y un cuadradito de color
+gris en `/standings` como única pista.
+
 ### 5. Aplicar las migraciones (crear las tablas)
 
 ```bash
@@ -189,7 +205,7 @@ npm run build         # tsc -b && vite build
 npm run lint          # eslint .
 npm test              # vitest run (un solo run, no watch)
 npm run test:watch    # vitest en watch mode
-npm run e2e           # playwright — necesita backend + frontend corriendo y DB seedeada
+npm run e2e           # playwright — levanta los dos servidores solo; vos solo necesitás la DB seedeada
                       # (el spec de pilotos depende de las 3 fechas COMPLETED del seed)
 ```
 
@@ -235,7 +251,18 @@ Si sos parte del equipo y necesitás acceder a la base de demostración:
 
    Si es la primera vez, `migrate deploy` aplica todas las migraciones de una vez. Verificá que siga el resultado "Database schema is up to date!".
 
-4. **NO loadear seed a prod**. El seed crea un admin con password pública (`admin@boxbox.test` / `admin1234`). Está bien en dev (hay que tener datos para probar), pero **prod nunca debe seedearse** — la única forma de crear un admin en prod es vía `POST /auth/register` desde la UI con credenciales nuevas.
+4. **Seed en prod: sólo con `SEED_ADMIN_PASSWORD`.** El seed crea `admin@boxbox.test` y, sin esa variable, le pone la password de desarrollo `admin1234`, que está publicada en este repo — en una base alcanzable desde internet, cualquiera que lea el repo entra como ADMIN. Con `NODE_ENV=production` la variable es obligatoria y el seed aborta si falta.
+
+   Sin seed la app queda inservible (sin pilotos no hay draft) y promover un USER a ADMIN requiere un `UPDATE` a mano: `POST /auth/register` siempre crea `USER`, no hay endpoint que cambie el rol. Entonces el seed en prod se corre así:
+
+   ```bash
+   NODE_ENV=production \
+     SEED_ADMIN_PASSWORD="$(openssl rand -base64 18)" \
+     SEED_SKIP_RESULTS=1 \
+     DATABASE_URL="..." npx prisma db seed
+   ```
+
+   Guardá esa password antes de perderla — no hay recuperación por mail. `SEED_SKIP_RESULTS=1` carga grilla y calendario con el campeonato en cero, que es lo que hace que una liga nueva se pueda jugar de verdad: con los resultados ya cargados, el draft reparte pilotos y la tabla sale resuelta de entrada.
 
 ### Importante: tests siempre locales
 

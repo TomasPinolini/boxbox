@@ -1,12 +1,13 @@
 // TESTS — integración HTTP → controller → service → Prisma → DB real.
 // Sin mocks (ADR-0003). Cada test arranca con `users` truncado por src/tests/setup.ts.
 
-import { describe, it, expect, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from 'vitest';
 import request from 'supertest';
 import jwt from 'jsonwebtoken';
 import app from '../../app';
 import { env } from '../../config/env';
 import { prisma } from '../../shared/prisma';
+import { hashPassword } from '../../shared/password';
 
 const validRegister = {
   email: 'verstappen@boxbox.com',
@@ -480,5 +481,108 @@ describe('POST /api/v1/auth/refresh + /logout (httpOnly cookies)', () => {
     // clearCookie setea la cookie con value vacio + Expires en el pasado (1970 / Thu, 01 Jan 1970).
     expect(cleared).toMatch(/refreshToken=;/);
     expect(cleared).toMatch(/Expires=Thu, 01 Jan 1970/);
+  });
+});
+
+// ─── Rate limit de /auth (IP-based) ───────────────────────────────────────────────────────
+// Los limiters llevan `skip: isTestEnv` para que el resto de la suite no tope el cap; aca se
+// re-activan apagando las dos envs que isTestEnv mira. Se evalua por request, asi que alcanza
+// con setearlas antes y restaurarlas despues. Mismo patron que leagues.test.ts.
+//
+// El store es in-memory y NO se resetea entre tests (setup.ts trunca la DB, no el contador),
+// asi que cada limiter se ejercita en un solo `it` y el test de login crea su usuario con
+// Prisma directo — el cap de register ya esta agotado cuando le toca.
+
+describe('rate limit de /api/v1/auth (por IP)', () => {
+  const savedEnv = { NODE_ENV: process.env.NODE_ENV, VITEST: process.env.VITEST };
+
+  beforeAll(() => {
+    process.env.NODE_ENV = 'development';
+    process.env.VITEST = 'false';
+  });
+
+  afterAll(() => {
+    process.env.NODE_ENV = savedEnv.NODE_ENV;
+    process.env.VITEST = savedEnv.VITEST;
+  });
+
+  it('el 6to register desde la misma IP devuelve 429', async () => {
+    for (let i = 1; i <= 5; i++) {
+      const res = await request(app)
+        .post('/api/v1/auth/register')
+        .send({ email: `rl-reg-${i}@boxbox.com`, password: 'hunter22', name: `Piloto ${i}` });
+      expect(res.status).toBe(201);
+    }
+
+    const sixth = await request(app)
+      .post('/api/v1/auth/register')
+      .send({ email: 'rl-reg-6@boxbox.com', password: 'hunter22', name: 'Piloto 6' });
+
+    expect(sixth.status).toBe(429);
+    expect(sixth.body.error.code).toBe('RATE_LIMIT_EXCEEDED');
+  });
+
+  it('dos CF-Connecting-IP distintas no comparten el contador', async () => {
+    await prisma.user.create({
+      data: {
+        email: 'rl-cf@boxbox.com',
+        passwordHash: await hashPassword('hunter22'),
+        name: 'Victima CF',
+      },
+    });
+
+    // Agota el cap de una IP. En produccion Cloudflare escribe este header con la IP real del
+    // cliente; es lo que ipKey usa como key. El bug que esto previene: con trust proxy mal,
+    // req.ip era una IP interna de Render y TODOS los usuarios compartian este contador.
+    for (let i = 1; i <= 10; i++) {
+      const res = await request(app)
+        .post('/api/v1/auth/login')
+        .set('CF-Connecting-IP', '190.18.147.247')
+        .send({ email: 'rl-cf@boxbox.com', password: 'mal' });
+      expect(res.status).toBe(401);
+    }
+
+    const blocked = await request(app)
+      .post('/api/v1/auth/login')
+      .set('CF-Connecting-IP', '190.18.147.247')
+      .send({ email: 'rl-cf@boxbox.com', password: 'mal' });
+    expect(blocked.status).toBe(429);
+
+    // Otra IP: bucket propio, intacto.
+    const other = await request(app)
+      .post('/api/v1/auth/login')
+      .set('CF-Connecting-IP', '200.5.5.5')
+      .send({ email: 'rl-cf@boxbox.com', password: 'mal' });
+    expect(other.status).toBe(401);
+  });
+
+  it('10 logins fallidos agotan el cap y el 11mo da 429, pero un exito no consume', async () => {
+    await prisma.user.create({
+      data: {
+        email: 'rl-login@boxbox.com',
+        passwordHash: await hashPassword('hunter22'),
+        name: 'Victima',
+      },
+    });
+
+    // Un login exitoso NO cuenta (skipSuccessfulRequests), asi que no gasta presupuesto.
+    const ok = await request(app)
+      .post('/api/v1/auth/login')
+      .send({ email: 'rl-login@boxbox.com', password: 'hunter22' });
+    expect(ok.status).toBe(200);
+
+    for (let i = 1; i <= 10; i++) {
+      const res = await request(app)
+        .post('/api/v1/auth/login')
+        .send({ email: 'rl-login@boxbox.com', password: 'contrasena-mal' });
+      expect(res.status).toBe(401);
+    }
+
+    const eleventh = await request(app)
+      .post('/api/v1/auth/login')
+      .send({ email: 'rl-login@boxbox.com', password: 'contrasena-mal' });
+
+    expect(eleventh.status).toBe(429);
+    expect(eleventh.body.error.code).toBe('RATE_LIMIT_EXCEEDED');
   });
 });

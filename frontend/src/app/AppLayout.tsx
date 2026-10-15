@@ -175,7 +175,9 @@ function UserMenu({
       {open && (
         <div
           role="menu"
-          aria-label="Cuenta"
+          // "Opciones de la cuenta" y no "Cuenta": el gatillo se llama "Cuenta de <nombre>" y
+          // el menu colgaba adentro con un nombre que era subcadena del suyo.
+          aria-label="Opciones de la cuenta"
           className="absolute right-0 top-full z-20 mt-2 w-48 rounded-md bg-white py-1 shadow-lg ring-1 ring-slate-200 dark:bg-ink-surface dark:ring-ink-border"
         >
           <div className="flex items-center justify-between gap-1 border-b border-slate-200 py-2 pl-4 pr-1 dark:border-ink-border">
@@ -371,7 +373,7 @@ export function AppLayout() {
             id="menu-mobile"
             role="dialog"
             aria-modal="true"
-            aria-label="Menú"
+            aria-label="Menú de navegación"
             className="enter-left fixed inset-y-0 left-0 z-30 flex w-72 max-w-[85vw] flex-col bg-white shadow-xl dark:bg-ink md:hidden"
           >
             <div className="flex items-center justify-between gap-2 border-b border-slate-200 p-4 dark:border-ink-border">
@@ -399,7 +401,11 @@ export function AppLayout() {
             {/* No "Principal": ya hay un nav con esa etiqueta en la pagina (el de arriba, la
                 barra), y dos landmarks con el mismo nombre a la vez confunden la navegacion
                 por regiones de un lector de pantalla. */}
-            <nav aria-label="Menú" className="flex flex-1 flex-col gap-0.5 overflow-y-auto py-2">
+            {/* "Secciones" y no "Menú": el <dialog> de afuera ya se llama asi, y dos regiones
+                anidadas con el MISMO nombre se anuncian "Menú, dialogo" / "Menú, navegacion"
+                una atras de la otra. Ademas hay otro <nav> en la pagina (el de escritorio,
+                "Principal"), asi que el nombre tiene que distinguirlos. */}
+            <nav aria-label="Secciones" className="flex flex-1 flex-col gap-0.5 overflow-y-auto py-2">
               {renderNavLinks(drawerLinkClass)}
               {user?.role === 'ADMIN' && (
                 <AdminLinksGroup

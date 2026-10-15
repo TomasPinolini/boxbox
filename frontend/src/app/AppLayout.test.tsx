@@ -34,7 +34,7 @@ describe('AppLayout — navegacion', () => {
     // menuitem, no link: AdminLinksGroup pone role="menuitem" en estos <a> adentro de
     // UserMenu (asMenuItems), siguiendo el patron ARIA de menu — un role explicito pisa el
     // implicito del elemento.
-    const menu = screen.getByRole('menu', { name: 'Cuenta' });
+    const menu = screen.getByRole('menu', { name: 'Opciones de la cuenta' });
     expect(menu).toHaveTextContent('Carga');
     expect(screen.getByRole('menuitem', { name: 'Resultados' })).toHaveAttribute(
       'href',
@@ -55,7 +55,7 @@ describe('AppLayout — navegacion', () => {
     renderAs('USER');
     await userEvent.click(screen.getByRole('button', { name: 'Cuenta de Ana' }));
 
-    const menu = screen.getByRole('menu', { name: 'Cuenta' });
+    const menu = screen.getByRole('menu', { name: 'Opciones de la cuenta' });
     expect(menu).not.toHaveTextContent('Carga');
     expect(screen.queryByRole('menuitem', { name: 'Resultados' })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Campeonato' })).toBeInTheDocument();
@@ -67,7 +67,7 @@ describe('AppLayout — navegacion', () => {
     renderAs('ADMIN');
     await userEvent.click(screen.getByRole('button', { name: 'Abrir menú' }));
 
-    const drawer = screen.getByRole('dialog', { name: 'Menú' });
+    const drawer = screen.getByRole('dialog', { name: 'Menú de navegación' });
     expect(drawer).toHaveTextContent('Carga');
     expect(screen.getByRole('link', { name: 'Resultados' })).toHaveAttribute(
       'href',
@@ -93,7 +93,7 @@ describe('AppLayout — navegacion', () => {
 
     await userEvent.click(trigger);
 
-    const menu = screen.getByRole('menu', { name: 'Cuenta' });
+    const menu = screen.getByRole('menu', { name: 'Opciones de la cuenta' });
     expect(menu).toHaveTextContent('Ana');
     expect(screen.getByRole('menuitem', { name: 'Cerrar sesión' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Mis ligas' })).toHaveAttribute('href', '/leagues');

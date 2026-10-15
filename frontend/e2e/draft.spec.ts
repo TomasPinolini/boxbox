@@ -52,9 +52,10 @@ async function ligaConDosJugadores(browser: Browser) {
   await expect(duenio).toHaveURL(/\/leagues\/\d+$/);
   const id = Number(/\/leagues\/(\d+)/.exec(duenio.url())![1]);
 
-  // El formulario de unirse etiqueta su campo "Código" a secas — "Código de invitación" es
-  // el de CREAR liga, en la misma pantalla. Y 'Código' sin exact matchea los dos.
-  await socio.getByLabel('Código', { exact: true }).fill(code);
+  // El formulario de unirse etiqueta su campo "Código que te pasaron"; "Código de invitación"
+  // es el de CREAR liga, en la misma pantalla. El exact sigue porque getByLabel matchea por
+  // subcadena: 'Código' a secas seguiria agarrando los dos campos y los dos "?" de ayuda.
+  await socio.getByLabel('Código que te pasaron', { exact: true }).fill(code);
   await socio.getByRole('button', { name: 'Unirme', exact: true }).click();
   await socio.goto(`/leagues/${id}`);
   // Si el join fallo, el backend contesta 404 a proposito (anti-enumeracion) y el test

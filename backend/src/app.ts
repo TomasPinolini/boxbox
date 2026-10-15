@@ -16,6 +16,25 @@ import syncRoutes from './modules/sync/sync.routes';
 
 const app = express();
 
+// TRUST PROXY — sin esto req.ip es la IP del proxy y los limiters por IP (auth) meten a todos
+// los usuarios en un solo bucket. El numero es cuantos saltos hay entre el cliente y este
+// proceso, contados desde la DERECHA. MEDIDO en produccion el 2026-10-15, no estimado:
+//
+//   X-Forwarded-For: 190.18.147.247, 172.64.217.175, 10.28.178.210
+//                    ^ cliente       ^ Cloudflare     ^ LB interno de Render
+//
+// Son 3: el socket peer (interno), el LB y Cloudflare. Con 1, req.ip daba 10.28.178.210 — una
+// IP interna identica para todo el mundo, y dos personas en IPs reales distintas compartian el
+// contador del rate limit (verificado con laptop por WiFi y celular por datos moviles).
+//
+// `true` NO es alternativa: toma el primer valor del header, que el cliente puede falsificar
+// mandando su propio X-Forwarded-For. Un numero fijo cuenta desde la derecha, asi que lo que
+// agregue un cliente por la izquierda queda afuera.
+// `'uniquelocal'` tampoco: pararia en 172.64.x.x, que es publica (Cloudflare), no privada.
+//
+// Para re-medir si Render cambia su topologia, ver docs/entrega/deployment.md.
+app.set('trust proxy', 3);
+
 // Security headers
 app.use(helmet());
 

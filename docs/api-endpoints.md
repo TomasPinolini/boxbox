@@ -42,7 +42,7 @@ Cada sección está taggeada con su estado actual:
 
 1. **Helmet** — security headers
 2. **CORS** — orígenes permitidos explícitos
-3. **Rate limiter** — global + más estricto en auth
+3. **Rate limiter** — por IP en `/auth/login` y `/auth/register`, por `userId` en `/leagues` y `/leagues/join`. No hay limiter global. Requiere `app.set('trust proxy', 1)` para que `req.ip` sea la del cliente y no la del proxy de Render
 4. **JWT verification** — en rutas no públicas
 5. **Role middleware** — `requireAdmin`, `requireLeagueMember`, `requireLeagueOwner`
 6. **Zod validation** — validación de schema en todos los bodies POST/PATCH/PUT
@@ -54,7 +54,7 @@ Cada sección está taggeada con su estado actual:
 | Método | Endpoint         | Acceso | Notas                                 |
 | ------ | ---------------- | ------ | ------------------------------------- |
 | POST   | `/auth/register` | Public | Rate limit: 5/min/IP                  |
-| POST   | `/auth/login`    | Public | Rate limit: 5/min/IP                  |
+| POST   | `/auth/login`    | Public | Rate limit: 10 **fallidos**/min/IP    |
 | POST   | `/auth/refresh`  | Public | Refresh token en httpOnly cookie      |
 | POST   | `/auth/logout`   | User   | Limpia el refresh token               |
 | GET    | `/auth/me`       | User   |                                       |
