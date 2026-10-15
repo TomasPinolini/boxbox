@@ -36,13 +36,41 @@ const INK = '#1a1a1c';
 // general"), un dia despues el pedido se dio vuelta y Montserrat paso a ser la general. Con
 // las dos iguales, font-card quedo redundante y se saco. SI hace falta font-semibold/
 // font-extrabold explicito: el peso regular del body no alcanza para esta jerarquia.
-export function DriverCard({ driver, onOpen }: { driver: Driver; onOpen: (id: number) => void }) {
+// selected/disabled/ariaLabel son para el DraftPicker (Slice 17): el piloto por el que estás
+// eligiendo tiene que verse exactamente igual al de /drivers y al de "Tu equipo" — no una
+// aproximación — así que en vez de que el picker dibuje su propia tarjeta, esta se hizo
+// reusable con tres props opcionales, sin tocar el comportamiento por defecto del catálogo
+// (sin pasarlas, es exactamente la card de antes). `disabled` apaga toda la card con
+// pointer-events-none, incluida la franja de escudería de abajo — no solo el boton del
+// piloto — porque un piloto ya elegido no tiene nada que hacer clickeable en el draft.
+export function DriverCard({
+  driver,
+  onOpen,
+  selected,
+  disabled,
+  ariaLabel,
+}: {
+  driver: Driver;
+  onOpen: (id: number) => void;
+  selected?: boolean;
+  disabled?: boolean;
+  ariaLabel?: string;
+}) {
   const [failed, setFailed] = useState(false);
   const hasPhoto = Boolean(driver.headshotUrl) && !failed;
   const color = driver.constructor?.color ?? '#64748b';
+  const label = ariaLabel ?? `Ver piloto ${driver.firstName} ${driver.lastName}, número ${driver.number}`;
 
   return (
-    <div className="relative flex h-44 flex-col overflow-hidden rounded-lg shadow-sm ring-1 ring-slate-200 transition-shadow hover:shadow-md dark:ring-ink-border">
+    <div
+      className={`relative flex h-44 flex-col overflow-hidden rounded-lg shadow-sm ring-1 transition-shadow dark:ring-ink-border ${
+        disabled
+          ? 'pointer-events-none opacity-50 grayscale ring-slate-200'
+          : selected
+            ? 'ring-2 ring-red-600'
+            : 'ring-slate-200 hover:shadow-md'
+      }`}
+    >
       <div
         className="absolute inset-0"
         style={{ backgroundImage: `linear-gradient(135deg, ${color} 0%, ${INK} 65%)` }}
@@ -63,11 +91,13 @@ export function DriverCard({ driver, onOpen }: { driver: Driver; onOpen: (id: nu
           alto explicito, el <img> adentro SI tiene un porcentaje que resolver y listo. */}
       <button
         type="button"
+        disabled={disabled}
+        aria-pressed={disabled || selected === undefined ? undefined : selected}
         // El dorsal entra en el aria-label porque el aria-label REEMPLAZA el contenido del
         // boton para el nombre accesible: el numero que se dibuja adentro no llegaba al lector.
-        aria-label={`Ver piloto ${driver.firstName} ${driver.lastName}, número ${driver.number}`}
+        aria-label={disabled ? `${label} (ya elegido)` : label}
         onClick={() => onOpen(driver.id)}
-        className="relative z-10 flex h-[132px] cursor-pointer items-stretch text-left"
+        className="relative z-10 flex h-[132px] cursor-pointer items-stretch text-left disabled:cursor-not-allowed"
       >
         <div className="flex min-w-0 flex-1 flex-col justify-center py-2 pl-4 pr-1">
           <p className="truncate text-base font-semibold text-white">

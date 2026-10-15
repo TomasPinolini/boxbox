@@ -27,18 +27,41 @@ import { textOn } from '../drivers/team-color';
 // usuario 2026-10-14). Color solido del equipo, el emblema sangrando del borde derecho es
 // suficiente guiño visual. El emblema viene de `teamMarkUrl`, no de `logoUrl` (ver ese
 // archivo: son monocromos, piensan para el color del equipo, no para el chip blanco).
-function ConstructorStrip({ constructor }: { constructor: ConstructorRef }) {
+// onSelect/selected/disabled/ariaLabel son para el DraftPicker (Slice 17): la escudería por
+// la que estás eligiendo se ve exactamente igual que la ya elegida en "Tu equipo" — mismo
+// criterio que el `selected`/`disabled` que se sumó a DriverCard. Sin `onSelect` se comporta
+// exactamente como antes (un <Link> a /constructors/:id); con `onSelect` se dibuja como
+// <button> en vez de <Link> — un <a> dentro de otro elemento interactivo no es valido HTML,
+// así que son dos ramas de render, no un wrapper condicional.
+export function ConstructorStrip({
+  constructor,
+  onSelect,
+  selected,
+  disabled,
+  ariaLabel,
+}: {
+  constructor: ConstructorRef;
+  onSelect?: (id: number) => void;
+  selected?: boolean;
+  disabled?: boolean;
+  ariaLabel?: string;
+}) {
   const [markFailed, setMarkFailed] = useState(false);
   const fg = textOn(constructor.color);
   const markUrl = teamMarkUrl(constructor.name);
   const showBleed = Boolean(markUrl) && !markFailed;
+  const label = ariaLabel ?? constructor.name;
 
-  return (
-    <Link
-      to={`/constructors/${constructor.id}`}
-      className="relative flex min-h-16 items-center gap-2.5 overflow-hidden rounded-md px-3 py-2.5"
-      style={{ backgroundColor: constructor.color }}
-    >
+  const className = `relative flex min-h-16 items-center gap-2.5 overflow-hidden rounded-md px-3 py-2.5 text-left transition ${
+    disabled
+      ? 'pointer-events-none opacity-50 grayscale'
+      : selected
+        ? 'ring-2 ring-red-600'
+        : ''
+  }`;
+
+  const content = (
+    <>
       {showBleed && (
         <img
           src={markUrl!}
@@ -61,6 +84,28 @@ function ConstructorStrip({ constructor }: { constructor: ConstructorRef }) {
           Escudería
         </p>
       </div>
+    </>
+  );
+
+  if (onSelect) {
+    return (
+      <button
+        type="button"
+        disabled={disabled}
+        aria-pressed={disabled ? undefined : selected}
+        aria-label={disabled ? `${label} (ya elegido)` : label}
+        onClick={() => onSelect(constructor.id)}
+        className={`w-full cursor-pointer ${className}`}
+        style={{ backgroundColor: constructor.color }}
+      >
+        {content}
+      </button>
+    );
+  }
+
+  return (
+    <Link to={`/constructors/${constructor.id}`} className={className} style={{ backgroundColor: constructor.color }}>
+      {content}
     </Link>
   );
 }
