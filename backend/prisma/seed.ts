@@ -616,6 +616,12 @@ interface StoredResultsFile {
 }
 
 function loadStoredResults(year: number): StoredResultsFile | null {
+  // SEED_SKIP_RESULTS=1 carga la grilla y el calendario pero NINGUN resultado, asi el
+  // campeonato arranca en cero. Es lo que hace falta para que una liga nueva se pueda jugar:
+  // con los 17 resultados de 2026 cargados, el draft reparte pilotos y la tabla sale resuelta
+  // de entrada, porque los puntos ya existen. Sin resultados, se cargan despues a mano desde
+  // /admin/results, una fecha por vez, al ritmo que se quiera.
+  if (process.env.SEED_SKIP_RESULTS === '1') return null;
   const path = join(__dirname, 'seed-data', `results-${year}.json`);
   if (!existsSync(path)) return null;
   return JSON.parse(readFileSync(path, 'utf8')) as StoredResultsFile;
@@ -624,18 +630,43 @@ function loadStoredResults(year: number): StoredResultsFile | null {
 // ───────────────────────────────────────────────────────────────────────────
 
 async function main() {
-  // 0. Admin de desarrollo ---------------------------------------------------
+  // 0. Admin ----------------------------------------------------------------
   // El CRUD de catalogo (drivers, constructors, circuits, seasons, races) es admin-only
-  // (A5 / BOX-15) y `POST /auth/register` siempre crea USER. Sin este upsert no hay forma
-  // de cargar pilotos o resultados desde la API en dev. Password fija de desarrollo,
-  // documentada en docs/tutorial.md — NUNCA reutilizar en un ambiente real.
+  // (A5 / BOX-15) y `POST /auth/register` siempre crea USER. Sin este upsert no hay forma de
+  // cargar pilotos o resultados desde la API: promover un USER a ADMIN requiere un UPDATE a
+  // mano en la DB, no hay endpoint.
+  //
+  // La password sale de SEED_ADMIN_PASSWORD. El default 'admin1234' es de desarrollo y esta
+  // publicado en este repo y en docs/tutorial.md, asi que en una base alcanzable desde
+  // internet es un agujero completo: cualquiera que lea el repo entra como ADMIN. Con
+  // NODE_ENV=production la variable pasa a ser obligatoria y el seed aborta si falta, en vez
+  // de crear el agujero en silencio.
+  const adminPassword = process.env.SEED_ADMIN_PASSWORD;
+  if (process.env.NODE_ENV === 'production') {
+    if (!adminPassword) {
+      throw new Error(
+        'SEED_ADMIN_PASSWORD es obligatoria con NODE_ENV=production: el default esta publicado en el repo.',
+      );
+    }
+    if (adminPassword.length < 12) {
+      throw new Error('SEED_ADMIN_PASSWORD necesita 12 caracteres o mas.');
+    }
+  }
+
+  // El hash se calcula una vez y se usa en las dos ramas. Que `update` lo incluya NO es un
+  // detalle: sin eso el upsert deja la password vieja para siempre, y una base seedeada alguna
+  // vez con el default se queda con la password publicada aunque despues le pases la variable.
+  // Verificado: pasaba justo eso. Con la variable, el seed es autoritativo y rota la password
+  // de un admin que ya exista; sin la variable no la toca, para que un re-seed en dev no churnee.
+  const adminHash = adminPassword ? await hashPassword(adminPassword) : null;
+
   await prisma.user.upsert({
     where: { email: 'admin@boxbox.test' },
-    update: { role: 'ADMIN' },
+    update: { role: 'ADMIN', ...(adminHash ? { passwordHash: adminHash } : {}) },
     create: {
       email: 'admin@boxbox.test',
       name: 'Admin BoxBox',
-      passwordHash: await hashPassword('admin1234'),
+      passwordHash: adminHash ?? (await hashPassword('admin1234')),
       role: 'ADMIN',
     },
   });
