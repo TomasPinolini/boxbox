@@ -35,6 +35,22 @@ app.use(express.json());
 // Parse cookies — necesario para leer req.cookies.refreshToken en POST /auth/refresh y /auth/logout (Slice 1c).
 app.use(cookieParser());
 
+// DIAGNOSTICO TEMPORAL — BORRAR despues de medir (ver nota al final de este archivo).
+// trust proxy cuenta saltos desde la DERECHA de X-Forwarded-For, y esa punta la escribe la
+// infraestructura de Render: no se puede inferir desde afuera. Esto imprime lo que Express ve
+// de verdad para elegir el numero con datos en vez de adivinarlo. No expone nada sensible: son
+// los headers del propio request de quien llama.
+app.get('/api/v1/debug/ip', (req, res) => {
+  res.json({
+    ip: req.ip,
+    ips: req.ips,
+    xForwardedFor: req.headers['x-forwarded-for'] ?? null,
+    cfConnectingIp: req.headers['cf-connecting-ip'] ?? null,
+    xRealIp: req.headers['x-real-ip'] ?? null,
+    trustProxySetting: app.get('trust proxy'),
+  });
+});
+
 // Health check
 app.get('/api/v1/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
