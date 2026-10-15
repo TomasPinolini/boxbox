@@ -8,7 +8,7 @@ export interface Standing {
   totalPoints: number;
   position: number;
   positionChange: number; // >0 subio, <0 bajo, 0 igual o primera carrera
-  user: { id: number; name: string };
+  user: { id: number; name: string; avatarUrl: string | null };
 }
 
 export interface LeagueStandings {

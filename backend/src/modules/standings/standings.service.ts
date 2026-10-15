@@ -247,7 +247,8 @@ export async function findByLeague(leagueId: number, raceId?: number) {
       totalPoints: true,
       position: true,
       positionChange: true,
-      leagueMember: { select: { user: { select: { id: true, name: true } } } },
+      // avatarUrl: la foto de perfil en la tabla de la liga (frontend, Slice 17).
+      leagueMember: { select: { user: { select: { id: true, name: true, avatarUrl: true } } } },
     },
   });
 

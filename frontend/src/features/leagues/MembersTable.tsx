@@ -1,4 +1,4 @@
-import { Badge, ConfirmButton } from '../../components/ui';
+import { Badge, ConfirmButton, UserAvatar } from '../../components/ui';
 import type { LeagueMember } from '../../models/league-member';
 
 // MembersTable: lista de miembros. En SM se apila (cada miembro = 2 lineas); desde md: fila.
@@ -20,6 +20,7 @@ export function MembersTable({
           className="flex flex-col gap-1 py-3 md:flex-row md:items-center md:justify-between"
         >
           <div className="flex min-w-0 items-center gap-2">
+            <UserAvatar user={m.user} size={32} />
             <span className="truncate font-medium">{m.user.name}</span>
             {m.isOwner && <Badge tone="warning">owner</Badge>}
           </div>
