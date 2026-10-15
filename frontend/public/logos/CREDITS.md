@@ -3,8 +3,15 @@
 Las **11** escuderías tienen logo. Vienen de una imagen compuesta (una grilla con las 11
 marcas, fondo blanco) que el usuario del proyecto encontró y pasó el 2026-10-15 — **origen y
 licencia exactos sin confirmar**, a diferencia del lote anterior que sí tenía cada archivo
-rastreado hasta su página de Commons. Cada celda se recortó a mano y se le sacó el fondo
-blanco con ImageMagick (`-transparent white`).
+rastreado hasta su página de Commons. Cada celda se recortó a mano, se le sacó el fondo blanco
+con ImageMagick (`-transparent white`) y se centró sobre un lienzo **cuadrado** de 240x240
+transparente (`-gravity center -extent 240x240`).
+
+Lo cuadrado no es estético, es necesario: `ConstructorLogo.tsx` pone `object-left` en el
+`<img>` (no `object-center`), así que una marca con una proporción muy apaisada — como salió
+de este recorte antes de cuadrarla, hasta 3.8:1 en Aston Martin — queda pegada al borde
+izquierdo del chip en vez de centrada. El lienzo cuadrado hace que la proporción deje de
+importar, sin tocar el componente compartido.
 
 Son **marcas, no wordmarks**: el speedmark de McLaren, la estrella de Mercedes, la "A" de
 Alpine, el escudo de Ferrari, los toros de Red Bull Racing, las alas de Aston Martin, los
