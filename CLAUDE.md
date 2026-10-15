@@ -93,7 +93,7 @@ npm run lint                  # eslint .
 npm test                      # vitest run (single run, not watch)
 npm run test:watch            # vitest (watch mode)
 
-npm run e2e                   # playwright test — needs backend + frontend running, DB seeded
+npm run e2e                   # playwright test — starts BOTH servers itself; you only owe it a migrated + seeded DB
 ```
 
 ## Backend Architecture
@@ -188,7 +188,7 @@ Frontend (`frontend/`):
 
 - Framework: Vitest + Testing Library (`@testing-library/react`, `jest-dom`, `user-event`). No real backend — components/hooks that hit the API are tested via mocked `services/*.service.ts` calls, not a live server.
 - `npm test` runs once (not watch); use `npm run test:watch` while iterating.
-- E2E: Playwright (`frontend/playwright.config.ts`, `frontend/e2e/*.spec.ts`, `npm run e2e`). Needs the backend running (`npm run dev` in `backend/`, DB migrated + seeded) — `webServer` in the config only starts the frontend. `frontend/e2e/leagues.spec.ts` covers register → create league → see it as owner, plus the `/leagues` → `/login` redirect when logged out. The cátedra requires at least one automated browser test — don't let this suite regress to zero tests even mid-refactor.
+- E2E: Playwright (`frontend/playwright.config.ts`, `frontend/e2e/*.spec.ts`, `npm run e2e`). `webServer` is an array that boots **both** servers (backend gated on `/api/v1/health`, not on the bare port) and reuses whatever is already up; the only thing you owe it is a migrated + seeded DB. It used to start the frontend alone, and a missing backend surfaced as 5 of 7 tests failing with messages about app code rather than about the backend. `frontend/e2e/leagues.spec.ts` covers register → create league → see it as owner, plus the `/leagues` → `/login` redirect when logged out. The cátedra requires at least one automated browser test — don't let this suite regress to zero tests even mid-refactor.
 - Beyond the automated suite, the standing convention on this project (per the user) is to also manually click through the affected flow against a real `npm run dev` (backend + frontend) before pushing — either with a throwaway Playwright script or by hand in the browser. Don't claim a frontend task is "done" from `lint`/`test`/`build` passing alone.
 
 ### Smoke tests (`src/scripts/smoke-slice-*.ts`)
