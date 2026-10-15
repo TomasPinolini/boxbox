@@ -489,7 +489,7 @@ function armarFilas({
   myLeagueMemberId,
 }: {
   picks: Parameters<typeof buildDraftTeams>[0];
-  miembros: { id: number; user: { name: string } }[];
+  miembros: { id: number; user: { name: string; avatarUrl: string | null } }[];
   standings: TeamRowData['standing'][];
   drivers: Driver[];
   constructors: { id: number }[];
@@ -505,6 +505,7 @@ function armarFilas({
       memberName:
         miembros.find((m) => m.id === team.leagueMemberId)?.user.name ??
         `miembro ${team.leagueMemberId}`,
+      memberAvatarUrl: miembros.find((m) => m.id === team.leagueMemberId)?.user.avatarUrl ?? null,
       isMe: team.leagueMemberId === myLeagueMemberId,
       standing,
       ...resolver(team, drivers, constructors),

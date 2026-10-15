@@ -67,7 +67,7 @@ const miMembresia = {
   isOwner: true,
   status: 'ACTIVE' as const,
   joinedAt: '2026-03-01T00:00:00.000Z',
-  user: { id: 100, name: 'Tomás', motto: null },
+  user: { id: 100, name: 'Tomás', motto: null, avatarUrl: null },
 };
 
 const membresiaRival = {
@@ -75,7 +75,7 @@ const membresiaRival = {
   id: 501,
   userId: 200,
   isOwner: false,
-  user: { id: 200, name: 'Rivero', motto: 'Campeón hace 3 años' },
+  user: { id: 200, name: 'Rivero', motto: 'Campeón hace 3 años', avatarUrl: null },
 };
 
 // Tres picks: los dos pilotos y la escudería que el draft dejó armados.
