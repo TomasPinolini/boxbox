@@ -74,6 +74,17 @@ Si alguno de estos se vuelve demasiado grande, partir así:
 
 ## Completados
 
+### Slice 17 (backend) — perfil editable (nombre, lema, foto)
+
+- **Status**: done (branch `feat/perfil-editable-lema-foto`). Mitad backend; el popup está en [el carril frontend](../../frontend/docs/roadmap.md).
+- **Goal**: un user puede cambiar su nombre, poner un "lema" (motto) y subir una foto de perfil, sin tocar `/auth/register`.
+- **Shipped**: `User.motto String?` (migration `20261015200000_add_user_motto`) y `User.avatarUrl` existente ahora se escribe desde la app, no solo desde el seed. `PATCH /auth/me` (name/motto, ambos opcionales — `motto: ''` normaliza a `null`) y `POST /auth/me/avatar` (recibe un data URL base64, no multipart — ver nota de diseño en el carril frontend o preguntar por "por qué base64"). `memberSelect` de `leagues.service.ts` suma `motto` para que `RivalTeamModal` pueda mostrar el lema del rival.
+- **Decisiones clave**:
+  - **La foto no toca Postgres.** `shared/supabase-storage.ts` sube el buffer a Supabase Storage (bucket `avatars`, creado a mano con SQL — no es una tabla de Prisma) con `fetch` nativo y la `service_role` key, mismo criterio que `shared/jolpica.ts`: nada de SDKs nuevos para hablar con un servicio externo. Postgres solo guarda la URL pública resultante en `avatarUrl`.
+  - **`SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY` son opcionales** en `config/env.ts`: sin ellas la app arranca igual y `POST /auth/me/avatar` devuelve 503 `AVATAR_STORAGE_NOT_CONFIGURED` en vez de tumbar el boot — el resto de BoxBox no depende de tener foto de perfil.
+  - **Encontrado recién al correr contra Postgres real** (no en esta rama, en el ambiente del usuario): drift de una migración abandonada (`logoFullUrl`, de un experimento revertido) y un Prisma Client sin regenerar después del fix — ninguno de los dos es un bug de este slice, pero costó diagnosticarlo porque el síntoma (`Unknown field 'motto'`) apuntaba al código nuevo. Moraleja ya anotada: después de cualquier `migrate dev`/`migrate reset`, correr `npx prisma generate` a mano si el cliente no se regeneró solo.
+- **Tests**: `auth.test.ts` 35 (+8: 4 `PATCH /me`, 4 `POST /me/avatar`, con `global.fetch` mockeado para Supabase Storage — nunca Prisma). `leagues.test.ts`: 1 assert existente actualizado (`GET /:id/members` ahora incluye `motto`). Verificado por el usuario contra Postgres real, no solo contra la suite en este sandbox.
+
 ### Slice 16 (backend) — campeonato de pilotos y de escuderías
 
 - **Status**: done (branch `16/championship-standings`, PR #34 mergeado en `dev`). Mitad backend; la pantalla está en [el carril frontend](../../frontend/docs/roadmap.md).
