@@ -376,6 +376,40 @@ describe('rate limit de /api/v1/auth (por IP)', () => {
     expect(sixth.body.error.code).toBe('RATE_LIMIT_EXCEEDED');
   });
 
+  it('dos CF-Connecting-IP distintas no comparten el contador', async () => {
+    await prisma.user.create({
+      data: {
+        email: 'rl-cf@boxbox.com',
+        passwordHash: await hashPassword('hunter22'),
+        name: 'Victima CF',
+      },
+    });
+
+    // Agota el cap de una IP. En produccion Cloudflare escribe este header con la IP real del
+    // cliente; es lo que ipKey usa como key. El bug que esto previene: con trust proxy mal,
+    // req.ip era una IP interna de Render y TODOS los usuarios compartian este contador.
+    for (let i = 1; i <= 10; i++) {
+      const res = await request(app)
+        .post('/api/v1/auth/login')
+        .set('CF-Connecting-IP', '190.18.147.247')
+        .send({ email: 'rl-cf@boxbox.com', password: 'mal' });
+      expect(res.status).toBe(401);
+    }
+
+    const blocked = await request(app)
+      .post('/api/v1/auth/login')
+      .set('CF-Connecting-IP', '190.18.147.247')
+      .send({ email: 'rl-cf@boxbox.com', password: 'mal' });
+    expect(blocked.status).toBe(429);
+
+    // Otra IP: bucket propio, intacto.
+    const other = await request(app)
+      .post('/api/v1/auth/login')
+      .set('CF-Connecting-IP', '200.5.5.5')
+      .send({ email: 'rl-cf@boxbox.com', password: 'mal' });
+    expect(other.status).toBe(401);
+  });
+
   it('10 logins fallidos agotan el cap y el 11mo da 429, pero un exito no consume', async () => {
     await prisma.user.create({
       data: {

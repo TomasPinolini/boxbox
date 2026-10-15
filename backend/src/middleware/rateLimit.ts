@@ -72,7 +72,16 @@ export const leagueJoinLimiter = rateLimit({
 //
 // Depende de `app.set('trust proxy', 1)` en app.ts. Sin eso, req.ip es la IP del proxy de
 // Render y estos dos limiters bloquean a todos los usuarios juntos.
-const ipKey = (req: Request) => ipKeyGenerator(req.ip ?? 'anon');
+// Prefiere CF-Connecting-IP sobre req.ip. Render sirve todo detras de Cloudflare, que escribe
+// ese header con la IP real del cliente y SOBREESCRIBE lo que el cliente haya mandado, asi que
+// no se puede falsificar. La ventaja sobre depender solo de `trust proxy 3`: si Render agrega o
+// quita un salto, el numero queda mal y el sintoma es silencioso (vuelve el bucket compartido).
+// El header no depende del conteo. Fallback a req.ip para local y tests, donde no existe.
+export const ipKey = (req: Request) => {
+  const cf = req.headers['cf-connecting-ip'];
+  const clientIp = typeof cf === 'string' && cf.length > 0 ? cf : req.ip;
+  return ipKeyGenerator(clientIp ?? 'anon');
+};
 
 // loginLimiter: 10 intentos FALLIDOS por minuto por IP.
 // skipSuccessfulRequests hace que un login exitoso no consuma presupuesto: el cap castiga

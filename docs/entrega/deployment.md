@@ -163,6 +163,58 @@ Esa única variable arregla las dos puertas de CORS: la de Express (`app.ts:23`)
 gateway de Socket.io (`draft.gateway.ts:244`), que necesita la suya propia porque atiende
 `/socket.io/*` antes que Express.
 
+**Qué URL exactamente.** El proyecto de Vercel tiene un solo dominio propio,
+`boxbox-three.vercel.app`; las otras dos que aparecen en el panel
+(`boxbox-tomas-pinolinis-projects.vercel.app` y `boxbox-git-main-...`) son alias que Vercel
+genera solo. CORS acepta **un** origen exacto, así que el que no esté en `FRONTEND_URL`
+responde "No se pudo conectar con el servidor!" en el login y nada más: la app carga, parece
+sana y ninguna request funciona. `FRONTEND_URL` tiene que ser el dominio propio, y ése es el
+único link que se reparte. El alias de rama además cambia si se cambia de rama.
+
+---
+
+## 4b. `trust proxy`: por qué 3, y cómo re-medirlo
+
+`app.ts` setea `app.set('trust proxy', 3)`. El número es cuántos saltos hay entre el cliente y
+el proceso, contados **desde la derecha** de `X-Forwarded-For`. Medido en producción el
+2026-10-15:
+
+```
+X-Forwarded-For: 190.18.147.247, 172.64.217.175, 10.28.178.210
+                 ^ cliente       ^ Cloudflare     ^ LB interno de Render
+```
+
+Con `1`, `req.ip` daba `10.28.178.210` — una IP interna de Render, idéntica para todo el
+mundo. Los limiters por IP de `/auth/login` y `/auth/register` metían a todos los usuarios en
+un solo contador: una persona agotaba el cap y la siguiente, en otra conexión, comía un 429
+sin haber intentado nada. Verificado con laptop por WiFi y celular por datos móviles.
+
+**El síntoma es silencioso** y desde una sola máquina es indistinguible del comportamiento
+correcto: el contador baja 9, 8, 7... igual. Sólo aparece con dos IPs reales distintas.
+
+Dos cosas que NO sirven acá, para no volver a probarlas:
+
+- `true` — toma el primer valor del header, que el cliente puede falsificar mandando su propio
+  `X-Forwarded-For`. Un número fijo cuenta desde la derecha, así que lo que agregue un cliente
+  por la izquierda queda afuera.
+- `'uniquelocal'` — pararía en `172.64.217.175`, que es pública (Cloudflare), no privada.
+
+Como red de seguridad ante un cambio de topología de Render, el `keyGenerator` de
+`middleware/rateLimit.ts` prefiere el header `CF-Connecting-IP` sobre `req.ip`: Cloudflare lo
+escribe con la IP real y sobreescribe lo que el cliente mande, y no depende del conteo.
+
+**Para re-medir** si Render cambia su infraestructura, agregar temporalmente a `app.ts`:
+
+```ts
+app.get('/api/v1/debug/ip', (req, res) => {
+  res.json({ ip: req.ip, ips: req.ips, xff: req.headers['x-forwarded-for'] });
+});
+```
+
+Desplegarlo, `curl -s https://boxbox-api.onrender.com/api/v1/debug/ip`, comparar con la IP
+pública propia (`curl -s ifconfig.me`) y contar la posición. Después borrarlo: no hace falta que
+viva en producción.
+
 ---
 
 ## 5. Verificación
