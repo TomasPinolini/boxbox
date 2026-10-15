@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { SelectedBadge } from '../../components/ui';
 import type { Driver } from '../../models/driver';
 import { ConstructorLogo } from './ConstructorLogo';
 
@@ -36,25 +37,30 @@ const INK = '#1a1a1c';
 // general"), un dia despues el pedido se dio vuelta y Montserrat paso a ser la general. Con
 // las dos iguales, font-card quedo redundante y se saco. SI hace falta font-semibold/
 // font-extrabold explicito: el peso regular del body no alcanza para esta jerarquia.
-// selected/disabled/ariaLabel son para el DraftPicker (Slice 17): el piloto por el que estás
-// eligiendo tiene que verse exactamente igual al de /drivers y al de "Tu equipo" — no una
-// aproximación — así que en vez de que el picker dibuje su propia tarjeta, esta se hizo
-// reusable con tres props opcionales, sin tocar el comportamiento por defecto del catálogo
-// (sin pasarlas, es exactamente la card de antes). `disabled` apaga toda la card con
+// selected/disabled/ariaLabel/linkToConstructor son para el DraftPicker (Slice 17): el piloto
+// por el que estás eligiendo tiene que verse exactamente igual al de /drivers y al de "Tu
+// equipo" — no una aproximación — así que en vez de que el picker dibuje su propia tarjeta,
+// esta se hizo reusable con props opcionales, sin tocar el comportamiento por defecto del
+// catálogo (sin pasarlas, es exactamente la card de antes). `disabled` apaga toda la card con
 // pointer-events-none, incluida la franja de escudería de abajo — no solo el boton del
 // piloto — porque un piloto ya elegido no tiene nada que hacer clickeable en el draft.
+// `linkToConstructor={false}` saca la navegación de esa franja: dentro del picker un click ahí
+// no puede sacarte de la pantalla del draft con el timer corriendo (bug reportado por el
+// usuario 2026-10-15) — se ve igual, pero no es un <Link>.
 export function DriverCard({
   driver,
   onOpen,
   selected,
   disabled,
   ariaLabel,
+  linkToConstructor = true,
 }: {
   driver: Driver;
   onOpen: (id: number) => void;
   selected?: boolean;
   disabled?: boolean;
   ariaLabel?: string;
+  linkToConstructor?: boolean;
 }) {
   const [failed, setFailed] = useState(false);
   const hasPhoto = Boolean(driver.headshotUrl) && !failed;
@@ -75,6 +81,8 @@ export function DriverCard({
         className="absolute inset-0"
         style={{ backgroundImage: `linear-gradient(135deg, ${color} 0%, ${INK} 65%)` }}
       />
+
+      {selected && !disabled && <SelectedBadge />}
 
       {/* aria-label con el nombre: sin el, un lector de pantalla lee el contenido suelto y los
           22 botones suenan igual. */}
@@ -130,20 +138,27 @@ export function DriverCard({
       </button>
 
       {driver.constructor ? (
-        <Link
-          to={`/constructors/${driver.constructor.id}`}
-          className="relative z-10 flex min-h-11 items-center gap-2 bg-black/45 px-3 py-1.5 hover:bg-black/60"
-        >
-          {/* Sin el chip circular blanco que envuelve a ConstructorLogo en otros lugares
-              (TeamLineup): ahi hace falta porque el fondo es el color PROPIO del equipo, y
-              unos cuantos logos son del mismo color que su escuderia (la "A" azul de Alpine
-              sobre azul, por ejemplo) — sin blanco de por medio desaparecerian. Aca el fondo
-              es bg-black/45 sobre el degrade de la card, oscuro parejo sea cual sea el color
-              del equipo, y los 11 logos ya se probaron contra ese fondo (ver CREDITS.md). El
-              circulo blanco quedaba como un recuadro de mas. Pedido del usuario 2026-10-15. */}
-          <ConstructorLogo constructor={driver.constructor} />
-          <span className="truncate text-xs font-semibold text-white">{driver.constructor.name}</span>
-        </Link>
+        // Sin el chip circular blanco que envuelve a ConstructorLogo en otros lugares
+        // (TeamLineup): ahi hace falta porque el fondo es el color PROPIO del equipo, y
+        // unos cuantos logos son del mismo color que su escuderia (la "A" azul de Alpine
+        // sobre azul, por ejemplo) — sin blanco de por medio desaparecerian. Aca el fondo
+        // es bg-black/45 sobre el degrade de la card, oscuro parejo sea cual sea el color
+        // del equipo, y los 11 logos ya se probaron contra ese fondo (ver CREDITS.md). El
+        // circulo blanco quedaba como un recuadro de mas. Pedido del usuario 2026-10-15.
+        linkToConstructor ? (
+          <Link
+            to={`/constructors/${driver.constructor.id}`}
+            className="relative z-10 flex min-h-11 items-center gap-2 bg-black/45 px-3 py-1.5 hover:bg-black/60"
+          >
+            <ConstructorLogo constructor={driver.constructor} />
+            <span className="truncate text-xs font-semibold text-white">{driver.constructor.name}</span>
+          </Link>
+        ) : (
+          <div className="relative z-10 flex min-h-11 items-center gap-2 bg-black/45 px-3 py-1.5">
+            <ConstructorLogo constructor={driver.constructor} />
+            <span className="truncate text-xs font-semibold text-white">{driver.constructor.name}</span>
+          </div>
+        )
       ) : (
         <div className="relative z-10 flex min-h-11 items-center bg-black/45 px-3 py-1.5">
           <span className="truncate text-xs font-semibold text-white/70">Sin equipo</span>

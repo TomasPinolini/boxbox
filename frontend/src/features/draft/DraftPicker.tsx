@@ -54,6 +54,9 @@ export function DraftPicker({
                 onOpen={onSelect}
                 selected={selectedId === d.id}
                 disabled={takenIds.has(d.id)}
+                // Sin link a /constructors/:id acá: un click en la franja de abajo no puede
+                // sacarte del draft con el timer corriendo. Bug reportado por el usuario.
+                linkToConstructor={false}
                 // El aria-label REEMPLAZA el contenido del boton para el nombre accesible, no
                 // se suma: con solo el nombre, el dorsal y la escuderia que se dibujan adentro
                 // no llegaban al lector. Y la escuderia es la mitad de la decision en esta

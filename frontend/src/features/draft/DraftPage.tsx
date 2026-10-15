@@ -121,6 +121,19 @@ export function DraftPage() {
     submitPick(category === 'DRIVER' ? { driverId: selected } : { constructorId: selected });
   }
 
+  // Para la barra fija de confirmar: el nombre de lo elegido, sin tener que volver a mirar la
+  // lista. Mismo lookup que pickLabel, pero contra `selected` (en curso) en vez de un pick ya
+  // mandado.
+  const selectedLabel =
+    selected === null
+      ? null
+      : category === 'DRIVER'
+        ? (() => {
+            const d = drivers.data?.find((driver) => driver.id === selected);
+            return d ? `${d.firstName} ${d.lastName}` : null;
+          })()
+        : (constructors.data?.find((c) => c.id === selected)?.name ?? null);
+
   return (
     <PageShell
       title={state ? PAGE_TITLE[state.draftStatus] : 'Draft'}
@@ -234,21 +247,19 @@ export function DraftPage() {
                           <Alert code={pickError.code} message={pickError.message} />
                         </div>
                       )}
-                      <DraftPicker
-                        category={category}
-                        drivers={drivers.data ?? []}
-                        constructors={constructors.data ?? []}
-                        takenIds={category === 'DRIVER' ? takenDriverIds : takenConstructorIds}
-                        selectedId={selected}
-                        onSelect={setSelected}
-                      />
-                      <Button
-                        className="mt-3 w-full sm:w-auto"
-                        disabled={selected === null || pickPending}
-                        onClick={confirmPick}
-                      >
-                        {pickPending ? 'Mandando…' : 'Confirmar pick'}
-                      </Button>
+                      {/* pb-20: deja lugar para la barra fija de confirmar (mas abajo en el
+                      arbol, pero fixed) — sin esto el ultimo piloto/escuderia de la lista
+                      queda tapado. */}
+                      <div className="pb-20">
+                        <DraftPicker
+                          category={category}
+                          drivers={drivers.data ?? []}
+                          constructors={constructors.data ?? []}
+                          takenIds={category === 'DRIVER' ? takenDriverIds : takenConstructorIds}
+                          selectedId={selected}
+                          onSelect={setSelected}
+                        />
+                      </div>
                     </div>
                   )}
                 </Card>
@@ -315,6 +326,33 @@ export function DraftPage() {
                   )}
                 </Card>
               )}
+            </div>
+          )}
+
+          {/* Barra fija de confirmar: pedido del usuario 2026-10-15 — con 22 pilotos agrupados
+          por escuderia la lista es larga, y el boton de confirmar al final obligaba a bajar
+          hasta el fondo cada vez. Fija abajo, siempre a la vista mientras es tu turno, sin
+          importar cuanto hayas scrolleado. El nombre de lo elegido va al lado del boton para
+          no tener que volver a mirar la lista antes de confirmar. */}
+          {isMyTurn && (
+            <div className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 p-3 backdrop-blur dark:border-ink-border dark:bg-ink/95">
+              <div className="mx-auto flex max-w-3xl items-center justify-between gap-3">
+                <p className="min-w-0 truncate text-sm">
+                  {selectedLabel ? (
+                    <>
+                      <span className="text-slate-500 dark:text-ink-muted">Elegiste: </span>
+                      <span className="font-semibold">{selectedLabel}</span>
+                    </>
+                  ) : (
+                    <span className="text-slate-500 dark:text-ink-muted">
+                      {category === 'DRIVER' ? 'Elegí un piloto' : 'Elegí una escudería'}
+                    </span>
+                  )}
+                </p>
+                <Button disabled={selected === null || pickPending} onClick={confirmPick}>
+                  {pickPending ? 'Mandando…' : 'Confirmar pick'}
+                </Button>
+              </div>
             </div>
           )}
         </>

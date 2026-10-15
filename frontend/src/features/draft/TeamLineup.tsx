@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { SelectedBadge } from '../../components/ui';
 import type { ConstructorRef, Driver } from '../../models/driver';
 import { ConstructorLogo } from '../drivers/ConstructorLogo';
 import { DriverAvatar } from '../drivers/DriverAvatar';
@@ -62,6 +63,7 @@ export function ConstructorStrip({
 
   const content = (
     <>
+      {selected && !disabled && <SelectedBadge />}
       {showBleed && (
         <img
           src={markUrl!}
