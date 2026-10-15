@@ -68,15 +68,15 @@ export function DriverDetailPage() {
                   <TeamBadge constructor={d.constructor} />
                 )}
               </div>
-              {/* El logo solo aparece si lo tenemos: faltan Ferrari, Audi y Racing Bulls. */}
-              {/* dark:bg-white: el logo es un archivo pensado para fondo claro (ver
-                  frontend/public/logos/CREDITS.md) — sin esto se perderia contra la Card
-                  oscura, igual que ya resuelve ConstructorLogo con su chip circular. */}
+              {/* Las 11 escuderias tienen logo (ver frontend/public/logos/CREDITS.md). Sin
+                  dark:bg-white: son marcas a color con fondo transparente, se leen bien
+                  directo contra la Card oscura — forzar una caja blanca ahi encima quedaba
+                  feo. Pedido del usuario 2026-10-15, mismo criterio en ConstructorLogo.tsx. */}
               {d.constructor?.logoUrl && (
                 <img
                   src={d.constructor.logoUrl}
                   alt={d.constructor.name}
-                  className="h-10 max-w-[220px] rounded object-contain object-left dark:bg-white dark:p-1"
+                  className="h-10 max-w-[220px] object-contain object-left"
                 />
               )}
             </div>
