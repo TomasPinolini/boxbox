@@ -4,8 +4,13 @@ Las **11** escuderías tienen logo. Vienen de una imagen compuesta (una grilla c
 marcas, fondo blanco) que el usuario del proyecto encontró y pasó el 2026-10-15 — **origen y
 licencia exactos sin confirmar**, a diferencia del lote anterior que sí tenía cada archivo
 rastreado hasta su página de Commons. Cada celda se recortó a mano, se le sacó el fondo blanco
-con ImageMagick (`-transparent white`) y se centró sobre un lienzo **cuadrado** de 240x240
-transparente (`-gravity center -extent 240x240`).
+con ImageMagick (`-transparent white -fuzz 3%`) y se centró sobre un lienzo **cuadrado** de
+240x240 transparente (`-gravity center -extent 240x240`).
+
+El fuzz quedó en 3%, no en un valor más alto: con 8% (la primera pasada) la estrella de
+Mercedes —degradé plateado con zonas casi blancas— perdía esos brillos como huecos
+transparentes, un efecto "apolillado" visible en el chip. 3% saca el fondo blanco de verdad
+sin tocar los grises claros que son parte del propio logo.
 
 Lo cuadrado no es estético, es necesario: `ConstructorLogo.tsx` pone `object-left` en el
 `<img>` (no `object-center`), así que una marca con una proporción muy apaisada — como salió
