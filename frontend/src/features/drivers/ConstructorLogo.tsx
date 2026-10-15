@@ -24,13 +24,14 @@ export function ConstructorLogo({ constructor }: { constructor: ConstructorRef }
   }
 
   return (
-    // dark:bg-white: los archivos de /public/logos estan pensados para fondo claro (ver
-    // CREDITS.md) — varios tienen trazos oscuros que se perderian sobre una superficie
-    // oscura. Un solo arreglo aca en vez de en cada pantalla que usa este componente (son
-    // siete, de LeagueCard a DraftPicker); donde el que llama ya envuelve esto en su propio
-    // chip circular blanco (DriverCard, TeamLineup) esto queda blanco sobre blanco, sin
-    // cambiar nada.
-    <span className={`${BOX} dark:rounded dark:bg-white`}>
+    // Sin dark:bg-white: los archivos de /public/logos (desde el lote del 2026-10-15, ver
+    // CREDITS.md) son marcas a color con fondo transparente, se leen bien directo sobre
+    // --color-ink-surface sin una caja blanca de rescate. Antes hacia falta — varios logos
+    // viejos tenian trazos oscuros que se perdian en una superficie oscura — pero forzar un
+    // cuadrado blanco de todas formas (incluso donde el que llama ya envuelve esto en su
+    // propio chip circular blanco, como DriverCard/TeamLineup) se veia como una caja fea
+    // pegada encima del fondo de la tarjeta. Pedido del usuario 2026-10-15.
+    <span className={BOX}>
       <img
         src={constructor.logoUrl}
         alt=""
