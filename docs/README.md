@@ -24,8 +24,9 @@ Mapa directo de lo que pide la consigna ([utnfrrodsw/tp](https://github.com/utnf
 | Evidencia de ejecución de tests | [`test-evidence/`](./test-evidence/) |
 | Deployment (links y credenciales) | [`entrega/deployment.md`](./entrega/deployment.md) |
 | Video demo | **pendiente** — es el único entregable de Aprobación que falta |
+| Contacto del grupo | [`../README.md` § Integrantes](../README.md#integrantes) — tomaspinolini2003@gmail.com, tomasrivero16@gmail.com |
 
-Las decisiones de diseño con alternativas reales están en [`adr/`](./adr/) (9 ADR). El estado
+Las decisiones de diseño con alternativas reales están en [`adr/`](./adr/) (12 ADR). El estado
 contra la rúbrica, en [`roadmap.md`](./roadmap.md).
 
 ---

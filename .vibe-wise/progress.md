@@ -217,3 +217,43 @@ Dos cosas abiertas, las dos esperando al learner:
   barra de navegación, que es justo lo que lo vuelve necesario. **Cambiar las condiciones que
   justificaban una postergación obliga a revisarla**, y no lo hice hasta que el learner
   preguntó qué faltaba.
+
+## Conceptos del frente de predicciones (2026-10-11 al 14)
+
+**Introduced** (explicado por Claude, durante la ronda de grilling de predicciones)
+- [observado] **`PUT` reemplaza, `PATCH` parchea.** `PUT` significa "acá está el recurso completo,
+  dejalo así": lo que no viene en el body queda en null. Se eligió `PUT` porque con merge no hay
+  forma de *borrar* una predicción sin que `null` signifique dos cosas (en JSON, `undefined` contra
+  `null`; en Zod, `.optional()` contra `.nullable()`).
+- [observado] **Un trigger de Postgres no tiene reloj.** Se dispara porque alguien escribió una
+  fila. "Avisale una hora antes de la quali" no es un trigger: en ese momento nadie escribe nada,
+  lo único que cambió es la hora. Eso necesita un job agendado, y el job trae un problema que el
+  trigger no tiene: idempotencia — corre muchas veces y tiene que acordarse a quién ya le avisó.
+- [observado] **Un timer en memoria no sobrevive un reinicio.** `draft.gateway.ts:73` guarda los
+  timers del draft en un `Map` de módulo. Con 60 s es riesgo chico; con tres días de antelación es
+  certeza, porque Render suspende el servicio por inactividad. De ahí la regla del Slice 18: el
+  "cuándo" se escribe en una fila, no en un `setTimeout`.
+- [observado] **SemVer y los tags de git.** Tres números, `MAJOR.MINOR.PATCH`; sube el último si
+  arreglaste, el del medio si agregaste sin romper, el primero si rompés a quien lo usaba. Un tag
+  de git es un nombre pegado a un commit: no cambia archivos y se borra con `git tag -d`. En BoxBox
+  no hay consumidores externos, así que el valor real no es la promesa a terceros sino poder decir
+  "la entrega fue la v1.0.0" y volver ahí.
+
+**Demonstrated understanding**
+- Detectó por su cuenta que el puntaje de predicción no podía ser una decisión cerrada y pidió que
+  se tratara como el hueco real del frente, no el modelo de datos.
+- Frenó a Claude cuando se fue del hilo a versionado ("estamos tratando este tema en una sesión
+  aparte, te fuiste del hilo"). El control del alcance de la conversación lo ejerció él.
+- Cuestionó por su cuenta que los tickets fueran a un milestone que ya tenía 12 cosas sueltas
+  adentro, y razonó que predicciones no tiene nada que ver con regularización ni con AD. La
+  conclusión era correcta; lo que le faltaba era que `Post-cursada` es justamente el tacho de "nada
+  que ver con la rúbrica", no un milestone de rúbrica.
+
+**Needs reinforcement**
+- Confundió **qué automatización** decide qué: eligió persistir el estado de "ventana cerrada"
+  argumentando que quería la carga de resultados automática, que es otra decisión y vive en otro
+  slice. La distinción a practicar: qué dispara cada cosa (una escritura, el reloj, una ausencia).
+- Pidió empezar SemVer sin tener presente que ya existía un ADR aceptado (0011) y un ticket abierto
+  (BOX-66) de otra sesión con ese mismo trabajo.
+- Declaró "soy muy rookie" sobre versionado después de haber pedido adoptarlo como forma de
+  trabajo. Vale chequear el nivel antes de aceptar una convención, no después.
