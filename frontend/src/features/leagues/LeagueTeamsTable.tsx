@@ -15,12 +15,28 @@ import type { Standing } from '../../models/standing';
 
 // Flecha de movimiento contra la carrera anterior. Texto ademas de color: el color solo no
 // alcanza para daltonismo. (Venia de StandingsTable, que este componente reemplaza.)
+//
+// El mismo razonamiento, un paso mas: el GLIFO tampoco alcanza. Un lector de pantalla dice
+// "triangulo negro apuntando hacia arriba" o directamente nada, segun cual sea. Asi que el
+// simbolo se oculta y al lado va la palabra, visible solo para el lector.
 function Change({ value }: { value: number }) {
-  if (value === 0) return <span className="text-slate-400 dark:text-ink-muted">—</span>;
+  if (value === 0)
+    return (
+      <span className="text-slate-400 dark:text-ink-muted">
+        <span aria-hidden="true">—</span>
+        <span className="sr-only">sin cambios</span>
+      </span>
+    );
   return value > 0 ? (
-    <span className="text-green-700">▲ {value}</span>
+    <span className="text-green-700">
+      <span aria-hidden="true">▲</span>
+      <span className="sr-only">subió</span> {value}
+    </span>
   ) : (
-    <span className="text-red-700">▼ {-value}</span>
+    <span className="text-red-700">
+      <span aria-hidden="true">▼</span>
+      <span className="sr-only">bajó</span> {-value}
+    </span>
   );
 }
 
@@ -88,7 +104,13 @@ export function LeagueTeamsTable({
               <td className="py-2 pr-3">
                 {/* Los pilotos y la escuderia como iconos, en una sola celda: el nombre del
                     jugador ya ocupa su columna y repetir tres nombres mas por fila hace una
-                    tabla que no entra en un telefono. El nombre completo va en el title. */}
+                    tabla que no entra en un telefono.
+                    El title da el nombre completo AL MOUSE y a nadie mas: es un tooltip, no
+                    se anuncia y el teclado no llega. El nombre para el lector va en un
+                    sr-only, y lo que se ve (el codigo de 3 letras, el logo) queda oculto para
+                    no escuchar "Max Verstappen VER". La escuderia era el caso grave: el logo
+                    es aria-hidden en sus dos ramas, asi que la celda se leia "VER, HAM" y
+                    despues silencio — no habia forma de saber de que equipo era nadie. */}
                 <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
                   {r.drivers.map((d) => (
                     <span
@@ -97,7 +119,13 @@ export function LeagueTeamsTable({
                       title={`${d.firstName} ${d.lastName}`}
                     >
                       <DriverAvatar driver={d} size={24} />
-                      <span className="font-display tabular-nums text-xs text-slate-500 dark:text-ink-muted">
+                      <span className="sr-only">
+                        {d.firstName} {d.lastName}
+                      </span>
+                      <span
+                        aria-hidden="true"
+                        className="font-display tabular-nums text-xs text-slate-500 dark:text-ink-muted"
+                      >
                         {d.code}
                       </span>
                     </span>
@@ -105,10 +133,14 @@ export function LeagueTeamsTable({
                   {r.constructor && (
                     <span className="flex items-center gap-1" title={r.constructor.name}>
                       <ConstructorLogo constructor={r.constructor} />
+                      <span className="sr-only">{r.constructor.name}</span>
                     </span>
                   )}
                   {r.drivers.length === 0 && !r.constructor && (
-                    <span className="text-slate-400 dark:text-ink-muted">—</span>
+                    <span className="text-slate-400 dark:text-ink-muted">
+                      <span aria-hidden="true">—</span>
+                      <span className="sr-only">sin equipo</span>
+                    </span>
                   )}
                 </span>
               </td>

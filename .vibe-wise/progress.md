@@ -257,3 +257,76 @@ Dos cosas abiertas, las dos esperando al learner:
   (BOX-66) de otra sesión con ese mismo trabajo.
 - Declaró "soy muy rookie" sobre versionado después de haber pedido adoptarlo como forma de
   trabajo. Vale chequear el nivel antes de aceptar una convención, no después.
+
+## Ayuda in-app: el popover y el tour (2026-10-15)
+
+**Introduced** (explicado por Claude, durante la implementación de HelpPopover + WelcomeTour)
+- [observado] **Un componente que ya existe vale más que uno nuevo.** `AboutBoxBox` ya tenía
+  resuelto todo lo difícil de un cartel de ayuda (sheet en mobile / panel anclado en desktop,
+  Escape, click afuera por `mousedown` y no por `click`, foco que entra y vuelve). Generalizarlo
+  lo bajó de 109 a 19 líneas y evitó una segunda copia de esa lógica, que es donde habría
+  derivado.
+- [observado] **El orden de los renders decide qué se puede mostrar.** El tour iba a vivir encima
+  de `/register`, y no se puede: `authService.register()` deja el token en el store y `GuestOnly`
+  hace `<Navigate>` en el mismo render, así que la pantalla se desmonta antes de pintar nada. La
+  recomendación de Claude fue la equivocada y la corrigió el e2e.
+- [observado] **Los unit tests no pueden ver esto.** Montan el componente suelto, sin router:
+  `GuestOnly` no existe para ellos. 155 tests pasaban con el tour roto. El e2e es el único que
+  ejercita la composición de rutas.
+- [observado] **HTML inválido que no da error.** Un `<div>` dentro de un `<p>` hace que el parser
+  cierre el `<p>` solo; dentro de un `<h1>` es inválido igual. Obligó a cambiar la línea de la
+  ronda en `DraftPage` por una fila flex y a agregarle `titleHelp` a `PageShell`.
+- [observado] **`getByLabel` de Playwright matchea por subcadena y sin distinguir mayúsculas.**
+  El `aria-label` del "?" contenía "código de invitación" y el locator resolvía al input Y al
+  botón. Se arregla con `{ exact: true }`, que es lo que el test siempre quiso decir.
+- [observado] **Un test que pasa no prueba que sirva.** La primera aserción de `PageShell` pasaba
+  también con la versión mala; se reescribió para mirar la estructura y se comprobó que falla
+  escribiendo la versión rota a propósito. Es la misma regla que las notas de smoke tests ya
+  traen: el fixture tiene que poder fallar.
+- [observado] **Medir antes de afirmar.** Claude sostuvo que meter el "?" dentro del `<h1>`
+  cambiaba el nombre accesible del encabezado. Medido con `dom-accessibility-api`, era falso: da
+  "Mis ligas" en los dos casos. El cambio se quedó, pero por la razón real (HTML inválido).
+
+**Demonstrated understanding**
+- Decidió el alcance por su cuenta y bien: aceptó la capa permanente de "?" y además propuso el
+  tour post-registro, que es justo lo que tapa el agujero de que el "?" sólo sirve si lo tocás.
+- Pidió que los "?" fueran menos llamativos. Era la lectura correcta: con el tour cubriendo el
+  descubrimiento, la ayuda permanente puede ser discreta.
+
+**Needs reinforcement**
+- Sobre el criterio de dónde poner ayuda, su posición fue que es personal y que coincidía con la
+  de Claude. Es una posición legítima y se tomó como tal, pero el criterio quedó sin enunciar por
+  segunda vez (la primera, 2026-10-07). Lo que falta ejercitar no es la elección sino poder
+  decir la regla en voz alta — que es la forma en que lo va a preguntar un profesor.
+
+## Nombres accesibles (2026-10-15, segunda mitad de la sesión)
+
+**Introduced** (explicado por Claude, durante la auditoría de los 47 archivos del frontend)
+- [observado] **El nombre accesible es lo que un lector anuncia**, y normalmente sale del texto
+  visible adentro del elemento. Cuando adentro hay sólo un ícono o un símbolo, no hay nombre: un
+  `<button>?</button>` se anuncia "signo de interrogación, botón".
+- [observado] **`aria-label` REEMPLAZA el contenido, no se suma.** Por eso `DraftPicker` anunciaba
+  sólo el nombre del piloto y tapaba el dorsal y la escudería que sí se dibujan adentro del botón.
+  Es el error más fácil de cometer con `aria-label`: se siente aditivo y no lo es.
+- [observado] **`title` no es accesibilidad.** Sobre un elemento no focusable es un tooltip de
+  mouse: no se anuncia y el teclado no llega. Era el único lugar donde vivía el nombre de la
+  escudería en la tabla de la liga, así que la celda se leía "VER, HAM" y después silencio.
+- [observado] **`sr-only` es el reverso de `aria-hidden`**: texto en el DOM, invisible en pantalla,
+  presente para el lector. Pero está EN el DOM, así que `getByText` lo ve — eso rompió dos tests
+  de `LeagueDetailPage` y obligó a acotarlos con `within`, que los dejó más estrictos que antes.
+- [observado] **Playwright `toMatchAriaSnapshot()`** captura el árbol de accesibilidad real del
+  navegador. Es la diferencia entre razonar las reglas y medirlas. Ya está disponible en la
+  versión instalada (1.62.1) y no se está usando. Habría atrapado el bug grave de esta sesión.
+- [observado] **El residuo que ninguna herramienta cierra**: el árbol es el mismo para todos los
+  lectores, pero cada uno decide cómo verbalizarlo. Cómo se pronuncia un ▲ varía entre NVDA,
+  VoiceOver y Orca, y eso sólo se sabe escuchando.
+
+**Demonstrated understanding**
+- Pidió barrer todo el código en vez de arreglar sólo el caso que había aparecido. El criterio
+  —un defecto encontrado una vez probablemente esté en otros lados— lo puso él.
+- Preguntó "¿para qué era esto?" sobre `aria-label` en lugar de aceptar el arreglo sin entenderlo.
+
+**Needs reinforcement**
+- Varios comandos de git ejecutados sobre la rama equivocada (`push origin main` estando en `dev`,
+  `pull origin main` estando en `dev`). Ninguno hizo daño y uno salió bien de casualidad, pero el
+  hábito de mirar en qué rama estás antes de un comando que toca ramas no está todavía.

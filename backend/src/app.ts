@@ -16,6 +16,13 @@ import syncRoutes from './modules/sync/sync.routes';
 
 const app = express();
 
+// TRUST PROXY — en Render el browser habla con el proxy y el proxy con este proceso, asi que
+// sin esto req.ip es SIEMPRE la IP del proxy y los limiters por IP (auth) meterian a todos los
+// usuarios en un solo bucket. El 1 es "confia en un salto": Express descarta el ultimo valor de
+// X-Forwarded-For (el proxy) y toma el anterior (el cliente). `true` confiaria en la cadena
+// entera, que el cliente puede falsificar — un header por intento y el limiter no sirve.
+app.set('trust proxy', 1);
+
 // Security headers
 app.use(helmet());
 

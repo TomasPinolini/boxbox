@@ -63,3 +63,40 @@ export const leagueJoinLimiter = rateLimit({
   skip: isTestEnv,
   handler: (_req, res) => sendRateLimitError(res, 'Too many league join attempts'),
 });
+
+// ─── Limiters de /auth ────────────────────────────────────────────────────────────────────
+// Estos corren ANTES de que exista req.user (nadie esta autenticado todavia), asi que la key
+// es puramente la IP. ipKey existe en vez de reusar userKey para que quede explicito: en estas
+// rutas no hay usuario al que atribuir el request, y confundirlos fue el bug que estuvimos a
+// punto de meter (keyGenerator cayendo al fallback sin que nadie lo note).
+//
+// Depende de `app.set('trust proxy', 1)` en app.ts. Sin eso, req.ip es la IP del proxy de
+// Render y estos dos limiters bloquean a todos los usuarios juntos.
+const ipKey = (req: Request) => ipKeyGenerator(req.ip ?? 'anon');
+
+// loginLimiter: 10 intentos FALLIDOS por minuto por IP.
+// skipSuccessfulRequests hace que un login exitoso no consuma presupuesto: el cap castiga
+// adivinar contrasenas, no usar la app. Sin eso, una familia detras del mismo WiFi comparte
+// los 10 y el que entra legitimamente deja a otro afuera.
+export const loginLimiter = rateLimit({
+  windowMs: 60_000,
+  limit: 10,
+  skipSuccessfulRequests: true,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  keyGenerator: ipKey,
+  skip: isTestEnv,
+  handler: (_req, res) => sendRateLimitError(res, 'Too many login attempts'),
+});
+
+// registerLimiter: 5 registros por minuto por IP, exitosos incluidos.
+// Aca si cuenta el exito: el riesgo es la creacion masiva de cuentas, no adivinar nada.
+export const registerLimiter = rateLimit({
+  windowMs: 60_000,
+  limit: 5,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  keyGenerator: ipKey,
+  skip: isTestEnv,
+  handler: (_req, res) => sendRateLimitError(res, 'Too many registration attempts'),
+});

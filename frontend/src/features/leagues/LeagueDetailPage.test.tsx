@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ConstructorRef, Driver } from '../../models/driver';
@@ -109,10 +109,15 @@ describe('LeagueDetailPage, con el draft terminado', () => {
     renderWithQuery(<LeagueDetailPage />, { route: '/leagues/1' });
 
     // (a) El equipo armado es lo primero, no una tabla de posiciones vacía.
-    expect(await screen.findByRole('heading', { name: /Tu equipo/i })).toBeInTheDocument();
-    // El nombre va completo en un solo nodo: "Lando Norris".
-    expect(screen.getByText(/Norris/)).toBeInTheDocument();
-    expect(screen.getByText(/Russell/)).toBeInTheDocument();
+    const tituloEquipo = await screen.findByRole('heading', { name: /Tu equipo/i });
+    expect(tituloEquipo).toBeInTheDocument();
+    // Acotado a la tarjeta y no suelto por toda la pantalla: desde que la tabla de la liga
+    // lleva el nombre completo en un sr-only (para que el lector no escuche solo "NOR"), el
+    // apellido aparece en DOS lugares legitimos. Buscar dentro de la tarjeta es lo que el
+    // test siempre quiso decir — que el equipo propio se muestra ACA, no en cualquier lado.
+    const tarjetaEquipo = within(tituloEquipo.parentElement!);
+    expect(tarjetaEquipo.getByText(/Norris/)).toBeInTheDocument();
+    expect(tarjetaEquipo.getByText(/Russell/)).toBeInTheDocument();
 
     // (b) Invitar e iniciar el draft ya no tienen sentido: el draft terminó.
     expect(screen.queryByText(/Invitá a tus amigos/i)).not.toBeInTheDocument();
@@ -143,10 +148,13 @@ describe('LeagueDetailPage, con el draft terminado', () => {
 
     // El equipo del rival aparece en un dialogo — "Tu equipo" ya no desaparece atras, que es
     // el cambio que pidio el usuario respecto de la version anterior (reemplazaba la tarjeta).
-    expect(await screen.findByRole('dialog', { name: /Equipo de Rivero/i })).toBeInTheDocument();
+    const dialogo = await screen.findByRole('dialog', { name: /Equipo de Rivero/i });
+    expect(dialogo).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /Tu equipo/i })).toBeInTheDocument();
-    expect(screen.getByText(/Leclerc/)).toBeInTheDocument();
-    expect(screen.getByText(/Piastri/)).toBeInTheDocument();
+    // Dentro del dialogo, no sueltos: los apellidos del rival tambien viven en la tabla de la
+    // liga (en un sr-only). Lo que este test afirma es que estan EN el popup.
+    expect(within(dialogo).getByText(/Leclerc/)).toBeInTheDocument();
+    expect(within(dialogo).getByText(/Piastri/)).toBeInTheDocument();
 
     // Y se puede cerrar con la X.
     await user.click(screen.getByRole('button', { name: 'Cerrar' }));
