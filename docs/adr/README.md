@@ -31,5 +31,8 @@ Documentamos decisiones técnicas que son **(a) difíciles de revertir**, **(b) 
 | [0007](./ADR-0007-supabase-postgres-hosting.md)        | Postgres en Supabase, dos proyectos gratuitos en vez de self-hosting               | Accepted | Infraestructura       |
 | [0008](./ADR-0008-render-backend-vercel-frontend.md)   | Backend en Render y frontend en Vercel, en dominios separados                      | Accepted | Infraestructura       |
 | [0009](./ADR-0009-archivar-league-en-lugar-de-borrarla.md) | Archivar una League en lugar de borrarla                                           | Accepted | Dominio / modelado    |
+| [0010](./ADR-0010-resultados-de-sprint-en-tablas-propias.md) | Resultados de sprint en tablas propias                                              | Accepted | Dominio / modelado    |
+| [0011](./ADR-0011-semantic-versioning.md)                 | Semantic Versioning con un solo número para el repo                                | Accepted | Proceso / versionado  |
+| [0012](./ADR-0012-predicciones-pre-carrera.md)            | Reglas de las predicciones pre-carrera                                             | Accepted | Dominio / alcance     |
 
 **Nota:** Las ADRs 0001-0005 son **retroactivas** — documentan decisiones ya implementadas en el código. Status = `Accepted` desde el inicio (no `Draft`). La 0006 es la primera escrita **antes** de implementar; la 0007 y la 0008 documentan decisiones de infraestructura tomadas sobre la marcha.

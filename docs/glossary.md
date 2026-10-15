@@ -33,8 +33,10 @@ Definiciones de una línea de todos los términos del dominio. Si necesitás nar
 | Término | Definición | Evitar |
 |---|---|---|
 | **Race** | Grand Prix del calendario de una **Season**; tiene `round`, `date`, `lockDate` y `status` operativo. | GP (en código), event |
-| **RaceResult** | Resultado oficial de un **Driver** en una **Race**: position, points, gridPosition, fastestLap, status (CLASSIFIED/DNF/DSQ/DNS). | result (suelto) |
+| **RaceResult** | Resultado oficial de un **Driver** en el **Gran Premio** de una **Race** — no en su **Sprint**: position, points, gridPosition, fastestLap, status (CLASSIFIED/DNF/DSQ/DNS). Se renombra a **GrandPrixResult** (modelo y tabla, no el contrato HTTP) — ver [ADR-0010](./adr/ADR-0010-resultados-de-sprint-en-tablas-propias.md). | result (suelto), "resultado del fin de semana" |
 | **ConstructorResult** | Resultado agregado de un **Constructor** en una **Race**: `driver1Points` + `driver2Points`; pre-computado al cargar RaceResults. | teamResult |
+| **Sprint** | Carrera corta del sábado en ~6 fechas por temporada; reparte 8-7-6-5-4-3-2-1 al top 8 y no tiene punto de vuelta rápida. Sus puntos **sí** cuentan para los campeonatos y para las ligas; sus victorias y podios **no** entran en las estadísticas de un piloto, igual que en la F1 real. Su fecha vive en `Race.sprintDate`. | "carrera del sábado", sprint race |
+| **SprintResult** | Resultado de un **Driver** en el **Sprint** de una **Race**, en su propia tabla. Planificado, no construido — [ADR-0010](./adr/ADR-0010-resultados-de-sprint-en-tablas-propias.md), Slice 17. | "RaceResult de sprint" |
 
 ---
 
@@ -62,7 +64,7 @@ Definiciones de una línea de todos los términos del dominio. Si necesitás nar
 
 | Término | Definición | Evitar |
 |---|---|---|
-| **lockDate** | Timestamp por **Race** después del cual no se aceptan más **Prediction**s; típicamente 1h antes del race start, no necesariamente = qualifyingDate. | deadline, cutoff |
+| **lockDate** | Timestamp por **Race** después del cual no se aceptan más **Prediction**s: **un minuto antes de `qualifyingDate`** ([ADR-0012](./adr/ADR-0012-predicciones-pre-carrera.md)). Hasta la v1.0.0 era una hora antes del race start, o sea después de la clasificación — por eso la pole no era un pronóstico. | deadline, cutoff |
 | **snake draft** | Modalidad de draft donde el orden de picks se revierte cada ronda (1→N, N→1, 1→N); 3 rondas en BoxBox: titular 1, titular 2, constructor. | serpentine draft, mirror draft |
 | **soft-delete** | Política de borrado lógico: la fila queda en DB con `deletedAt` seteado y se filtra de reads; solo aplica a entidades de catálogo (Driver, Constructor, Circuit). | logical delete (en docs); usar "borrar" cuando se borra físicamente |
 | **archivado** | Cierre definitivo de una **League** por su **owner**: pasa a `status = 'ARCHIVED'`, desaparece de los listados, deja de aceptar su `inviteCode` y sale del recálculo de **LeagueStanding**s. La fila y todos sus datos quedan en DB: una League **nunca** se borra (ADR-0009). | borrar/eliminar una liga, cancelar, cerrar |
@@ -113,5 +115,7 @@ Definiciones de una línea de todos los términos del dominio. Si necesitás nar
 - **"user"** vs **"member"** — un **User** existe en el sistema; un **LeagueMember** existe dentro de una **League** específica. Un user con 3 ligas es 1 User + 3 LeagueMembers. Usar el término preciso según contexto.
 - **"DriverContract"** (histórico) — fue rechazado a favor de **DriverSeason**. Si aparece en docs viejos o branches, corregir. La entidad no tiene semánticas de contrato (no hay fechas, salario, cláusulas).
 - **"result"** suelto — ambiguo entre **RaceResult** (por piloto) y **ConstructorResult** (por equipo). Siempre prefijar.
+- **"sesión"** — se usa al hablar (la sesión del sábado) pero **no es un término del glosario a propósito**: con tablas separadas por sesión no hay nada en el código que se llame `session`, y un término sin referente es una regla que nadie puede cumplir. Decir **Sprint** o **Gran Premio**, que sí existen.
+- **`RaceResultStatus`** — el enum de estados (CLASSIFIED/DNF/DSQ/DNS) lo comparten **RaceResult** y **SprintResult**, así que su nombre no corresponde a un solo modelo y no se renombra con él. Incoherencia aceptada a conciencia: renombrarlo obligaba a tocar el frontend, que lo espeja. Ver [ADR-0010](./adr/ADR-0010-resultados-de-sprint-en-tablas-propias.md).
 - **"pick"** suelto — usar **DraftPick** cuando refiere a la entidad; verbo "pick" libre en conversación.
 - **"reserva" / "swap"** — ya no existen en el dominio (ADR-0006). Si aparecen en docs viejos o branches, corregir.
