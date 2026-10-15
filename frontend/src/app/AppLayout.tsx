@@ -189,7 +189,7 @@ export function AppLayout() {
             aria-expanded={drawerOpen}
             aria-controls="menu-mobile"
             onClick={() => setDrawerOpen(true)}
-            className="flex h-9 w-9 flex-col items-center justify-center gap-1"
+            className="flex h-11 w-11 flex-col items-center justify-center gap-1"
           >
             <span aria-hidden="true" className="block h-0.5 w-5 rounded-full bg-slate-900 dark:bg-ink-text" />
             <span aria-hidden="true" className="block h-0.5 w-5 rounded-full bg-slate-900 dark:bg-ink-text" />
@@ -264,7 +264,7 @@ export function AppLayout() {
                 type="button"
                 aria-label="Cerrar menú"
                 onClick={closeDrawer}
-                className="shrink-0 px-2 py-1 text-2xl leading-none text-slate-400 hover:text-slate-600 dark:text-ink-muted dark:hover:text-ink-text"
+                className="flex h-11 w-11 shrink-0 items-center justify-center text-2xl leading-none text-slate-400 hover:text-slate-600 dark:text-ink-muted dark:hover:text-ink-text"
               >
                 ×
               </button>
