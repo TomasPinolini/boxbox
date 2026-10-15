@@ -102,9 +102,14 @@ export function DriverCard({ driver, onOpen }: { driver: Driver; onOpen: (id: nu
           to={`/constructors/${driver.constructor.id}`}
           className="relative z-10 flex min-h-11 items-center gap-2 bg-black/45 px-3 py-1.5 hover:bg-black/60"
         >
-          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/90">
-            <ConstructorLogo constructor={driver.constructor} />
-          </span>
+          {/* Sin el chip circular blanco que envuelve a ConstructorLogo en otros lugares
+              (TeamLineup): ahi hace falta porque el fondo es el color PROPIO del equipo, y
+              unos cuantos logos son del mismo color que su escuderia (la "A" azul de Alpine
+              sobre azul, por ejemplo) — sin blanco de por medio desaparecerian. Aca el fondo
+              es bg-black/45 sobre el degrade de la card, oscuro parejo sea cual sea el color
+              del equipo, y los 11 logos ya se probaron contra ese fondo (ver CREDITS.md). El
+              circulo blanco quedaba como un recuadro de mas. Pedido del usuario 2026-10-15. */}
+          <ConstructorLogo constructor={driver.constructor} />
           <span className="truncate text-xs font-semibold text-white">{driver.constructor.name}</span>
         </Link>
       ) : (
