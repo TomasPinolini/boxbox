@@ -1,17 +1,20 @@
 import type { ConstructorRef, Driver } from '../../models/driver';
-import { ConstructorLogo } from '../drivers/ConstructorLogo';
-import { DriverAvatar } from '../drivers/DriverAvatar';
+import { DriverCard } from '../drivers/DriverCard';
 import { groupByConstructor } from '../drivers/group-by-constructor';
-import { TeamBadge } from '../drivers/TeamBadge';
+import { ConstructorStrip } from './TeamLineup';
 
-// DraftPicker: reemplaza el <select> de texto plano que tenía el draft. Mismos componentes
-// que /drivers (Slice 14) — DriverAvatar, TeamBadge, ConstructorLogo — para que un piloto se
-// vea igual eligiéndolo acá que mirándolo en el catálogo (auditoría de UX, 2026-10-09, punto
-// "22 nombres en un dropdown, sin foto, dorsal ni color").
+// DraftPicker: reemplaza el <select> de texto plano que tenía el draft. Reusa DriverCard y
+// ConstructorStrip TAL CUAL — las mismas cards que ves en /drivers y despues en "Tu equipo"
+// (TeamLineup) — en vez de una tarjeta propia del picker. Pedido del usuario 2026-10-15: el
+// piloto o la escuderia por la que estás eligiendo tiene que verse igual que el resultado, no
+// una aproximación con otros componentes (DriverAvatar + TeamBadge sueltos, como era antes).
+// Las dos reciben `selected`/`disabled`/`ariaLabel` justamente para este caso de uso, sin
+// cambiar su comportamiento por defecto en /drivers ni en TeamLineup.
 //
-// Un <button> por opción, no radios escondidos detrás de un <label>: el estado seleccionado
-// se ve (ring + fondo) y el teclado lo recorre gratis (Tab, Enter/Espacio) sin JS extra para
-// flechas — no hace falta el patrón roving-tabindex de un <select> nativo, son como mucho 22.
+// Un <button>/ConstructorStrip con onSelect por opción, no radios escondidos detrás de un
+// <label>: el estado seleccionado se ve (ring) y el teclado lo recorre gratis (Tab,
+// Enter/Espacio) sin JS extra para flechas — no hace falta el patrón roving-tabindex de un
+// <select> nativo, son como mucho 22.
 //
 // Recibe el ROSTER COMPLETO de la temporada, no solo los disponibles — la primera version
 // pasaba `state.available` (solo lo que queda), y a medida que avanzaba el draft la lista se
@@ -23,44 +26,6 @@ import { TeamBadge } from '../drivers/TeamBadge';
 // groupByConstructor queda igual — protege contra el caso (mas raro, pero real en F1: un
 // reserva a mitad de temporada) de una escuderia con un numero impar de pilotos en el roster
 // ya de base, no solo contra los picks del draft.
-
-function Tile({
-  id,
-  selected,
-  disabled,
-  onSelect,
-  children,
-  borderColor,
-  label,
-}: {
-  id: number;
-  selected: boolean;
-  disabled: boolean;
-  onSelect: (id: number) => void;
-  children: React.ReactNode;
-  borderColor: string;
-  label: string;
-}) {
-  return (
-    <button
-      type="button"
-      disabled={disabled}
-      aria-pressed={disabled ? undefined : selected}
-      aria-label={disabled ? `${label} (ya elegido)` : label}
-      onClick={() => onSelect(id)}
-      className={`flex w-full flex-col items-center gap-2 rounded-md border-t-4 bg-slate-50 p-3 text-center transition dark:bg-ink-surface ${
-        disabled
-          ? 'cursor-not-allowed grayscale opacity-50'
-          : selected
-            ? 'ring-2 ring-red-600'
-            : 'hover:bg-slate-100 dark:hover:bg-ink-border'
-      }`}
-      style={{ borderTopColor: disabled ? '#cbd5e1' : borderColor }}
-    >
-      {children}
-    </button>
-  );
-}
 
 export function DraftPicker({
   category,
@@ -83,32 +48,21 @@ export function DraftPicker({
         {groupByConstructor(drivers).map((group) => (
           <div key={group.key} className="grid grid-cols-2 gap-2">
             {group.items.map((d) => (
-              <Tile
+              <DriverCard
                 key={d.id}
-                id={d.id}
+                driver={d}
+                onOpen={onSelect}
                 selected={selectedId === d.id}
                 disabled={takenIds.has(d.id)}
-                onSelect={onSelect}
-                borderColor={d.constructor?.color ?? '#e2e8f0'}
+                // Sin link a /constructors/:id acá: un click en la franja de abajo no puede
+                // sacarte del draft con el timer corriendo. Bug reportado por el usuario.
+                linkToConstructor={false}
                 // El aria-label REEMPLAZA el contenido del boton para el nombre accesible, no
                 // se suma: con solo el nombre, el dorsal y la escuderia que se dibujan adentro
                 // no llegaban al lector. Y la escuderia es la mitad de la decision en esta
                 // pantalla, con 60 segundos corriendo.
-                label={`${d.firstName} ${d.lastName}, número ${d.number}, ${d.constructor?.name ?? 'sin escudería'}`}
-              >
-                <DriverAvatar driver={d} size={48} />
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold">
-                    {d.firstName} {d.lastName}
-                  </p>
-                  <div className="mt-1 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-xs text-slate-500 dark:text-ink-muted">
-                    <span className="font-display tabular-nums">#{d.number}</span>
-                  </div>
-                  <div className="mt-1">
-                    <TeamBadge constructor={d.constructor} />
-                  </div>
-                </div>
-              </Tile>
+                ariaLabel={`${d.firstName} ${d.lastName}, número ${d.number}, ${d.constructor?.name ?? 'sin escudería'}`}
+              />
             ))}
           </div>
         ))}
@@ -117,20 +71,18 @@ export function DraftPicker({
   }
 
   return (
-    <div className="grid grid-cols-2 gap-2" role="group" aria-label="Elegí una escudería">
+    // Una columna, no grid-cols-2: ConstructorStrip es horizontal a lo ancho (así se ve en
+    // "Tu equipo"), apretarla a la mitad del ancho la deja desproporcionada. Pedido del
+    // usuario 2026-10-15.
+    <div className="flex flex-col gap-2" role="group" aria-label="Elegí una escudería">
       {constructors.map((c) => (
-        <Tile
+        <ConstructorStrip
           key={c.id}
-          id={c.id}
+          constructor={c}
+          onSelect={onSelect}
           selected={selectedId === c.id}
           disabled={takenIds.has(c.id)}
-          onSelect={onSelect}
-          borderColor={c.color}
-          label={c.name}
-        >
-          <ConstructorLogo constructor={c} />
-          <p className="truncate text-sm font-semibold">{c.name}</p>
-        </Tile>
+        />
       ))}
     </div>
   );

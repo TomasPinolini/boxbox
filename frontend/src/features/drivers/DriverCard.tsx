@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { SelectedBadge } from '../../components/ui';
 import type { Driver } from '../../models/driver';
 import { ConstructorLogo } from './ConstructorLogo';
 
@@ -36,17 +37,52 @@ const INK = '#1a1a1c';
 // general"), un dia despues el pedido se dio vuelta y Montserrat paso a ser la general. Con
 // las dos iguales, font-card quedo redundante y se saco. SI hace falta font-semibold/
 // font-extrabold explicito: el peso regular del body no alcanza para esta jerarquia.
-export function DriverCard({ driver, onOpen }: { driver: Driver; onOpen: (id: number) => void }) {
+// selected/disabled/ariaLabel/linkToConstructor son para el DraftPicker (Slice 17): el piloto
+// por el que estás eligiendo tiene que verse exactamente igual al de /drivers y al de "Tu
+// equipo" — no una aproximación — así que en vez de que el picker dibuje su propia tarjeta,
+// esta se hizo reusable con props opcionales, sin tocar el comportamiento por defecto del
+// catálogo (sin pasarlas, es exactamente la card de antes). `disabled` apaga toda la card con
+// pointer-events-none, incluida la franja de escudería de abajo — no solo el boton del
+// piloto — porque un piloto ya elegido no tiene nada que hacer clickeable en el draft.
+// `linkToConstructor={false}` saca la navegación de esa franja: dentro del picker un click ahí
+// no puede sacarte de la pantalla del draft con el timer corriendo (bug reportado por el
+// usuario 2026-10-15) — se ve igual, pero no es un <Link>.
+export function DriverCard({
+  driver,
+  onOpen,
+  selected,
+  disabled,
+  ariaLabel,
+  linkToConstructor = true,
+}: {
+  driver: Driver;
+  onOpen: (id: number) => void;
+  selected?: boolean;
+  disabled?: boolean;
+  ariaLabel?: string;
+  linkToConstructor?: boolean;
+}) {
   const [failed, setFailed] = useState(false);
   const hasPhoto = Boolean(driver.headshotUrl) && !failed;
   const color = driver.constructor?.color ?? '#64748b';
+  const label = ariaLabel ?? `Ver piloto ${driver.firstName} ${driver.lastName}, número ${driver.number}`;
 
   return (
-    <div className="relative flex h-44 flex-col overflow-hidden rounded-lg shadow-sm ring-1 ring-slate-200 transition-shadow hover:shadow-md dark:ring-ink-border">
+    <div
+      className={`relative flex h-44 flex-col overflow-hidden rounded-lg shadow-sm ring-1 transition-shadow dark:ring-ink-border ${
+        disabled
+          ? 'pointer-events-none opacity-50 grayscale ring-slate-200'
+          : selected
+            ? 'ring-2 ring-red-600'
+            : 'ring-slate-200 hover:shadow-md'
+      }`}
+    >
       <div
         className="absolute inset-0"
         style={{ backgroundImage: `linear-gradient(135deg, ${color} 0%, ${INK} 65%)` }}
       />
+
+      {selected && !disabled && <SelectedBadge />}
 
       {/* aria-label con el nombre: sin el, un lector de pantalla lee el contenido suelto y los
           22 botones suenan igual. */}
@@ -63,11 +99,13 @@ export function DriverCard({ driver, onOpen }: { driver: Driver; onOpen: (id: nu
           alto explicito, el <img> adentro SI tiene un porcentaje que resolver y listo. */}
       <button
         type="button"
+        disabled={disabled}
+        aria-pressed={disabled || selected === undefined ? undefined : selected}
         // El dorsal entra en el aria-label porque el aria-label REEMPLAZA el contenido del
         // boton para el nombre accesible: el numero que se dibuja adentro no llegaba al lector.
-        aria-label={`Ver piloto ${driver.firstName} ${driver.lastName}, número ${driver.number}`}
+        aria-label={disabled ? `${label} (ya elegido)` : label}
         onClick={() => onOpen(driver.id)}
-        className="relative z-10 flex h-[132px] cursor-pointer items-stretch text-left"
+        className="relative z-10 flex h-[132px] cursor-pointer items-stretch text-left disabled:cursor-not-allowed"
       >
         <div className="flex min-w-0 flex-1 flex-col justify-center py-2 pl-4 pr-1">
           <p className="truncate text-base font-semibold text-white">
@@ -100,20 +138,27 @@ export function DriverCard({ driver, onOpen }: { driver: Driver; onOpen: (id: nu
       </button>
 
       {driver.constructor ? (
-        <Link
-          to={`/constructors/${driver.constructor.id}`}
-          className="relative z-10 flex min-h-11 items-center gap-2 bg-black/45 px-3 py-1.5 hover:bg-black/60"
-        >
-          {/* Sin el chip circular blanco que envuelve a ConstructorLogo en otros lugares
-              (TeamLineup): ahi hace falta porque el fondo es el color PROPIO del equipo, y
-              unos cuantos logos son del mismo color que su escuderia (la "A" azul de Alpine
-              sobre azul, por ejemplo) — sin blanco de por medio desaparecerian. Aca el fondo
-              es bg-black/45 sobre el degrade de la card, oscuro parejo sea cual sea el color
-              del equipo, y los 11 logos ya se probaron contra ese fondo (ver CREDITS.md). El
-              circulo blanco quedaba como un recuadro de mas. Pedido del usuario 2026-10-15. */}
-          <ConstructorLogo constructor={driver.constructor} />
-          <span className="truncate text-xs font-semibold text-white">{driver.constructor.name}</span>
-        </Link>
+        // Sin el chip circular blanco que envuelve a ConstructorLogo en otros lugares
+        // (TeamLineup): ahi hace falta porque el fondo es el color PROPIO del equipo, y
+        // unos cuantos logos son del mismo color que su escuderia (la "A" azul de Alpine
+        // sobre azul, por ejemplo) — sin blanco de por medio desaparecerian. Aca el fondo
+        // es bg-black/45 sobre el degrade de la card, oscuro parejo sea cual sea el color
+        // del equipo, y los 11 logos ya se probaron contra ese fondo (ver CREDITS.md). El
+        // circulo blanco quedaba como un recuadro de mas. Pedido del usuario 2026-10-15.
+        linkToConstructor ? (
+          <Link
+            to={`/constructors/${driver.constructor.id}`}
+            className="relative z-10 flex min-h-11 items-center gap-2 bg-black/45 px-3 py-1.5 hover:bg-black/60"
+          >
+            <ConstructorLogo constructor={driver.constructor} />
+            <span className="truncate text-xs font-semibold text-white">{driver.constructor.name}</span>
+          </Link>
+        ) : (
+          <div className="relative z-10 flex min-h-11 items-center gap-2 bg-black/45 px-3 py-1.5">
+            <ConstructorLogo constructor={driver.constructor} />
+            <span className="truncate text-xs font-semibold text-white">{driver.constructor.name}</span>
+          </div>
+        )
       ) : (
         <div className="relative z-10 flex min-h-11 items-center bg-black/45 px-3 py-1.5">
           <span className="truncate text-xs font-semibold text-white/70">Sin equipo</span>
