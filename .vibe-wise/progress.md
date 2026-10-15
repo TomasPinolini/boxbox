@@ -257,3 +257,44 @@ Dos cosas abiertas, las dos esperando al learner:
   (BOX-66) de otra sesión con ese mismo trabajo.
 - Declaró "soy muy rookie" sobre versionado después de haber pedido adoptarlo como forma de
   trabajo. Vale chequear el nivel antes de aceptar una convención, no después.
+
+## Ayuda in-app: el popover y el tour (2026-10-15)
+
+**Introduced** (explicado por Claude, durante la implementación de HelpPopover + WelcomeTour)
+- [observado] **Un componente que ya existe vale más que uno nuevo.** `AboutBoxBox` ya tenía
+  resuelto todo lo difícil de un cartel de ayuda (sheet en mobile / panel anclado en desktop,
+  Escape, click afuera por `mousedown` y no por `click`, foco que entra y vuelve). Generalizarlo
+  lo bajó de 109 a 19 líneas y evitó una segunda copia de esa lógica, que es donde habría
+  derivado.
+- [observado] **El orden de los renders decide qué se puede mostrar.** El tour iba a vivir encima
+  de `/register`, y no se puede: `authService.register()` deja el token en el store y `GuestOnly`
+  hace `<Navigate>` en el mismo render, así que la pantalla se desmonta antes de pintar nada. La
+  recomendación de Claude fue la equivocada y la corrigió el e2e.
+- [observado] **Los unit tests no pueden ver esto.** Montan el componente suelto, sin router:
+  `GuestOnly` no existe para ellos. 155 tests pasaban con el tour roto. El e2e es el único que
+  ejercita la composición de rutas.
+- [observado] **HTML inválido que no da error.** Un `<div>` dentro de un `<p>` hace que el parser
+  cierre el `<p>` solo; dentro de un `<h1>` es inválido igual. Obligó a cambiar la línea de la
+  ronda en `DraftPage` por una fila flex y a agregarle `titleHelp` a `PageShell`.
+- [observado] **`getByLabel` de Playwright matchea por subcadena y sin distinguir mayúsculas.**
+  El `aria-label` del "?" contenía "código de invitación" y el locator resolvía al input Y al
+  botón. Se arregla con `{ exact: true }`, que es lo que el test siempre quiso decir.
+- [observado] **Un test que pasa no prueba que sirva.** La primera aserción de `PageShell` pasaba
+  también con la versión mala; se reescribió para mirar la estructura y se comprobó que falla
+  escribiendo la versión rota a propósito. Es la misma regla que las notas de smoke tests ya
+  traen: el fixture tiene que poder fallar.
+- [observado] **Medir antes de afirmar.** Claude sostuvo que meter el "?" dentro del `<h1>`
+  cambiaba el nombre accesible del encabezado. Medido con `dom-accessibility-api`, era falso: da
+  "Mis ligas" en los dos casos. El cambio se quedó, pero por la razón real (HTML inválido).
+
+**Demonstrated understanding**
+- Decidió el alcance por su cuenta y bien: aceptó la capa permanente de "?" y además propuso el
+  tour post-registro, que es justo lo que tapa el agujero de que el "?" sólo sirve si lo tocás.
+- Pidió que los "?" fueran menos llamativos. Era la lectura correcta: con el tour cubriendo el
+  descubrimiento, la ayuda permanente puede ser discreta.
+
+**Needs reinforcement**
+- Sobre el criterio de dónde poner ayuda, su posición fue que es personal y que coincidía con la
+  de Claude. Es una posición legítima y se tomó como tal, pero el criterio quedó sin enunciar por
+  segunda vez (la primera, 2026-10-07). Lo que falta ejercitar no es la elección sino poder
+  decir la regla en voz alta — que es la forma en que lo va a preguntar un profesor.
