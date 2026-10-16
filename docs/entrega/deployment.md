@@ -3,9 +3,11 @@
 Runbook del deploy de BoxBox y datos de acceso para la defensa.
 
 **Arquitectura:** backend en [Render](https://render.com), frontend en [Vercel](https://vercel.com),
-base Postgres en Supabase (`boxbox-dev`).
+base Postgres en Supabase (`boxbox-prod`).
 
 > **Estado: desplegado y verificado de punta a punta (2026-10-04).**
+> **La app pública pasó de `boxbox-dev` a `boxbox-prod` el 2026-10-16** — ver
+> [Cambio a producción](#cambio-a-producción-2026-10-16).
 
 ---
 
@@ -80,7 +82,7 @@ runtime necesita rompiendo el build.
 | Variable | Valor |
 | :------- | :---- |
 | `NODE_ENV` | `production` |
-| `DATABASE_URL` | `backend/.env.supabase-dev.local` para la defensa; `.env.supabase-prod.local` cuando la app se abra a usuarios reales |
+| `DATABASE_URL` | `backend/.env.supabase-prod.local` — desde el 2026-10-16 la app pública usa `boxbox-prod` |
 | `JWT_SECRET` | nuevo, `openssl rand -hex 32` |
 | `REFRESH_TOKEN_SECRET` | nuevo y distinto del anterior |
 | `FRONTEND_URL` | la URL de Vercel (ver paso 4) |
@@ -89,10 +91,11 @@ runtime necesita rompiendo el build.
 `boxbox-dev` es **us-west-2** (`inmbedbcedksbjypsjlm`) y `boxbox-prod` es **us-east-1**
 (`qtwsblwfoceamuvothww`).
 
-**Para la defensa la app pública usa `boxbox-dev`**, que es la base con la Liga Demo, las
-fechas importadas de Jolpica y los standings poblados. `boxbox-prod` quedó migrada y
-seedeada en cero, lista para el día que la app se abra a usuarios reales: cambiar entre una
-y otra es un solo campo en Render y ~90 segundos de redeploy.
+**Desde el 2026-10-16 la app pública usa `boxbox-prod`.** Hasta esa fecha usó `boxbox-dev`,
+que es la base con la Liga Demo, las fechas importadas de Jolpica y los standings poblados;
+el motivo del cambio está en [Cambio a producción](#cambio-a-producción-2026-10-16). Pasar
+de una a otra es un solo campo en Render y ~90 segundos de redeploy — pero **reemplazando el
+valor entero**, nunca editando por dentro de la URI.
 
 Lo que sigue describe por qué existe esa segunda base y cómo se llegó a ella.
 
@@ -129,7 +132,7 @@ curl https://boxbox-api.onrender.com/api/v1/health
 # esperado: {"status":"ok","timestamp":"..."}
 
 curl https://boxbox-api.onrender.com/api/v1/drivers | head -c 200
-# esperado: los 22 pilotos de 2026 — confirma que pega contra boxbox-dev
+# esperado: los 22 pilotos de 2026 — confirma que pega contra boxbox-prod
 ```
 
 ---
@@ -269,6 +272,95 @@ deployar con anticipación.
 
 ---
 
+## Cambio a producción (2026-10-16)
+
+La app pública **dejó de apuntar a `boxbox-dev` y ahora corre contra `boxbox-prod`**. Se
+cambió un solo campo: `DATABASE_URL` en Render.
+
+**Por qué.** Mientras la app apuntaba a `boxbox-dev`, el admin de la base alcanzable desde
+internet era `admin@boxbox.test` / `admin1234`, y esa password está publicada en
+[`tutorial.md`](../tutorial.md). Cualquiera con acceso al repo entraba como ADMIN y podía
+cargar resultados falsos, correr el sync o borrar pilotos. En `boxbox-prod` el admin se creó
+con `SEED_ADMIN_PASSWORD`, así que el cambio de base cerró el agujero sin tocar una línea de
+código. La segunda razón es operativa: con gente jugando ligas de verdad, correr un seed, un
+smoke o un `migrate reset` contra esa misma base es cuestión de tiempo.
+
+### Son tres bases, no dos
+
+| Dónde corre | Qué base | Para qué |
+| :-- | :-- | :-- |
+| Tu máquina — `npm run dev`, `npm test` | Postgres local | Desarrollo diario y la suite |
+| Tu máquina, cuando querés datos realistas | `boxbox-dev` | Ya no está desplegada |
+| Render + Vercel | `boxbox-prod` | Usuarios reales |
+
+La primera fila no es opcional: `src/tests/setup.ts` llama a `assertLocalDatabase`, que
+rechaza cualquier host que no sea local, porque la suite hace `TRUNCATE ... CASCADE` antes de
+**cada** test. Apuntarla a Supabase se lleva la base puesta.
+
+Y un environment es una **cadena completa** —frontend + API + base—, no una base suelta. Hay
+una sola cadena desplegada, así que "cambiar de entorno" se reduce a editar `DATABASE_URL`.
+
+### Lo que se hizo
+
+1. `DATABASE_URL` de Render → `boxbox-prod`. Verificado: `/api/v1/drivers` → `200`, y un
+   registro real desde la URL pública creó un usuario nuevo a las 23:30 UTC.
+2. Rotadas las passwords de base de `boxbox-dev` y `boxbox-prod`: las dos habían quedado en
+   texto plano fuera de un gestor de contraseñas.
+3. Prod tenía la migración `20261015200000_add_user_motto` sin aplicar
+   (`ALTER TABLE users ADD COLUMN motto TEXT`). Sin esa columna, `register`, `login` y
+   `/auth/me` fallan, porque `userSelect` en `auth.service.ts` la incluye — y el `curl` a
+   `/drivers` no lo detecta, porque no toca la tabla `users`. Se aplicó el SQL y se
+   sincronizó el libro de migraciones con `prisma migrate resolve --applied`. Hoy
+   `prisma migrate status` responde *Database schema is up to date!*.
+4. Auditoría de seguridad del backend, de solo lectura: autorización por recurso, sesión y
+   JWT, inyección, PII en las respuestas, y secretos en git y en toda la historia. No
+   apareció nada para arreglar en el código; el único agujero real era el del admin, que es
+   un problema de datos.
+
+### Pendiente
+
+1. **Prod no tiene resultados.** `race_results = 0`: el campeonato sale vacío y ninguna liga
+   puede puntuar. Se cargan desde `/admin/results`, fecha por fecha, con el admin de prod.
+2. **Las fotos de perfil van al proyecto dev.** `SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY`
+   en Render siguen apuntando a `boxbox-dev`. Para moverlas hay que crear el bucket `avatars`
+   en prod primero (público, 2MB, png/jpeg/webp); sin el bucket, subir foto tira `502`.
+3. **`tutorial.md` miente en un punto.** Dice que `NODE_ENV=development npm run dev` usa
+   `.env.supabase-dev.local`. No existe tal cascada: `config/env.ts` hace `dotenv.config()`
+   pelado y solo lee `.env`. Para apuntar el backend local a Supabase:
+   `(set -a; . ./.env.supabase-dev.local; set +a; npm run dev)` — dotenv no pisa variables
+   que ya existen en el entorno, así que lo sourceado gana.
+4. **3 high severity vulnerabilities** en el `npm install` del build de Render. Falta triar
+   si son todas de dependencias de desarrollo.
+5. De la auditoría, sin tocar: bcrypt en 10 rounds (OWASP pide 12), el frontend sin CSP ni
+   `X-Frame-Options` (`helmet()` cubre la API, no Vercel), refresh token sin revocación
+   server-side, y sin recuperación de contraseña.
+
+### La trampa que costó una hora
+
+**Al cambiar `DATABASE_URL` en Render, reemplazá el valor entero. Nunca edites por dentro de
+la URI.** Pegar sólo el tramo de la password dejó el usuario y el host de `boxbox-dev` con la
+password de `boxbox-prod`: cada mitad era correcta por separado y el síntoma fue
+`P1000 / AuthenticationFailed`, idéntico al de una password mal copiada.
+
+Para comparar lo que Render tiene guardado contra un `.env` local **sin imprimir secretos**
+(Environment → `Export` baja un `.env`):
+
+```bash
+cmp -s <(grep '^DATABASE_URL=' ~/Downloads/.env) \
+       <(grep '^DATABASE_URL=' backend/.env.supabase-prod.local) \
+  && echo IGUALES || echo DISTINTAS
+```
+
+`cmp -s` devuelve solo el código de salida; `diff` imprime las líneas que difieren, con la
+password adentro. Borrá el export cuando termines: `shred -u ~/Downloads/.env`.
+
+Y una variable de entorno se lee **una sola vez, al arrancar el proceso**: guardarla en el
+dashboard no se lo cuenta a un Node que ya está corriendo. Si el valor es nuevo y el síntoma
+no cambia, revisá que el proceso haya reiniciado — en los logs, `Detected service running on
+port 10000`.
+
+---
+
 ## Accesos
 
 | Qué | Valor |
@@ -276,13 +368,14 @@ deployar con anticipación.
 | API | **https://boxbox-api.onrender.com** |
 | Health check | https://boxbox-api.onrender.com/api/v1/health |
 | Frontend | **https://boxbox-three.vercel.app** — único dominio propio del proyecto |
-| Base de datos | Supabase `boxbox-dev` (us-west-2, `inmbedbcedksbjypsjlm`) — la de la demo |
+| Base de datos | Supabase `boxbox-prod` (us-east-1, `qtwsblwfoceamuvothww`) — **la que sirve la app pública desde el 2026-10-16** |
 | Usuario admin | `admin@boxbox.test` — **password NO publicada**, ver abajo |
 
 `admin1234`, `demo1@boxbox.test` y `demo2@boxbox.test` son de `boxbox-dev`, junto con la
-"Liga Demo BoxBox" (`liga-demo-2026`) y su draft `COMPLETED`. Los dos usuarios `demo*` se
-crearon **a mano**: ningún script los reproduce, así que **no existen en `boxbox-prod`** —
-si algún día la app pública pasa a esa base, la demo hay que rearmarla.
+"Liga Demo BoxBox" (`liga-demo-2026`) y su draft `COMPLETED`. Desde el 2026-10-16 **esa base
+ya no está desplegada**, así que esas credenciales no abren nada público. Los dos usuarios
+`demo*` se crearon **a mano** y ningún script los reproduce: en `boxbox-prod` no existen, y
+si alguna vez hace falta una demo armada hay que rearmarla a mano.
 
 En `boxbox-prod` el admin se creó con `SEED_ADMIN_PASSWORD`, una password generada con
 `openssl rand -base64 18` que **no se commitea**. Si se pierde, se rota re-corriendo el seed
@@ -298,7 +391,9 @@ por diseño anti-enumeración, así que con el admin no se ve la tabla de posici
 
 ## Datos cargados para la demo
 
-Estado de `boxbox-dev` al 2026-10-04, importado con el sync de Jolpica:
+Estado de **`boxbox-dev`** al 2026-10-04, importado con el sync de Jolpica. Desde el
+2026-10-16 esa base ya no es la que sirve la app pública: `boxbox-prod` tiene la misma grilla
+y el mismo calendario, pero **cero resultados** hasta que se carguen desde `/admin/results`.
 
 | | |
 | :-- | :-- |
@@ -341,9 +436,90 @@ ya documentada en BOX-9, y el sync la reporta como `skipped` en vez de fallar.
   arranque en frío tarda ~50s. Antes de la defensa, abrir la URL una vez para despertarlo.
 - **El draft no reconecta.** Si el socket se corta, hay que recargar la página. Está
   declarado fuera de alcance en [`roadmap.md`](../roadmap.md).
-- **Dos bases con contenido distinto.** La app pública apunta a `boxbox-dev` (seed completo,
-  fechas de Jolpica, Liga Demo) porque es la que sirve para la defensa. `boxbox-prod` está
-  migrada y seedeada con `SEED_SKIP_RESULTS=1`: grilla y calendario completos y **campeonato
-  en cero**, para que una liga nueva se pueda jugar de verdad — con los 17 resultados de 2026
-  ya cargados, el draft reparte pilotos y la tabla sale resuelta de entrada. Los resultados
-  se cargan fecha por fecha desde `/admin/results`.
+- **Dos bases con contenido distinto.** Desde el 2026-10-16 la app pública apunta a
+  `boxbox-prod`, seedeada con `SEED_SKIP_RESULTS=1`: grilla y calendario completos y
+  **campeonato en cero**, para que una liga nueva se pueda jugar de verdad — con los
+  resultados de 2026 ya cargados, el draft reparte pilotos y la tabla sale resuelta de
+  entrada. La contracara es que hasta cargar fechas desde `/admin/results` no hay campeonato
+  ni puntajes. `boxbox-dev` conserva el seed completo, las fechas de Jolpica y la Liga Demo,
+  pero ya no está desplegada: es la base a la que se apunta el backend local.
+
+---
+
+## Traspaso 2026-10-16 — señalización de beta y Sentry
+
+Rama `feat/senalizar-beta`, sacada de `dev`. **Al momento de escribir esto no hay nada
+commiteado**: 12 archivos modificados y 2 nuevos, 742 inserciones. Nada de esto existe para
+nadie más hasta que la rama se pushee.
+
+### Hecho — señalizar que la app está en beta
+
+1. **`beta` y `v1.0.0` son ejes distintos.** El número versiona el contrato HTTP, que es
+   estable; la etiqueta habla de madurez del producto. No se bajó a `0.x`: ADR-0011 ya lo había
+   descartado con razones escritas. Quedó en `docs/glossary.md` como término + ambigüedad flageada.
+2. **Rótulo `Beta`** en sentence case al lado del logo (`AppLayout.tsx`). Es un `<span>` propio y
+   no el `Badge` de `components/ui`: ése es `uppercase` a propósito y habría impreso `BETA`.
+   Vive en un solo lugar, así que retirarlo es borrar un componente y sus dos usos.
+3. **El rótulo viene explicado** con el `HelpPopover` que ya existía. Se descartó el banner
+   persistente arriba: banner blindness (NN/g) dice que se ignora todo lo que ocupa esa posición.
+4. **`/novedades` y el popover leen el mismo `CHANGELOG.md`** de la raíz, vía `?raw` de Vite.
+   Sin texto duplicado: se arregla una limitación en un archivo y los dos lugares se enteran.
+5. **Aviso en `/register`**, debajo del botón de crear cuenta: es la única pantalla sin
+   `AppLayout` —o sea sin rótulo— y el primer contacto de alguien invitado.
+6. **Parser propio de markdown**, ~40 líneas, en vez de sumar una librería a un bundle que ya
+   pasa los 500 kB. El changelog usa 6 construcciones y nada más.
+
+### Hecho — Sentry en el backend
+
+- Org `boxbox` con **dos proyectos**: `boxbox-frontend` (React) y `boxbox-backend` (Node).
+  Separados porque Sentry elige el SDK y agrupa los errores según la plataforma del proyecto.
+- `@sentry/node` instalado. `backend/src/instrument.ts` es nuevo y se importa en la **primera
+  línea** de `server.ts`: el backend es CommonJS, así que el `--import` de la doc no aplica.
+- **No** se usa `Sentry.setupExpressErrorHandler`. Nuestro `errorHandler` responde y corta, nunca
+  llama a `next(err)`. Va un `captureException` en la rama de error inesperado, el único lugar que
+  ya distingue un bug de un 400 del cliente: así no se gasta cuota en validaciones ni en 404.
+- **Se apagaron tres defaults peligrosos** de la v11: mandaba el body de cada request (las
+  contraseñas de `/auth/login` y `/auth/register`), las cookies (el refresh token de 7 días) y el
+  header `Authorization`. El porqué está comentado en `instrument.ts`.
+- `SENTRY_DSN` es opcional en `config/env.ts`: sin DSN el SDK ni arranca.
+
+### Verificado, no asumido
+
+- Error real llegado a Sentry por el código real de la app: issue `BOXBOX-BACKEND-1`, con stack
+  trace apuntando a `src/app.ts`. La ruta temporal que lo disparó ya se borró.
+- El evento **no** trae body, ni cookies, ni `Authorization`.
+- Backend: `tsc --noEmit` limpio, lint limpio, **293 tests en 13 archivos**, exit 0.
+- Frontend: lint limpio, build OK, **174 tests en 34 archivos**.
+- UI mirada a 1024 px y 375 px: rótulo, popover de escritorio, cartel móvil y `/novedades`.
+
+### Pendiente — de Tomás
+
+1. **Commitear y pushear `feat/senalizar-beta`.**
+2. **Cargar `SENTRY_DSN` en Render** (el de `boxbox-backend`; está en Sentry → Settings →
+   Projects → Client Keys). Se sacó a propósito del `.env` local para no quemar la cuota del
+   plan gratis con errores de desarrollo.
+3. **Reiniciar el servidor de desarrollo local**: el que quedó corriendo todavía tiene el DSN en
+   memoria y sigue mandando errores de dev a Sentry.
+4. **Verificar el free tier real de Sentry** — los números que tenemos (5.000 errores/mes,
+   30 días de retención) vienen de agregadores de terceros, no de la página oficial.
+5. **Decidir si `sentry-create-alert`** queda en el catálogo de `/which-skill` o se va a
+   `ignore.txt`.
+
+### Pendiente — técnico
+
+- **El frontend sigue sin instrumentar.** `boxbox-frontend` está creado pero vacío. Es el que ve
+  el crash en el browser del usuario: lo único que hoy no ve nadie, ni Render ni Vercel.
+- **Source maps.** `sourceMap` no está activado en `backend/tsconfig.json`: en producción los
+  stack traces apuntan a `dist/app.js`, legible pero compilado. En el frontend es peor, porque
+  Vite minifica: sin source maps se ve `a.b.c is not a function`.
+- **Falta el ADR** que documente por qué la app dice beta con un tag `v1.0.0` publicado.
+- **Canal de feedback.** Se decidió captura de errores sola, sin botón de reporte in-app. Queda
+  dicho que preguntarle a la gente después de cada carrera cuesta cero y es el único canal que
+  recupera al 90% que nunca reporta nada.
+
+### Decisiones ya discutidas — no re-litigar
+
+- Nada de bajar la versión a `0.x`.
+- Nada de banner persistente arriba.
+- Nada de librería de markdown para el changelog.
+- Nada de botón de reportar problema dentro de la app.
