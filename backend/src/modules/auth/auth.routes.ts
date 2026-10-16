@@ -21,6 +21,8 @@ router.post('/login', loginLimiter, validate(loginSchema), authController.login)
 router.get('/me', requireAuth, authController.getMe);
 router.patch('/me', requireAuth, validate(updateProfileSchema), authController.updateProfile);
 router.post('/me/avatar', requireAuth, validate(updateAvatarSchema), authController.updateAvatar);
+// DELETE sin schema/validate: no lleva body, solo el JWT.
+router.delete('/me/avatar', requireAuth, authController.removeAvatar);
 
 // Refresh + logout NO usan requireAuth (eso requiere access token en header).
 // Refresh autentica via la cookie del refresh token; logout siempre limpia la cookie aunque no la traiga.

@@ -67,6 +67,15 @@ export async function updateAvatar(req: Request, res: Response, next: NextFuncti
   }
 }
 
+export async function removeAvatar(req: Request, res: Response, next: NextFunction) {
+  try {
+    const user = await authService.removeAvatar(req.user!.userId);
+    res.json({ data: { user } });
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function refresh(req: Request, res: Response, next: NextFunction) {
   try {
     // cookie-parser middleware (en app.ts) parseo las cookies de req.headers.cookie a req.cookies.
