@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Field, HelpPopover, UserAvatar, inputClass } from '../../components/ui';
 import type { User } from '../../models/user';
-import { useUpdateAvatar, useUpdateProfile } from './profile.queries';
+import { useRemoveAvatar, useUpdateAvatar, useUpdateProfile } from './profile.queries';
 
 const MOTTO_MAX = 40;
 // Mismo tope que el bucket de Supabase (backend/src/modules/auth/auth.service.ts,
@@ -23,6 +23,10 @@ export function EditProfileModal({ user, onClose }: { user: User; onClose: () =>
   const [name, setName] = useState(user.name);
   const [motto, setMotto] = useState(user.motto ?? '');
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  // true = "al guardar, sacar la foto actual". Separado de avatarPreview === null porque eso
+  // es ambiguo (¿no hay foto nueva, o hay que borrar la que ya estaba?) — ver el badge "x" en
+  // avatarButton, mas abajo.
+  const [removePhoto, setRemovePhoto] = useState(false);
   const [avatarError, setAvatarError] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -35,8 +39,9 @@ export function EditProfileModal({ user, onClose }: { user: User; onClose: () =>
 
   const updateProfile = useUpdateProfile();
   const updateAvatar = useUpdateAvatar();
-  const saving = updateProfile.isPending || updateAvatar.isPending;
-  const saveError = updateProfile.error ?? updateAvatar.error;
+  const removeAvatar = useRemoveAvatar();
+  const saving = updateProfile.isPending || updateAvatar.isPending || removeAvatar.isPending;
+  const saveError = updateProfile.error ?? updateAvatar.error ?? removeAvatar.error;
 
   useEffect(() => {
     const esMobile = window.innerWidth < 768;
@@ -64,47 +69,85 @@ export function EditProfileModal({ user, onClose }: { user: User; onClose: () =>
       setAvatarError('No puede pesar más de 2MB');
       return;
     }
+    // Elegir un archivo nuevo cancela cualquier "sacar foto" pendiente — las dos cosas no
+    // tienen sentido juntas, y la foto elegida gana.
+    setRemovePhoto(false);
     const reader = new FileReader();
     reader.onload = () => setAvatarPreview(reader.result as string);
     reader.readAsDataURL(file);
+  }
+
+  // El badge "x" de avatarButton. No pega al servidor todavía — mismo criterio que elegir una
+  // foto nueva: se confirma recien en "Guardar", y "Cancelar" lo deja todo como estaba.
+  function onRemovePhoto() {
+    setAvatarError(null);
+    setAvatarPreview(null);
+    setRemovePhoto(true);
   }
 
   async function onSave() {
     try {
       // Secuencial, no Promise.all: si la foto falla, no tiene sentido guardar nombre/lema
       // como si todo hubiera salido bien — el usuario tiene que ver el mismo error sí o sí.
-      if (avatarPreview) await updateAvatar.mutateAsync(avatarPreview);
+      if (avatarPreview) {
+        await updateAvatar.mutateAsync(avatarPreview);
+      } else if (removePhoto && user.avatarUrl) {
+        await removeAvatar.mutateAsync();
+      }
       if (name !== user.name || motto !== (user.motto ?? '')) {
         await updateProfile.mutateAsync({ name, motto });
       }
       onClose();
     } catch {
-      // El error ya quedó en updateProfile.error / updateAvatar.error — se muestra abajo,
-      // el modal se queda abierto para reintentar.
+      // El error ya quedó en updateProfile.error / updateAvatar.error / removeAvatar.error —
+      // se muestra abajo, el modal se queda abierto para reintentar.
     }
   }
 
+  // Hay algo para sacar si hay una foto nueva sin guardar, o si el user ya tenia una y todavia
+  // no la marcamos para sacar. Sin foto (iniciales) no hay nada que mostrar el badge.
+  const hasPhotoToRemove = Boolean(avatarPreview) || (Boolean(user.avatarUrl) && !removePhoto);
+
   const avatarButton = (
-    <button
-      type="button"
-      onClick={() => fileInputRef.current?.click()}
-      aria-label="Cambiar foto de perfil"
-      className="group relative shrink-0 cursor-pointer overflow-hidden rounded-full"
-      style={{ width: 88, height: 88 }}
-    >
-      {avatarPreview ? (
-        <img src={avatarPreview} alt="" className="h-full w-full object-cover" />
-      ) : (
-        <UserAvatar user={user} size={88} />
+    // Wrapper relative: el boton de cambiar y el badge "x" de sacar son dos elementos
+    // interactivos hermanos (no se puede anidar un boton dentro de otro), cada uno con su
+    // propia area de click, posicionados contra este contenedor.
+    <div className="relative shrink-0" style={{ width: 88, height: 88 }}>
+      <button
+        type="button"
+        onClick={() => fileInputRef.current?.click()}
+        aria-label="Cambiar foto de perfil"
+        className="group relative h-full w-full cursor-pointer overflow-hidden rounded-full"
+      >
+        {avatarPreview ? (
+          <img src={avatarPreview} alt="" className="h-full w-full object-cover" />
+        ) : (
+          <UserAvatar user={removePhoto ? { ...user, avatarUrl: null } : user} size={88} />
+        )}
+        {/* Solo ícono, sin texto "Cambiar" — pedido del usuario 2026-10-15. */}
+        <span className="absolute inset-0 flex items-center justify-center bg-black/60 text-white opacity-0 transition-opacity group-hover:opacity-100">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+            <circle cx="12" cy="13" r="4" />
+          </svg>
+        </span>
+      </button>
+      {/* Badge siempre visible, no atado a hover (a diferencia de la camara de arriba) — en
+          mobile no hay hover, y esto tiene que poder tocarse ahí tambien. Wireframeado y
+          aprobado por el usuario 2026-10-16 antes de escribir esto. */}
+      {hasPhotoToRemove && (
+        <button
+          type="button"
+          onClick={onRemovePhoto}
+          aria-label="Quitar foto de perfil"
+          className="absolute -bottom-1 -right-1 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-white text-red-600 shadow-md ring-2 ring-white hover:bg-red-50 dark:bg-ink dark:ring-ink"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M18 6 6 18M6 6l12 12" />
+          </svg>
+        </button>
       )}
-      {/* Solo ícono, sin texto "Cambiar" — pedido del usuario 2026-10-15. */}
-      <span className="absolute inset-0 flex items-center justify-center bg-black/60 text-white opacity-0 transition-opacity group-hover:opacity-100">
-        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
-          <circle cx="12" cy="13" r="4" />
-        </svg>
-      </span>
-    </button>
+    </div>
   );
 
   const hiddenFileInput = (

@@ -168,3 +168,15 @@ export async function updateAvatar(userId: number, dataUrl: string) {
     select: userSelect,
   });
 }
+
+// DELETE /me/avatar — solo limpia la referencia en Postgres, no borra el archivo de Supabase
+// Storage. El blob huérfano queda ahí (2MB como mucho, y el path es `<userId>.<ext>`, así que
+// la próxima foto que suba este mismo user lo pisa igual vía x-upsert) — evita una llamada de
+// red más que podría fallar por separado de la que sí importa (limpiar el dato que se muestra).
+export async function removeAvatar(userId: number) {
+  return prisma.user.update({
+    where: { id: userId },
+    data: { avatarUrl: null },
+    select: userSelect,
+  });
+}

@@ -60,4 +60,10 @@ export const authService = {
     useAuthStore.getState().updateUser(user);
     return user;
   },
+
+  async removeAvatar(): Promise<User> {
+    const { user } = await apiClient.delete<{ user: User }>('/auth/me/avatar');
+    useAuthStore.getState().updateUser(user);
+    return user;
+  },
 };
