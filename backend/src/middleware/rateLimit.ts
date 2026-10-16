@@ -104,11 +104,18 @@ export const loginLimiter = rateLimit({
   handler: (_req, res) => sendRateLimitError(res, 'Too many login attempts'),
 });
 
-// registerLimiter: 5 registros por minuto por IP, exitosos incluidos.
+// registerLimiter: 20 registros por minuto por IP, exitosos incluidos.
 // Aca si cuenta el exito: el riesgo es la creacion masiva de cuentas, no adivinar nada.
+//
+// Por que 20 y no 5, que era el valor original: la clave es la IP, y toda una casa sale por
+// la misma. Una familia juntandose un domingo a crear cuentas mientras alguien les explica la
+// app es una rafaga desde un solo origen, y el sexto se comia un 429 sin haber hecho nada.
+// No es hipotetico: la suite e2e registro 7 usuarios en 40 segundos desde 127.0.0.1 y dejo 4
+// de 7 tests en rojo (2026-10-16). Contra lo que de verdad protege esto —un script creando
+// cientos de cuentas— 20/min frena igual.
 export const registerLimiter = rateLimit({
   windowMs: 60_000,
-  limit: 5,
+  limit: 20,
   standardHeaders: 'draft-7',
   legacyHeaders: false,
   keyGenerator: ipKey,

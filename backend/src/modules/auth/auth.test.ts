@@ -562,20 +562,20 @@ describe('rate limit de /api/v1/auth (por IP)', () => {
     process.env.VITEST = savedEnv.VITEST;
   });
 
-  it('el 6to register desde la misma IP devuelve 429', async () => {
-    for (let i = 1; i <= 5; i++) {
+  it('el registro 21 desde la misma IP devuelve 429', async () => {
+    for (let i = 1; i <= 20; i++) {
       const res = await request(app)
         .post('/api/v1/auth/register')
         .send({ email: `rl-reg-${i}@boxbox.com`, password: 'hunter22', name: `Piloto ${i}` });
       expect(res.status).toBe(201);
     }
 
-    const sixth = await request(app)
+    const overCap = await request(app)
       .post('/api/v1/auth/register')
-      .send({ email: 'rl-reg-6@boxbox.com', password: 'hunter22', name: 'Piloto 6' });
+      .send({ email: 'rl-reg-21@boxbox.com', password: 'hunter22', name: 'Piloto 21' });
 
-    expect(sixth.status).toBe(429);
-    expect(sixth.body.error.code).toBe('RATE_LIMIT_EXCEEDED');
+    expect(overCap.status).toBe(429);
+    expect(overCap.body.error.code).toBe('RATE_LIMIT_EXCEEDED');
   });
 
   it('dos CF-Connecting-IP distintas no comparten el contador', async () => {
