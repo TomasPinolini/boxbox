@@ -75,6 +75,18 @@ describe('AppLayout — navegacion', () => {
     );
   });
 
+  // El lapiz de "Editar perfil" solo vivia adentro de UserMenu (escritorio) — en el drawer la
+  // fila de arriba mostraba foto y nombre pero no tenia forma de abrir el modal. Bug reportado
+  // por el usuario 2026-10-16: no se podia cambiar la foto ni el lema desde mobile.
+  it('desde el drawer mobile se puede abrir Editar perfil', async () => {
+    renderAs('USER');
+    await userEvent.click(screen.getByRole('button', { name: 'Abrir menú' }));
+
+    await userEvent.click(screen.getByRole('button', { name: 'Editar perfil' }));
+
+    expect(screen.getByRole('dialog', { name: 'Editar perfil' })).toBeInTheDocument();
+  });
+
   // La barra se ve tambien sin sesion, porque /drivers y /standings son publicas.
   it('sin sesion muestra Ingresar y no el menu de cuenta', () => {
     renderWithQuery(<AppLayout />);

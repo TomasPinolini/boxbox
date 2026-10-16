@@ -378,11 +378,41 @@ export function AppLayout() {
           >
             <div className="flex items-center justify-between gap-2 border-b border-slate-200 p-4 dark:border-ink-border">
               {user ? (
-                <div className="flex min-w-0 items-center gap-2.5">
-                  <UserAvatar user={user} />
-                  <span className="truncate font-semibold text-slate-900 dark:text-ink-text">
-                    {user.name}
-                  </span>
+                <div className="flex min-w-0 items-center gap-1">
+                  <div className="flex min-w-0 items-center gap-2.5">
+                    <UserAvatar user={user} />
+                    <span className="truncate font-semibold text-slate-900 dark:text-ink-text">
+                      {user.name}
+                    </span>
+                  </div>
+                  {/* Mismo lápiz que UserMenu (escritorio) — ahí es el único lugar de donde se
+                      podía editar la foto/el lema; en el drawer esta fila mostraba nombre y
+                      foto pero no tenía ningún botón para cambiarlos. Bug reportado por el
+                      usuario 2026-10-16. */}
+                  <button
+                    type="button"
+                    aria-label="Editar perfil"
+                    onClick={() => {
+                      closeDrawer();
+                      setEditingProfile(true);
+                    }}
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded text-red-600 hover:bg-red-50 dark:hover:bg-red-950"
+                  >
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path d="M12 20h9" />
+                      <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                    </svg>
+                  </button>
                 </div>
               ) : (
                 <span className="font-semibold text-slate-900 dark:text-ink-text">Menú</span>
