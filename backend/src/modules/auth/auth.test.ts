@@ -379,6 +379,62 @@ describe('POST /api/v1/auth/me/avatar', () => {
   });
 });
 
+describe('DELETE /api/v1/auth/me/avatar', () => {
+  function stubStorage(ok = true) {
+    const fetchMock = vi.fn(async (_url: string) => ({ ok, status: ok ? 200 : 500 }));
+    vi.stubGlobal('fetch', fetchMock);
+    return fetchMock;
+  }
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    env.SUPABASE_URL = undefined;
+    env.SUPABASE_SERVICE_ROLE_KEY = undefined;
+  });
+
+  it('limpia avatarUrl de un user que tenía foto', async () => {
+    env.SUPABASE_URL = 'https://proyecto-test.supabase.co';
+    env.SUPABASE_SERVICE_ROLE_KEY = 'service-role-key-de-test';
+    stubStorage();
+
+    const register = await request(app).post('/api/v1/auth/register').send(validRegister);
+    const token = register.body.data.accessToken;
+    await request(app)
+      .post('/api/v1/auth/me/avatar')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ avatar: ONE_PIXEL_PNG });
+
+    const res = await request(app)
+      .delete('/api/v1/auth/me/avatar')
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.user.avatarUrl).toBeNull();
+
+    const me = await request(app).get('/api/v1/auth/me').set('Authorization', `Bearer ${token}`);
+    expect(me.body.data.user.avatarUrl).toBeNull();
+  });
+
+  it('es idempotente: un user sin foto sigue sin foto, 200 igual', async () => {
+    const register = await request(app).post('/api/v1/auth/register').send(validRegister);
+    const token = register.body.data.accessToken;
+
+    const res = await request(app)
+      .delete('/api/v1/auth/me/avatar')
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.user.avatarUrl).toBeNull();
+  });
+
+  it('rechaza request sin sesión (401 TOKEN_MISSING)', async () => {
+    const res = await request(app).delete('/api/v1/auth/me/avatar');
+
+    expect(res.status).toBe(401);
+    expect(res.body.error.code).toBe('TOKEN_MISSING');
+  });
+});
+
 describe('POST /api/v1/auth/refresh + /logout (httpOnly cookies)', () => {
   // Helper: extrae el value del refresh cookie del Set-Cookie header de un response.
   function getRefreshCookie(setCookieHeader: string[] | undefined): string | undefined {

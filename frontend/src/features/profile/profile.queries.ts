@@ -19,3 +19,9 @@ export function useUpdateAvatar() {
     mutationFn: authService.updateAvatar,
   });
 }
+
+export function useRemoveAvatar() {
+  return useMutation<User, ApiError, void>({
+    mutationFn: authService.removeAvatar,
+  });
+}

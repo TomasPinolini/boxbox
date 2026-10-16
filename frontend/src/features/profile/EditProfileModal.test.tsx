@@ -23,6 +23,8 @@ const user: User = {
   role: 'USER',
 };
 
+const userConFoto: User = { ...user, avatarUrl: 'https://cdn.test/tomas.jpg' };
+
 describe('EditProfileModal', () => {
   // vi.mock() auto-mockea el módulo una sola vez, compartido entre los tests de este archivo
   // — sin esto, el historial de llamadas de un test se arrastra al siguiente.
@@ -127,5 +129,54 @@ describe('EditProfileModal', () => {
 
     expect(await screen.findAllByText('explotó')).not.toHaveLength(0);
     expect(onClose).not.toHaveBeenCalled();
+  });
+
+  // Badge "x" de sacar la foto — wireframeado y aprobado por el usuario 2026-10-16.
+  describe('quitar la foto', () => {
+    it('sin foto no hay nada para quitar: el botón no aparece', () => {
+      renderWithQuery(<EditProfileModal user={user} onClose={() => {}} />);
+
+      expect(screen.queryByRole('button', { name: 'Quitar foto de perfil' })).not.toBeInTheDocument();
+    });
+
+    it('con foto, aparece el botón de quitar', () => {
+      renderWithQuery(<EditProfileModal user={userConFoto} onClose={() => {}} />);
+
+      expect(screen.getAllByRole('button', { name: 'Quitar foto de perfil' })).toHaveLength(2);
+    });
+
+    it('tocarlo la saca de la vista y el botón desaparece (nada para quitar dos veces)', async () => {
+      const u = userEvent.setup();
+      renderWithQuery(<EditProfileModal user={userConFoto} onClose={() => {}} />);
+
+      await u.click(screen.getAllByRole('button', { name: 'Quitar foto de perfil' })[0]);
+
+      expect(screen.queryByRole('button', { name: 'Quitar foto de perfil' })).not.toBeInTheDocument();
+    });
+
+    it('Guardar manda removeAvatar cuando se tocó la "x", y cierra', async () => {
+      const onClose = vi.fn();
+      const u = userEvent.setup();
+      renderWithQuery(<EditProfileModal user={userConFoto} onClose={onClose} />);
+
+      await u.click(screen.getAllByRole('button', { name: 'Quitar foto de perfil' })[0]);
+      await u.click(screen.getAllByRole('button', { name: 'Guardar' })[0]);
+
+      await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
+      expect(authService.removeAvatar).toHaveBeenCalledTimes(1);
+      expect(authService.updateAvatar).not.toHaveBeenCalled();
+    });
+
+    it('Cancelar después de tocar la "x" no manda nada', async () => {
+      const onClose = vi.fn();
+      const u = userEvent.setup();
+      renderWithQuery(<EditProfileModal user={userConFoto} onClose={onClose} />);
+
+      await u.click(screen.getAllByRole('button', { name: 'Quitar foto de perfil' })[0]);
+      await u.click(screen.getAllByRole('button', { name: 'Cancelar' })[0]);
+
+      expect(onClose).toHaveBeenCalledTimes(1);
+      expect(authService.removeAvatar).not.toHaveBeenCalled();
+    });
   });
 });
