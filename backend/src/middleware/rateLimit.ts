@@ -16,8 +16,14 @@ import type { Request, Response } from 'express';
 
 // Bypass del rate limit solo bajo Vitest (NODE_ENV='test' o VITEST='true' — setean automaticos).
 // El cap se aplica en prod normal (sin envs especiales).
+// E2E=true lo setea playwright.config.ts al levantar el backend. Hace falta porque la suite
+// registra 7 usuarios en ~40 segundos desde 127.0.0.1 y el cap de /auth/register es 5/min por
+// IP: sin esto, los ultimos tests fallan con 429 y lo que se estaria probando es el limiter,
+// no la app. Paso de verdad el 2026-10-16, con 4 de 7 tests en rojo.
 const isTestEnv = () =>
-  process.env.NODE_ENV === 'test' || process.env.VITEST === 'true';
+  process.env.NODE_ENV === 'test' ||
+  process.env.VITEST === 'true' ||
+  process.env.E2E === 'true';
 
 // userKey: prefiere userId (autenticado) sobre IP. requireAuth ya corrio antes en la cadena.
 // IP fallback usa ipKeyGenerator (helper de express-rate-limit v8+) que normaliza IPv6 a
