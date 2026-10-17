@@ -8,6 +8,7 @@ import { CircuitsPage } from '../features/admin/CircuitsPage';
 import { ConstructorDetailPage } from '../features/constructors/ConstructorDetailPage';
 import { SeasonsPage } from '../features/admin/SeasonsPage';
 import { RequireAdmin } from '../features/auth/RequireAdmin';
+import { NovedadesPage } from '../features/changelog/NovedadesPage';
 import { RequireAuth } from '../features/auth/RequireAuth';
 import { DraftPage } from '../features/draft/DraftPage';
 import { DriverDetailPage } from '../features/drivers/DriverDetailPage';
@@ -55,6 +56,7 @@ export const router = createBrowserRouter([
       // Publica como el detalle de piloto: los GET del catalogo no piden auth en el backend.
       { path: '/constructors/:id', element: <ConstructorDetailPage /> },
       { path: '/standings', element: <ChampionshipPage /> },
+      { path: '/novedades', element: <NovedadesPage /> },
     ],
   },
   { path: '*', element: <Navigate to="/leagues" replace /> },
