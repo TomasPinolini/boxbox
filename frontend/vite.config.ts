@@ -11,6 +11,25 @@ export default defineConfig({
   // solo en localhost y el celular no llega.
   server: {
     host: true,
+    fs: {
+      // features/changelog importa ../../../../CHANGELOG.md?raw (la raiz del repo, un nivel
+      // arriba de la raiz de Vite) para no duplicar el texto de las limitaciones en el codigo.
+      //
+      // Tiene que ser un DIRECTORIO, no el archivo: isServerAccessDeniedForTransform chequea dos
+      // veces, una con la ruta limpia y otra con el `?raw` todavia pegado (vite/dist/node/chunks/
+      // node.js:25116). Una entrada de tipo archivo nunca matchea "CHANGELOG.md?raw"; una de tipo
+      // directorio si, porque compara por prefijo. Con el archivo listado, vitest seguia tirando
+      // "Denied ID .../CHANGELOG.md?raw".
+      //
+      // Van los dos: declarar `allow` reemplaza el default, asi que sin '.' el server dejaria de
+      // servir lo suyo.
+      //
+      // Lo que esto expone: con host:true este server escucha en 0.0.0.0, asi que cualquiera en
+      // la red puede pedir archivos del repo por /@fs. NO los .env: el fs.deny default de Vite
+      // (.env, .env.*, claves, .npmrc, **/.git/**) se evalua ANTES que el allow. Queda expuesto
+      // el codigo fuente, que de todas formas vive en un repo. Es solo el server de desarrollo.
+      allow: ['.', '..'],
+    },
   },
   test: {
     environment: 'jsdom',

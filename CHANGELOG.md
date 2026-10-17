@@ -41,8 +41,8 @@ sin predicciones y sin puntaje de sprints.
 
 ### Limitaciones conocidas de esta versión
 
-- Las predicciones pre-carrera no están construidas. Son alcance voluntario declarado en
-  `docs/proposal.md` y quedan para una versión siguiente.
+- Las predicciones pre-carrera no están construidas: todavía no se puede apostar quién gana, quién
+  saca la pole ni qué escudería suma más en cada fin de semana. Queda para una versión siguiente.
 - Los puntos de los sprints no se cuentan: un fin de semana con sprint reparte menos puntos que en
   la Fórmula 1 real.
 - Un piloto que cambia de escudería a mitad de temporada acredita todos sus puntos a una sola de

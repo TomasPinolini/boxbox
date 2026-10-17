@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import * as Sentry from '@sentry/node';
 import { AppError } from '../shared/errors';
 
 export function errorHandler(err: Error, _req: Request, res: Response, _next: NextFunction) {
@@ -28,6 +29,13 @@ export function errorHandler(err: Error, _req: Request, res: Response, _next: Ne
   }
 
   // Unexpected errors — log them but don't expose details to the client
+  //
+  // Aca y no con Sentry.setupExpressErrorHandler(app): este handler responde y corta, nunca
+  // llama a next(err), asi que un handler de Sentry registrado despues no se enteraria. Y
+  // registrado antes veria tambien los 4xx. Esta rama es el unico lugar que ya sabe distinguir
+  // un bug nuestro de un 400 del cliente, asi que es donde la captura es exacta: no gastamos
+  // cuota en validaciones fallidas ni en 404s.
+  Sentry.captureException(err);
   console.error('Unexpected error:', err);
   res.status(500).json({
     error: {
