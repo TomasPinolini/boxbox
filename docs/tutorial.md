@@ -264,20 +264,27 @@ Si sos parte del equipo y necesitás acceder a la base de demostración:
 
    Guardá esa password antes de perderla — no hay recuperación por mail. `SEED_SKIP_RESULTS=1` carga grilla y calendario con el campeonato en cero, que es lo que hace que una liga nueva se pueda jugar de verdad: con los resultados ya cargados, el draft reparte pilotos y la tabla sale resuelta de entrada.
 
+   **Ojo: `boxbox-prod` no se seedeó así.** El 2026-10-17 se corrió el seed **sin** esa variable y las 17 fechas de 2026 quedaron cargadas — ver [`entrega/deployment.md`](./entrega/deployment.md) → "Carga de resultados en prod". Si querés el campeonato en cero para jugar una liga desde la fecha 1, eso hoy está sin decidir.
+
 ### Importante: tests siempre locales
 
-Tu archivo `.env` (para dev local) y `.env.supabase-*.local` (para Supabase) se usan según cómo levantes el server:
+**No hay cascada de archivos `.env`.** `src/config/env.ts:4` hace `dotenv.config()` pelado, así que el backend lee **siempre `.env`** y nada más: `NODE_ENV` cambia el comportamiento del server (cookies, validaciones), no el archivo de configuración que se carga. Para apuntar el backend local a Supabase hay que poner las variables en el entorno antes de arrancar, sourceando el archivo:
 
 ```bash
-# Usa .env (Postgres local)
+# Postgres local: lo que diga .env
 npm run dev
 
-# Usa .env.supabase-dev.local (Supabase dev)
-NODE_ENV=development npm run dev
+# Supabase dev — lo sourceado gana, porque dotenv NO pisa variables que ya existen
+# en el entorno
+(set -a; . ./.env.supabase-dev.local; set +a; npm run dev)
 
-# Usa .env.supabase-prod.local (Supabase prod) — ⚠️ solo en deployment
-NODE_ENV=production npm run dev
+# Supabase prod — ⚠️ es la base que sirve la app pública
+(set -a; . ./.env.supabase-prod.local; set +a; npm run dev)
 ```
+
+Los paréntesis importan: dejan las variables dentro de una subshell, así que no quedan exportadas en tu terminal esperando el próximo comando.
+
+⚠️ **`set -a; . archivo` no parsea el archivo: lo ejecuta como script de shell.** Por eso un `.env` que vayas a sourcear no puede tener notas ni credenciales sueltas. Una línea como `CONTRASEÑA=...` no es una asignación válida —los nombres de variable de shell están limitados a `[A-Za-z_][A-Za-z0-9_]*`, y la `Ñ` queda afuera—, así que bash la toma como un **comando** e imprime la línea entera, password incluida, en el `command not found`. Ya pasó una vez. Todo comentario va con `#` adelante, y las credenciales en el gestor de contraseñas. dotenv, en cambio, parsea y no ejecuta.
 
 Los **tests nunca consultan Supabase**. `npm test` siempre usa la DB local definida en `.env`, y `src/tests/setup.ts` hace `TRUNCATE ... CASCADE` de todas las tablas antes de cada test.
 

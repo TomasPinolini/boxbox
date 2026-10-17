@@ -31,13 +31,42 @@ TypeScript + Tailwind v4. Tests = Vitest + Testing Library, e2e con Playwright.
 
 ## Now — lo que bloquea la entrega del 12/10
 
-_(Nada de código. Todo este carril está abajo, en "Completados": Slices 13a, 13b, 14, 15 y 16.
+_(Nada de código. Todo este carril está abajo, en "Completados": Slices 13a, 13b, 14, 15, 16 y 17,
+más el trabajo posterior al 17 que entró sin número de slice.
 El único entregable que falta de la entrega es el **video demo**, que no es un slice — vive en
 el hub, [`../../docs/roadmap.md`](../../docs/roadmap.md) → "Trámites de cátedra".)_
 
 ---
 
 ## Completados
+
+### Sin número de slice — lo que entró después del 17 (registrado el 2026-10-17)
+
+Trabajo shippeado directo en ramas de feature, sin pasar por un slice de este archivo. Se
+anota acá para que `features/` y este roadmap digan lo mismo; el detalle está en los commits.
+
+- **`features/constructors/`** — `ConstructorDetailPage.tsx` en `/constructors/:id`, **pública**
+  como el detalle de piloto (los `GET` del catálogo no piden auth). `constructors.queries.ts`
+  (`useConstructor`) sobre `constructorsService.get(id)` → `GET /constructors/:id`, y los tipos
+  en `models/constructor.ts` (`ConstructorDetail`). Commits `8e3075b` y `19db6be` (2026-10-13;
+  el segundo pasó la tabla de resultados a una columna por piloto, con su apellido).
+- **`features/help/`** — `WelcomeTour.tsx` + `tour-steps.ts` (`TOUR_STEPS`, `PITCH`): los pasos
+  que ve un usuario recién registrado, una sola vez. Se monta desde `LeaguesPage`, que lee el
+  `location.state.tour` que le pasa `RegisterPage` — `GuestOnly` saca de `/register` a quien ya
+  tiene sesión, así que la pantalla de registro no puede mostrarlo ella misma. **Nada de
+  `localStorage`**: el proyecto no lo usa en ninguna parte. El `?` contextual de cada pantalla
+  es `components/ui/HelpPopover.tsx`, que es de antes. Commit `20f056f` (2026-10-15).
+- **`features/changelog/`** — `NovedadesPage.tsx` en `/novedades`, pública, y `changelog.ts`,
+  que importa el `CHANGELOG.md` de la raíz con el `?raw` de Vite y lo parsea con ~40 líneas
+  propias en vez de sumar una librería de markdown al bundle. **La pantalla y el popover del
+  rótulo "Beta" leen el mismo archivo**, así que no hay texto duplicado. `changelog.test.ts`
+  corre contra el `CHANGELOG.md` de verdad, no contra un fixture. Commit `ad600c1`, PR #100
+  (2026-10-17).
+- **También sin registrar, verificado en el código y sólo listado acá**: el rollout de modo
+  oscuro (`3fa7257` cierra el rollout, 2026-10-14), las pantallas de administración
+  `/admin/seasons` y `/admin/circuits` bajo `RequireAdmin` (`62019ac`, `d79380f`, 2026-10-13),
+  el menú de cuenta con avatar en el header, los avatares en liga y el picker del draft con
+  `DriverCard`. Si alguno merece su propia entrada, escribirla desde sus commits.
 
 ### Slice 17 (frontend) — perfil editable (nombre, lema, foto)
 
@@ -92,11 +121,11 @@ el tramo 2 se apoyó en esa base sin rehacer nada.
 - **Decisiones clave**:
   - **Filtro server-side**, contra el `?constructorId=` que ya existía en la API y no tenía consumidor ni test. El valor vive en la **URL** vía `useSearchParams`, no en `useState`: sobrevive al "atrás" del browser desde el detalle y el link filtrado se puede compartir.
   - El `<select>` se puebla con `GET /constructors` aparte. Si las opciones salieran del listado ya filtrado, elegir Ferrari dejaría Ferrari como única opción sin vuelta atrás.
-  - **Multimedia**: `Driver.headshotUrl` (21/22) guarda la **URL** contra el CDN de F1, no el archivo — son imágenes de prensa y el repo es público. `Constructor.logoUrl` (8/11) sí son estáticos, de Wikimedia Commons, con licencias en `frontend/public/logos/CREDITS.md`.
+  - **Multimedia**: `Driver.headshotUrl` (21/22 al cerrar el slice) guardaba la **URL** contra el CDN de F1, no el archivo — son imágenes de prensa y el repo es público. `Constructor.logoUrl` (8/11) sí eran estáticos, de Wikimedia Commons, con licencias en `frontend/public/logos/CREDITS.md`. **Actualizado desde entonces**: hoy el seed apunta a archivos locales y están completos — 22/22 fotos en `frontend/public/drivers/` y 11/11 logos en `frontend/public/logos/` (verificado el 2026-10-17).
 - **Gotcha que solo apareció midiendo**: el badge se pinta con el color oficial del equipo. Elegir el color del texto comparando la luminancia contra un umbral fijo dejaba **4 de 11 equipos por debajo del mínimo de contraste de WCAG** (Haas 1.95:1, Williams 2.19, McLaren 2.52, Racing Bulls 2.95). Hay que elegir el color que **maximiza** el contraste, y el texto oscuro tiene que ser **negro puro**: con el `#111827` del sistema de diseño, el rojo de Audi topaba en 4.07 y ninguna de las dos opciones llegaba. `team-color.test.ts` afirma que cada uno de los 11 llega a 4.5:1.
 - **Primeros del repo**: el primer `<select>`, y `src/test/render-with-query.tsx`, el primer wrapper de React Query para tests (ningún test renderizaba un componente con `useQuery`).
 - **Tests**: 37 (+24) unitarios, 4 e2e (+2 — uno verifica que `/drivers` **no** redirige a `/login`, el par simétrico del de `/leagues`). Pase responsive 375/768/1024 sin overflow. Evidencia en `docs/test-evidence/slice-14-*.txt`.
-- **Pendiente, post-entrega**: el logo dentro del badge de cada card. Necesita conseguir Ferrari, Audi y Racing Bulls (no están en Commons) y recortar los wordmarks a un ícono cuadrado.
+- ~~**Pendiente, post-entrega**: el logo dentro del badge de cada card. Necesita conseguir Ferrari, Audi y Racing Bulls (no están en Commons) y recortar los wordmarks a un ícono cuadrado.~~ **Hecho**: los 11 logos están en `frontend/public/logos/`, Ferrari, Audi y Racing Bulls (`rb.png`) incluidos.
 
 ### Slice 13a — Frontend bootstrap (auth + ligas)
 

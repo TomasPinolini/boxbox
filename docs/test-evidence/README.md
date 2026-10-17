@@ -14,6 +14,11 @@ Las tres suites completas, recapturadas sobre `dev` al día (commit `0022775`):
 | [`entrega-frontend-unit.txt`](./entrega-frontend-unit.txt) | Vitest + Testing Library | **95 tests, 21 archivos, todo verde** |
 | [`entrega-frontend-e2e.txt`](./entrega-frontend-e2e.txt) | Playwright contra backend + frontend reales | **7 tests, todo verde** |
 
+> **Los `.txt` son de esa corrida del 2026-10-12 y la suite creció desde entonces.** Medido
+> el 2026-10-17: backend **293 tests en 13 archivos**, frontend **174 unitarios en 34
+> archivos**, las dos en verde. Los e2e de Playwright no se re-corrieron. Los `.txt` son
+> salida cruda y no se editan a mano: los regenera **BOX-63**, que está abierto.
+
 Cubre los dos requisitos de Aprobación: backend pide 1 test automatizado por integrante
 más 1 de integración (todos son de integración, contra la DB de verdad — ver
 [ADR-0003](../adr/ADR-0003-real-db-integration-tests.md)); frontend pide mínimo 1 test
