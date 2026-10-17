@@ -21,7 +21,18 @@ function read(name: keyof typeof DEFAULTS): string {
   return DEFAULTS[name];
 }
 
+// Sentry va aparte de DEFAULTS/read() a proposito: esas dos son obligatorias y avisan si
+// faltan, estas son OPCIONALES. Sin DSN el SDK ni arranca (ver instrument.ts) y eso es el
+// comportamiento deseado en desarrollo, asi que advertir seria ruido.
+//
+// El release queda vacio hasta que subamos source maps: los dos van juntos, porque Sentry
+// necesita saber a que version pertenece cada mapa para desminificar un stack trace.
+const sentryDsn = import.meta.env.VITE_SENTRY_DSN as string | undefined;
+const sentryRelease = import.meta.env.VITE_SENTRY_RELEASE as string | undefined;
+
 export const env = {
   apiUrl: read('VITE_API_URL'),
   socketUrl: read('VITE_SOCKET_URL'),
+  sentryDsn,
+  sentryRelease,
 } as const;
