@@ -21,6 +21,9 @@ const envSchema = z.object({
   // quien es el usuario ya lo validamos con NUESTRO JWT antes de llegar ahí. Opcionales: sin
   // ellas, POST /auth/me/avatar tira 503 en vez de tumbar el boot entero — la app funciona
   // igual sin foto de perfil.
+  // Sentry: opcional A PROPOSITO. Sin DSN, instrument.ts ni llama a Sentry.init() y la app
+  // arranca igual — que es lo que queremos en dev, en los tests y en un clone fresco.
+  SENTRY_DSN: z.string().url().optional(),
   SUPABASE_URL: z.string().url().optional(),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
 });

@@ -53,7 +53,7 @@ Cada sección está taggeada con su estado actual:
 
 | Método | Endpoint         | Acceso | Notas                                 |
 | ------ | ---------------- | ------ | ------------------------------------- |
-| POST   | `/auth/register` | Public | Rate limit: 5/min/IP                  |
+| POST   | `/auth/register` | Public | Rate limit: 20/min/IP                 |
 | POST   | `/auth/login`    | Public | Rate limit: 10 **fallidos**/min/IP    |
 | POST   | `/auth/refresh`  | Public | Refresh token en httpOnly cookie      |
 | POST   | `/auth/logout`   | User   | Limpia el refresh token               |

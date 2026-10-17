@@ -1,3 +1,6 @@
+// PRIMERA LINEA A PROPOSITO: Sentry parchea http/express/pg al cargarse, asi que tiene que
+// correr antes que cualquier otro import. Si lo moves abajo, deja de instrumentar.
+import './instrument';
 import { createServer } from 'http';
 import app from './app';
 import { env } from './config/env';

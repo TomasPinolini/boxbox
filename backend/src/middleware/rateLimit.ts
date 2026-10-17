@@ -16,8 +16,14 @@ import type { Request, Response } from 'express';
 
 // Bypass del rate limit solo bajo Vitest (NODE_ENV='test' o VITEST='true' — setean automaticos).
 // El cap se aplica en prod normal (sin envs especiales).
+// E2E=true lo setea playwright.config.ts al levantar el backend. Hace falta porque la suite
+// registra 7 usuarios en ~40 segundos desde 127.0.0.1 y el cap de /auth/register es 5/min por
+// IP: sin esto, los ultimos tests fallan con 429 y lo que se estaria probando es el limiter,
+// no la app. Paso de verdad el 2026-10-16, con 4 de 7 tests en rojo.
 const isTestEnv = () =>
-  process.env.NODE_ENV === 'test' || process.env.VITEST === 'true';
+  process.env.NODE_ENV === 'test' ||
+  process.env.VITEST === 'true' ||
+  process.env.E2E === 'true';
 
 // userKey: prefiere userId (autenticado) sobre IP. requireAuth ya corrio antes en la cadena.
 // IP fallback usa ipKeyGenerator (helper de express-rate-limit v8+) que normaliza IPv6 a
@@ -98,11 +104,18 @@ export const loginLimiter = rateLimit({
   handler: (_req, res) => sendRateLimitError(res, 'Too many login attempts'),
 });
 
-// registerLimiter: 5 registros por minuto por IP, exitosos incluidos.
+// registerLimiter: 20 registros por minuto por IP, exitosos incluidos.
 // Aca si cuenta el exito: el riesgo es la creacion masiva de cuentas, no adivinar nada.
+//
+// Por que 20 y no 5, que era el valor original: la clave es la IP, y toda una casa sale por
+// la misma. Una familia juntandose un domingo a crear cuentas mientras alguien les explica la
+// app es una rafaga desde un solo origen, y el sexto se comia un 429 sin haber hecho nada.
+// No es hipotetico: la suite e2e registro 7 usuarios en 40 segundos desde 127.0.0.1 y dejo 4
+// de 7 tests en rojo (2026-10-16). Contra lo que de verdad protege esto —un script creando
+// cientos de cuentas— 20/min frena igual.
 export const registerLimiter = rateLimit({
   windowMs: 60_000,
-  limit: 5,
+  limit: 20,
   standardHeaders: 'draft-7',
   legacyHeaders: false,
   keyGenerator: ipKey,

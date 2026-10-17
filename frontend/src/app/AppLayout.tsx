@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { Button, UserAvatar } from '../components/ui';
+import { Button, HelpPopover, UserAvatar } from '../components/ui';
+import { limitacionesConocidas } from '../features/changelog/changelog';
 import type { User } from '../models/user';
 import { EditProfileModal } from '../features/profile/EditProfileModal';
 import { authService } from '../services/auth.service';
@@ -111,6 +112,52 @@ function Logo({ className }: { className: string }) {
     <>
       <img src="/logo.svg" alt="boxbox" className={`${className} dark:hidden`} />
       <img src="/logo-dark.svg" alt="boxbox" className={`hidden ${className} dark:block`} />
+    </>
+  );
+}
+
+// Rotulo de etapa del producto. NO usa el Badge de components/ui: ese es `uppercase` a proposito
+// (son estados de dominio dentro de un Card, "DRAFT PENDIENTE") y la guia de Atlassian pide
+// sentence case para los rotulos de etapa — "Beta", nunca "BETA". Son seis clases copiadas, no
+// vale una prop nueva en Badge para un solo llamador.
+//
+// Vive aca y en ningun otro lugar: el dia que BoxBox salga de beta, se borra este componente y
+// sus dos usos, y no hay que ir a buscar donde mas quedo.
+//
+// Va como HERMANO del <Link> del logo, nunca adentro: el popover que explica que significa beta
+// es un <button>, y un boton dentro de un <a> es HTML invalido.
+//
+// "beta" habla del producto (faltan features, los puntos pueden recalcularse), no del contrato
+// HTTP, que sigue siendo v1.0.0 y estable. Los dos ejes son distintos a proposito: ver la entrada
+// `beta` en docs/glossary.md y ADR-0011.
+function BetaMark() {
+  return (
+    <>
+      <span className="inline-block rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold tracking-wide text-blue-800 dark:bg-blue-950 dark:text-blue-200">
+        Beta
+      </span>
+      {/* El rotulo solo dice QUE es beta; Cloudscape pide ademas que venga explicado. La
+          explicacion usa el "?" que ya es la convencion de ayuda de la app (HelpPopover), y la
+          lista de lo que falta sale de CHANGELOG.md — no esta escrita aca, para que no se
+          desincronice el dia que arreglemos una de las tres. */}
+      <HelpPopover title="¿Qué significa que esté en beta?">
+        <p className="mb-3">
+          BoxBox anda, pero todavía le faltan cosas. Si encontramos un error en el cálculo de
+          puntos y lo corregimos, las posiciones de tu liga se pueden mover.
+        </p>
+        <p className="mb-2 font-semibold">Hoy falta:</p>
+        <ul className="mb-3 list-disc space-y-1 pl-5">
+          {limitacionesConocidas().map((limitacion) => (
+            <li key={limitacion}>{limitacion}</li>
+          ))}
+        </ul>
+        <Link
+          to="/novedades"
+          className="font-semibold text-red-600 hover:underline dark:text-red-400"
+        >
+          Ver todas las novedades
+        </Link>
+      </HelpPopover>
     </>
   );
 }
@@ -328,18 +375,24 @@ export function AppLayout() {
             <span aria-hidden="true" className="block h-0.5 w-5 rounded-full bg-slate-900 dark:bg-ink-text" />
             <span aria-hidden="true" className="block h-0.5 w-5 rounded-full bg-slate-900 dark:bg-ink-text" />
           </button>
-          <Link to="/leagues">
-            <Logo className="h-7 w-auto" />
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link to="/leagues">
+              <Logo className="h-7 w-auto" />
+            </Link>
+            <BetaMark />
+          </div>
         </div>
 
         {/* Mismo contenedor que PageShell (max-w-5xl px-4 md:px-6) para que la barra quede
             alineada con el contenido de la pagina. Fila horizontal de siempre, de md en
             adelante. */}
         <div className="mx-auto hidden w-full max-w-5xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 text-sm md:flex md:px-6">
-          <Link to="/leagues" className="mr-auto">
-            <Logo className="h-7 w-auto" />
-          </Link>
+          <div className="mr-auto flex items-center gap-2">
+            <Link to="/leagues">
+              <Logo className="h-7 w-auto" />
+            </Link>
+            <BetaMark />
+          </div>
 
           {renderNavLinks(linkClass)}
 

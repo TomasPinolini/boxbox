@@ -23,7 +23,11 @@ export default defineConfig({
   // nada. La DB sigue siendo cosa tuya: migrada y seedeada (ver docs/tutorial.md).
   webServer: [
     {
-      command: 'npm run dev',
+      // E2E=true apaga los rate limiters de /auth/* (ver backend/src/middleware/rateLimit.ts).
+      // OJO: con reuseExistingServer, si ya tenias `npm run dev` levantado a mano, Playwright
+      // usa ESE proceso y la variable no esta puesta — los tests que registran usuarios van a
+      // fallar con 429. Si pasa, bajá tu server y dejá que Playwright lo levante.
+      command: 'E2E=true npm run dev',
       cwd: '../backend',
       // El health check y no el puerto pelado: el puerto abre antes de que Express termine de
       // montar los routers, y un test que sale en esa ventana recibe un 404 confuso.

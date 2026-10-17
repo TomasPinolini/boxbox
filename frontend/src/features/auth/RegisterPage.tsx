@@ -130,6 +130,19 @@ export function RegisterPage() {
                 {isSubmitting ? 'Creando…' : 'Crear cuenta'}
               </Button>
             </div>
+            {/* El aviso va ACA y no en un banner arriba: banner blindness (NN/g, eyetracking
+                longitudinal) muestra que se ignora todo lo que ocupa la posicion de un banner,
+                incluso cuando no es publicidad. Esta es la unica pantalla sin AppLayout —o sea
+                sin el rotulo "Beta"— y ademas es el primer contacto de alguien invitado: el
+                aviso vive donde esta por invertir trabajo, que es el boton de arriba. */}
+            <p className="mt-4 text-sm text-white/70">
+              BoxBox está en beta: todavía le faltan cosas y, si corregimos un error de cálculo,
+              los puntos de tu liga se pueden mover.{' '}
+              <Link to="/novedades" className="font-semibold text-white hover:underline">
+                Mirá qué falta
+              </Link>
+              .
+            </p>
             <p className="mt-5 text-sm text-white/70">
               ¿Ya tenés cuenta?{' '}
               <Link to="/login" className="font-semibold text-white hover:underline">

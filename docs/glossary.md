@@ -57,6 +57,7 @@ Definiciones de una línea de todos los términos del dominio. Si necesitás nar
 | Término | Definición | Evitar |
 |---|---|---|
 | **SyncLog** | Registro auditable de una sincronización con Jolpica/OpenF1: `type`, `status`, contadores y `triggeredById` (nullable para syncs cron). | sync record, log entry |
+| **beta** | Etapa declarada del **producto**: faltan features del alcance declarado, puede haber caídas y **los puntos pueden recalcularse** cuando se corrige un defecto de scoring. Es **ortogonal a la versión semver** — [ADR-0011](./adr/ADR-0011-semantic-versioning.md) versiona el contrato HTTP, que sí es estable. | preview, early access, alpha; "versión beta" (confunde los dos ejes) |
 
 ---
 
@@ -119,3 +120,4 @@ Definiciones de una línea de todos los términos del dominio. Si necesitás nar
 - **`RaceResultStatus`** — el enum de estados (CLASSIFIED/DNF/DSQ/DNS) lo comparten **RaceResult** y **SprintResult**, así que su nombre no corresponde a un solo modelo y no se renombra con él. Incoherencia aceptada a conciencia: renombrarlo obligaba a tocar el frontend, que lo espeja. Ver [ADR-0010](./adr/ADR-0010-resultados-de-sprint-en-tablas-propias.md).
 - **"pick"** suelto — usar **DraftPick** cuando refiere a la entidad; verbo "pick" libre en conversación.
 - **"reserva" / "swap"** — ya no existen en el dominio (ADR-0006). Si aparecen en docs viejos o branches, corregir.
+- **"beta"** vs **"v1.0.0"** — **dos ejes distintos, no un conflicto**. El número versiona el contrato HTTP y hoy es estable; la etiqueta describe la madurez del producto para quien lo usa (features faltantes, caídas, puntos que se recalculan). Una app puede estar en `v1.x` y seguir siendo beta: no bajar la versión a `0.x` para señalizarlo, eso lo descartó ADR-0011 con razón escrita.
