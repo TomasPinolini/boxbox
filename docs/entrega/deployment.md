@@ -317,21 +317,64 @@ una sola cadena desplegada, así que "cambiar de entorno" se reduce a editar `DA
    apareció nada para arreglar en el código; el único agujero real era el del admin, que es
    un problema de datos.
 
+### Carga de resultados en prod (2026-10-17)
+
+Las 17 fechas corridas del 2026 entraron **con el seed, en un comando**, no fecha por fecha
+desde `/admin/results`. El camino corto ya existía y no estaba a la vista:
+`src/scripts/fetch-jolpica-results.ts` deja la temporada congelada en
+`prisma/seed-data/results-2026.json` (17 rondas, 374 filas, `fetchedAt: 2026-10-13`), y la
+sección 5 del seed carga ese archivo contra la base que diga `DATABASE_URL`.
+
+```bash
+cd backend
+(set -a; . ./.env.supabase-prod.local; set +a; npx prisma db seed)
+```
+
+| | |
+| :-- | :-- |
+| `racesCompleted` | 17 |
+| `race_results` | **371** = 17 × 22 − 3 |
+| `constructor_results` | 187 = 11 × 17 |
+| Puntos: pilotos vs. escuderías | **1716 = 1716** |
+
+**Por qué 371 y no 374.** El seed **saltea** las 3 filas de `tsunoda` (fechas 12, 13 y 14 —
+BOX-9). Por `/admin/results` el número sería 374: esa pantalla escribe las 22 filas de la
+grilla siempre, y al piloto que Jolpica no trae le pone `DNS`. Los puntos coinciden igual,
+porque de las 3 filas salteadas sólo una puntuaba: el P10 de tsunoda en la fecha 13. Por eso
+esa fecha suma 100 y las otras 16 suman 101.
+
+**El chequeo que vale, y es uno solo:** toda fecha de F1 reparte
+`25+18+15+12+10+8+6+4+2+1 = 101` puntos. Si una fecha no suma 101, falta un clasificado del
+top 10 — típicamente porque quedó en `DNS`. Un `200` no prueba nada; esto sí.
+
+```sql
+select r.round, count(*) as filas, sum(rr.points) as puntos
+from race_results rr join races r on r.id = rr."raceId"
+group by r.round having count(*) <> 22 or sum(rr.points) <> 101 order by r.round;
+```
+
+**El seed no crea `league_standings`.** Con 0 ligas da igual; cuando haya ligas, cada fecha
+necesita además `POST /races/:id/recalculate`.
+
+**No hay guard que proteja prod del seed.** `assertLocalDatabase` sólo cubre los tests
+(`src/tests/setup.ts`). El seed le escribe a lo que diga `DATABASE_URL`, así que el valor va
+sourceado en la línea del comando y nunca exportado a la shell. Lo que sí tiene: cero
+`delete`, cero `TRUNCATE`, todo `upsert`, y el único `user.upsert` es el admin — los usuarios
+reales y las ligas no se tocan.
+
 ### Pendiente
 
-1. **Prod no tiene resultados.** `race_results = 0`: el campeonato sale vacío y ninguna liga
-   puede puntuar. Se cargan desde `/admin/results`, fecha por fecha, con el admin de prod.
-2. **Las fotos de perfil van al proyecto dev.** `SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY`
+1. **Las fotos de perfil van al proyecto dev.** `SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY`
    en Render siguen apuntando a `boxbox-dev`. Para moverlas hay que crear el bucket `avatars`
    en prod primero (público, 2MB, png/jpeg/webp); sin el bucket, subir foto tira `502`.
-3. **`tutorial.md` miente en un punto.** Dice que `NODE_ENV=development npm run dev` usa
+2. **`tutorial.md` miente en un punto.** Dice que `NODE_ENV=development npm run dev` usa
    `.env.supabase-dev.local`. No existe tal cascada: `config/env.ts` hace `dotenv.config()`
    pelado y solo lee `.env`. Para apuntar el backend local a Supabase:
    `(set -a; . ./.env.supabase-dev.local; set +a; npm run dev)` — dotenv no pisa variables
    que ya existen en el entorno, así que lo sourceado gana.
-4. **3 high severity vulnerabilities** en el `npm install` del build de Render. Falta triar
+3. **3 high severity vulnerabilities** en el `npm install` del build de Render. Falta triar
    si son todas de dependencias de desarrollo.
-5. De la auditoría, sin tocar: bcrypt en 10 rounds (OWASP pide 12), el frontend sin CSP ni
+4. De la auditoría, sin tocar: bcrypt en 10 rounds (OWASP pide 12), el frontend sin CSP ni
    `X-Frame-Options` (`helmet()` cubre la API, no Vercel), refresh token sin revocación
    server-side, y sin recuperación de contraseña.
 
@@ -384,6 +427,20 @@ variable el seed usaría `admin1234`, que está publicada en este repo — y en 
 alcanzable desde internet eso es acceso ADMIN para cualquiera que lo lea. Con
 `NODE_ENV=production` la variable es obligatoria y el seed aborta si falta.
 
+> **Esto no fue cierto entre el 16 y el 17/10/2026, y el runbook lo afirmaba.** La password
+> real del admin de prod era corta y adivinable, anotada en texto plano en
+> `backend/.env.supabase-prod.local`. Nunca llegó a git (`.gitignore:11`, `.env.*.local`),
+> pero el archivo no es un lugar donde guardar una credencial: va al gestor de contraseñas.
+> Se rotó el 2026-10-17 a una de `openssl rand -base64 18`, de paso al correr el seed.
+>
+> Cómo se descubrió, porque el mecanismo se repite: la nota con usuario y password estaba
+> escrita en el `.env` **sin `#` adelante**. `set -a; . archivo` no parsea un archivo de
+> configuración, **lo ejecuta como script de shell**, así que la línea `CONTRASEÑA=...` —con
+> `Ñ`, que no puede estar en un nombre de variable de shell, limitados a
+> `[A-Za-z_][A-Za-z0-9_]*`— se interpretó como un **comando**, y bash imprimió la línea
+> entera, password incluida, en el `command not found`. El mismo archivo leído por dotenv no
+> se comporta así: dotenv parsea, no ejecuta.
+
 Los dos usuarios `demo*` son miembros de **"Liga Demo BoxBox"** (código de invitación
 `liga-demo-2026`), con el draft `COMPLETED`. Hacen falta para mostrar la vista de un
 miembro: el admin **no** es miembro de ninguna liga, y `requireLeagueMember` devuelve 404
@@ -391,9 +448,23 @@ por diseño anti-enumeración, así que con el admin no se ve la tabla de posici
 
 ## Datos cargados para la demo
 
+Estado de **`boxbox-prod`** al 2026-10-17, la base que sirve la app pública:
+
+| | |
+| :-- | :-- |
+| Carreras del calendario 2026 | 23 |
+| Carreras `COMPLETED` con resultados | **17** |
+| `race_results` | 371 |
+| `constructor_results` | 187 |
+| `league_standings` | 0 — no hay ligas creadas |
+
+Cargado con el seed, ver [Carga de resultados en prod](#carga-de-resultados-en-prod-2026-10-17).
+**No hay ninguna liga en prod**, así que no hay tabla de posiciones que mostrar: para eso hay
+que crear una liga, sumar un segundo usuario y correr el draft. El admin no sirve de miembro —
+`requireLeagueMember` responde 404 por diseño anti-enumeración.
+
 Estado de **`boxbox-dev`** al 2026-10-04, importado con el sync de Jolpica. Desde el
-2026-10-16 esa base ya no es la que sirve la app pública: `boxbox-prod` tiene la misma grilla
-y el mismo calendario, pero **cero resultados** hasta que se carguen desde `/admin/results`.
+2026-10-16 esa base ya no está desplegada.
 
 | | |
 | :-- | :-- |
