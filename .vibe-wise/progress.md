@@ -330,3 +330,64 @@ Dos cosas abiertas, las dos esperando al learner:
 - Varios comandos de git ejecutados sobre la rama equivocada (`push origin main` estando en `dev`,
   `pull origin main` estando en `dev`). Ninguno hizo daño y uno salió bien de casualidad, pero el
   hábito de mirar en qué rama estás antes de un comando que toca ramas no está todavía.
+
+## El camino corto ya estaba en el repo
+
+**Introduced** (2026-10-17, lo encontró el learner preguntando)
+
+- [observado] El plan acordado era cargar 17 fechas a mano por `/admin/results`: 17 veces
+  elegir, importar, leer notas, confirmar. El learner preguntó *"¿no teníamos ya un script o
+  alguna automatización?"* antes de empezar. La había: `fetch-jolpica-results.ts` deja la
+  temporada congelada en `prisma/seed-data/results-2026.json` y la sección 5 del seed carga
+  ese archivo contra la base que diga `DATABASE_URL`. Un comando en vez de 17 ciclos.
+- [derivado] **Por qué estaba invisible**: esas dos piezas no se construyeron para cargar
+  prod. Existen porque el seed corre en el `posttest` de *cada* `npm test` y no puede pegarle
+  a la red. El cargador masivo es un **efecto secundario** de un requisito de
+  reproducibilidad. Una capacidad que nadie documentó como capacidad porque nació como
+  restricción.
+- [observado] Los dos caminos no dan el mismo número y los dos están bien: el seed **saltea**
+  las 3 filas de `tsunoda` (371 filas), la pantalla le pone **`DNS`** al piloto que Jolpica no
+  trae y escribe 22 siempre (374). Los puntos coinciden —1716— porque de las 3 salteadas sólo
+  una puntuaba.
+- [observado] **El chequeo que vale es uno solo**: toda fecha de F1 reparte
+  `25+18+15+12+10+8+6+4+2+1 = 101` puntos. Se verificó sobre el JSON *antes* de escribir nada:
+  las 17 fechas sumaban 101. Después, contra prod: 14 fechas en 22/101 exacto, y las 3 que
+  desvían desvían por el motivo previsto. Un `200` no habría probado ninguna de las dos cosas.
+
+**Demonstrated understanding**
+
+- Preguntar por el trabajo ya hecho antes de empezar el trabajo nuevo. Es el mismo criterio
+  que ya había puesto en la auditoría de accesibilidad ("barré todo el código, no sólo el caso
+  que apareció"), aplicado ahora hacia atrás en el tiempo en vez de a lo ancho del código.
+
+## `set -a; . archivo` ejecuta, no parsea
+
+**Introduced** (2026-10-17, salió de un `command not found` en vivo)
+
+- [observado] Al correr el seed contra prod, bash imprimió
+  `./.env.supabase-prod.local: line 20: CONTRASEÑA=...: command not found` **con la password
+  adentro**. Las líneas 19-20 eran una nota con las credenciales del admin, escritas sin `#`.
+- [derivado] **`set -a; . archivo` no lee configuración: ejecuta el archivo como script de
+  shell** y marca para exportar lo que se asigne. De ahí las dos consecuencias: una línea que
+  parece comentario pero no empieza con `#` se ejecuta, y una línea mal formada se filtra al
+  stdout dentro del mensaje de error.
+- [observado] Por qué esa línea y no la de arriba: un identificador de shell es
+  `[A-Za-z_][A-Za-z0-9_]*`, **sólo ASCII**. `USUARIO=...` es una asignación válida y bash la
+  exportó en silencio; `CONTRASEÑA=...` tiene `Ñ`, no puede ser nombre de variable, así que
+  bash lo leyó como **nombre de comando**.
+- [derivado] El mismo archivo tiene **dos semánticas según quién lo abra**: dotenv parsea,
+  bash ejecuta. Un `.env` que funciona con `npm run dev` puede romperse —y filtrar— al
+  sourcearlo.
+- [observado] El guard del seed funcionó: `SEED_ADMIN_PASSWORD` es obligatoria con
+  `NODE_ENV=production` y abortó en `seed.ts:647`, **antes del primer `upsert`**. Verificado
+  contra prod: cero escrituras. Un guard que falla temprano y ruidoso es el que permite leer
+  el error con calma.
+- [derivado] El bloqueo terminó siendo el arreglo: la password real del admin de prod era
+  corta y adivinable, y el runbook afirmaba lo contrario. Rotarla era lo que desbloqueaba el
+  seed.
+
+**Needs reinforcement**
+
+- Las credenciales no van anotadas en el `.env`, ni comentadas. El archivo estaba fuera de git
+  (`.gitignore:11`), que es lo que evitó que fuera grave — pero la nota en texto plano es lo
+  que la filtró al terminal.

@@ -131,8 +131,10 @@ o el server no arranca — lo valida `src/config/env.ts` con Zod al bootear.
 curl https://boxbox-api.onrender.com/api/v1/health
 # esperado: {"status":"ok","timestamp":"..."}
 
-curl https://boxbox-api.onrender.com/api/v1/drivers | head -c 200
-# esperado: los 22 pilotos de 2026 — confirma que pega contra boxbox-prod
+curl -s https://boxbox-api.onrender.com/api/v1/drivers \
+  | python3 -c 'import json,sys; print(len(json.load(sys.stdin)["data"]))'
+# esperado: 22 — los pilotos de 2026, confirma que pega contra boxbox-prod
+# Contar `"id"` en el JSON NO sirve: da 44, porque cada piloto trae embebido su constructor
 ```
 
 ---
@@ -169,7 +171,7 @@ Se apaga en Settings → Deployment Protection → Vercel Authentication → `Di
 `Only Preview Deployments`, si querés conservarla en los previews). Verificación:
 
 ```bash
-curl -s -o /dev/null -w '%{http_code}\n' https://boxbox-tomas-pinolinis-projects.vercel.app/
+curl -s -o /dev/null -w '%{http_code}\n' https://boxbox-three.vercel.app/
 # 200 = público. 302 = sigue protegido.
 ```
 
@@ -262,12 +264,18 @@ Todo contra la URL pública, no contra localhost.
 Los dos últimos del bloque de arriba **no se pueden probar en local**. Son la razón de
 deployar con anticipación.
 
+**Re-verificado el 2026-10-17**: `GET /api/v1/drivers` contra la URL pública devuelve los 22
+pilotos, ahora desde `boxbox-prod`. El deploy de Render está `live` sobre `main` (`97fe144`,
+15:33 UTC) y sin errores en los logs desde entonces.
+
 ### Pendiente de clic en el browser
 
 - [ ] La pantalla de login carga sin errores en la consola
-- [ ] Login con `demo1@boxbox.test` → ver la Liga Demo y su tabla de posiciones
+- [ ] Login con el admin de prod → `/admin/results`. **`demo1@boxbox.test` y la Liga Demo no
+      existen en `boxbox-prod`**: para mostrar la vista de un miembro hay que crear una liga,
+      sumar un segundo usuario y correr el draft
 - [ ] Hard-refresh en `/drivers/5` → renderiza, no 404. Valida el rewrite SPA
-- [ ] `/standings` muestra el campeonato con las 14 fechas
+- [ ] `/standings` muestra el campeonato con las 17 fechas
 - [ ] Responsive a 375 / 768 / 1024 px sobre la URL pública
 
 ---
@@ -317,21 +325,81 @@ una sola cadena desplegada, así que "cambiar de entorno" se reduce a editar `DA
    apareció nada para arreglar en el código; el único agujero real era el del admin, que es
    un problema de datos.
 
+### Carga de resultados en prod (2026-10-17)
+
+Las 17 fechas corridas del 2026 entraron **con el seed, en un comando**, no fecha por fecha
+desde `/admin/results`. El camino corto ya existía y no estaba a la vista:
+`src/scripts/fetch-jolpica-results.ts` deja la temporada congelada en
+`prisma/seed-data/results-2026.json` (17 rondas, 374 filas, `fetchedAt: 2026-10-13`), y la
+sección 5 del seed carga ese archivo contra la base que diga `DATABASE_URL`.
+
+```bash
+cd backend
+(set -a; . ./.env.supabase-prod.local; set +a; npx prisma db seed)
+```
+
+| | |
+| :-- | :-- |
+| `racesCompleted` | 17 |
+| `race_results` | **371** = 17 × 22 − 3 |
+| `constructor_results` | 187 = 11 × 17 |
+| Puntos: pilotos vs. escuderías | **1716 = 1716** |
+
+**Por qué 371 y no 374.** El seed **saltea** las 3 filas de `tsunoda` (fechas 12, 13 y 14 —
+BOX-9). Por `/admin/results` el número sería 374: esa pantalla escribe las 22 filas de la
+grilla siempre, y al piloto que Jolpica no trae le pone `DNS`. Los puntos coinciden igual,
+porque de las 3 filas salteadas sólo una puntuaba: el P10 de tsunoda en la fecha 13. Por eso
+esa fecha suma 100 y las otras 16 suman 101.
+
+**El chequeo que vale, y es uno solo:** toda fecha de F1 reparte
+`25+18+15+12+10+8+6+4+2+1 = 101` puntos. Si una fecha no suma 101, falta un clasificado del
+top 10 — típicamente porque quedó en `DNS`. Un `200` no prueba nada; esto sí.
+
+```sql
+select r.round, count(*) as filas, sum(rr.points) as puntos
+from race_results rr join races r on r.id = rr."raceId"
+group by r.round having count(*) <> 22 or sum(rr.points) <> 101 order by r.round;
+```
+
+**El seed no crea `league_standings`.** Con 0 ligas da igual; cuando haya ligas, cada fecha
+necesita además `POST /races/:id/recalculate`.
+
+**No hay guard que proteja prod del seed.** `assertLocalDatabase` sólo cubre los tests
+(`src/tests/setup.ts`). El seed le escribe a lo que diga `DATABASE_URL`, así que el valor va
+sourceado en la línea del comando y nunca exportado a la shell. Lo que sí tiene: cero
+`delete`, cero `TRUNCATE`, todo `upsert`, y el único `user.upsert` es el admin — los usuarios
+reales y las ligas no se tocan.
+
 ### Pendiente
 
-1. **Prod no tiene resultados.** `race_results = 0`: el campeonato sale vacío y ninguna liga
-   puede puntuar. Se cargan desde `/admin/results`, fecha por fecha, con el admin de prod.
-2. **Las fotos de perfil van al proyecto dev.** `SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY`
-   en Render siguen apuntando a `boxbox-dev`. Para moverlas hay que crear el bucket `avatars`
-   en prod primero (público, 2MB, png/jpeg/webp); sin el bucket, subir foto tira `502`.
-3. **`tutorial.md` miente en un punto.** Dice que `NODE_ENV=development npm run dev` usa
-   `.env.supabase-dev.local`. No existe tal cascada: `config/env.ts` hace `dotenv.config()`
-   pelado y solo lee `.env`. Para apuntar el backend local a Supabase:
-   `(set -a; . ./.env.supabase-dev.local; set +a; npm run dev)` — dotenv no pisa variables
-   que ya existen en el entorno, así que lo sourceado gana.
-4. **3 high severity vulnerabilities** en el `npm install` del build de Render. Falta triar
-   si son todas de dependencias de desarrollo.
-5. De la auditoría, sin tocar: bcrypt en 10 rounds (OWASP pide 12), el frontend sin CSP ni
+1. **Las fotos de perfil: el bucket ya está, falta confirmar a qué proyecto apunta Render.**
+   El bucket `avatars` existe en `boxbox-prod` desde el 2026-10-16 18:41 UTC con la
+   configuración que hace falta —público, 2 MB, `image/png` / `image/jpeg` / `image/webp`— y
+   tiene 2 objetos, así que el prerequisito está cumplido y subir foto ya no puede tirar `502`
+   por bucket faltante. Lo que **no está verificado** es a qué proyecto apuntan hoy
+   `SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY` en Render: nadie las leyó. El camino, desde
+   Render → el servicio → Environment → `Export`, que baja un `.env`:
+
+   ```bash
+   grep '^SUPABASE_URL=' ~/Downloads/.env
+   # qtwsblwfoceamuvothww = boxbox-prod · inmbedbcedksbjypsjlm = boxbox-dev
+   shred -u ~/Downloads/.env
+   ```
+
+   El dato medido que inclina la lectura sin cerrarla: los dos únicos avatares subidos en la
+   historia del proyecto (`1.jpg`, `4.jpg`) están en el storage **de prod**, y esos nombres
+   son ids de usuario de la base **dev**.
+2. **No hay cascada de archivos `.env` por `NODE_ENV`** — `config/env.ts:4` hace
+   `dotenv.config()` pelado y solo lee `.env`. `tutorial.md` afirmaba lo contrario;
+   **corregido el 2026-10-17**. La forma que funciona para apuntar el backend local a
+   Supabase: `(set -a; . ./.env.supabase-dev.local; set +a; npm run dev)` — dotenv no pisa
+   variables que ya existen en el entorno, así que lo sourceado gana.
+3. **`npm audit`: las dependencias de producción están en 0.** Medido el 2026-10-17:
+   `cd backend && npm audit --omit=dev` → `found 0 vulnerabilities`. Lo que queda sin medir es
+   si las 3 *high severity* que reportaba el build son todas de `devDependencies`, y eso
+   importa porque Render buildea con `npm install --include=dev`. El comando que lo cierra es
+   `cd backend && npm audit` (sin la bandera) y **todavía no se corrió**.
+4. De la auditoría, sin tocar: bcrypt en 10 rounds (OWASP pide 12), el frontend sin CSP ni
    `X-Frame-Options` (`helmet()` cubre la API, no Vercel), refresh token sin revocación
    server-side, y sin recuperación de contraseña.
 
@@ -384,6 +452,20 @@ variable el seed usaría `admin1234`, que está publicada en este repo — y en 
 alcanzable desde internet eso es acceso ADMIN para cualquiera que lo lea. Con
 `NODE_ENV=production` la variable es obligatoria y el seed aborta si falta.
 
+> **Esto no fue cierto entre el 16 y el 17/10/2026, y el runbook lo afirmaba.** La password
+> real del admin de prod era corta y adivinable, anotada en texto plano en
+> `backend/.env.supabase-prod.local`. Nunca llegó a git (`.gitignore:11`, `.env.*.local`),
+> pero el archivo no es un lugar donde guardar una credencial: va al gestor de contraseñas.
+> Se rotó el 2026-10-17 a una de `openssl rand -base64 18`, de paso al correr el seed.
+>
+> Cómo se descubrió, porque el mecanismo se repite: la nota con usuario y password estaba
+> escrita en el `.env` **sin `#` adelante**. `set -a; . archivo` no parsea un archivo de
+> configuración, **lo ejecuta como script de shell**, así que la línea `CONTRASEÑA=...` —con
+> `Ñ`, que no puede estar en un nombre de variable de shell, limitados a
+> `[A-Za-z_][A-Za-z0-9_]*`— se interpretó como un **comando**, y bash imprimió la línea
+> entera, password incluida, en el `command not found`. El mismo archivo leído por dotenv no
+> se comporta así: dotenv parsea, no ejecuta.
+
 Los dos usuarios `demo*` son miembros de **"Liga Demo BoxBox"** (código de invitación
 `liga-demo-2026`), con el draft `COMPLETED`. Hacen falta para mostrar la vista de un
 miembro: el admin **no** es miembro de ninguna liga, y `requireLeagueMember` devuelve 404
@@ -391,21 +473,38 @@ por diseño anti-enumeración, así que con el admin no se ve la tabla de posici
 
 ## Datos cargados para la demo
 
-Estado de **`boxbox-dev`** al 2026-10-04, importado con el sync de Jolpica. Desde el
-2026-10-16 esa base ya no es la que sirve la app pública: `boxbox-prod` tiene la misma grilla
-y el mismo calendario, pero **cero resultados** hasta que se carguen desde `/admin/results`.
+Estado de **`boxbox-prod`** al 2026-10-17, la base que sirve la app pública:
 
 | | |
 | :-- | :-- |
 | Carreras del calendario 2026 | 23 |
-| Carreras `COMPLETED` con resultados | **14** |
-| `race_results` | 305 |
-| `constructor_results` | 154 |
-| `league_standings` | 28 (14 fechas × 2 miembros) |
+| Carreras `COMPLETED` con resultados | **17** |
+| `race_results` | 371 |
+| `constructor_results` | 187 |
+| `league_standings` | 0 — no hay ligas creadas |
 
-Los 305 son `14 × 22 − 3`: en las fechas 12, 13 y 14 el sync saltea a `tsunoda`, que corrió
-por el enroque de mitad de temporada en Red Bull/RB y no está en el seed. Es la limitación
-ya documentada en BOX-9, y el sync la reporta como `skipped` en vez de fallar.
+Cargado con el seed, ver [Carga de resultados en prod](#carga-de-resultados-en-prod-2026-10-17).
+**No hay ninguna liga en prod**, así que no hay tabla de posiciones que mostrar: para eso hay
+que crear una liga, sumar un segundo usuario y correr el draft. El admin no sirve de miembro —
+`requireLeagueMember` responde 404 por diseño anti-enumeración.
+
+Estado de **`boxbox-dev`** al 2026-10-17. Desde el 2026-10-16 esa base ya no está desplegada.
+
+| | |
+| :-- | :-- |
+| Carreras del calendario 2026 | 23 |
+| Carreras `COMPLETED` con resultados | **17** |
+| `race_results` | 371 |
+| `constructor_results` | 187 |
+| Ligas | 9, con 14 miembros y 14 `fantasy_teams` |
+| `league_standings` | 139 |
+
+Los resultados son los mismos que en prod, con el mismo hueco: los 371 son `17 × 22 − 3`,
+porque en las fechas 12, 13 y 14 falta `tsunoda`, que corrió por el enroque de mitad de
+temporada en Red Bull/RB y no está en la grilla del seed. Es la limitación ya documentada en
+BOX-9 — el sync la reporta como `skipped` en vez de fallar, y el seed la saltea. Lo único que
+dev tiene y prod no son las ligas: entre ellas la "Liga Demo BoxBox" (`liga-demo-2026`), hoy
+`ARCHIVED`, con su draft `COMPLETED` y 2 miembros.
 
 ---
 
@@ -436,21 +535,23 @@ ya documentada en BOX-9, y el sync la reporta como `skipped` en vez de fallar.
   arranque en frío tarda ~50s. Antes de la defensa, abrir la URL una vez para despertarlo.
 - **El draft no reconecta.** Si el socket se corta, hay que recargar la página. Está
   declarado fuera de alcance en [`roadmap.md`](../roadmap.md).
-- **Dos bases con contenido distinto.** Desde el 2026-10-16 la app pública apunta a
-  `boxbox-prod`, seedeada con `SEED_SKIP_RESULTS=1`: grilla y calendario completos y
-  **campeonato en cero**, para que una liga nueva se pueda jugar de verdad — con los
-  resultados de 2026 ya cargados, el draft reparte pilotos y la tabla sale resuelta de
-  entrada. La contracara es que hasta cargar fechas desde `/admin/results` no hay campeonato
-  ni puntajes. `boxbox-dev` conserva el seed completo, las fechas de Jolpica y la Liga Demo,
-  pero ya no está desplegada: es la base a la que se apunta el backend local.
+- **Las dos bases tienen los mismos resultados; lo que las separa son las ligas.** Desde el
+  2026-10-16 la app pública apunta a `boxbox-prod`, que el 2026-10-17 quedó con las **17
+  fechas corridas de 2026** cargadas con el seed (371 `race_results`, 1716 puntos) — ver
+  [Carga de resultados en prod](#carga-de-resultados-en-prod-2026-10-17). Lo que prod **no**
+  tiene es ninguna liga: 0 `leagues`, 0 `fantasy_teams`, 0 `league_standings`, así que el
+  campeonato de pilotos y escuderías se ve, pero una tabla de posiciones de liga no existe
+  hasta crear una liga y correr el draft. `boxbox-dev` tiene las mismas 17 fechas más 9 ligas
+  y 139 `league_standings`, pero ya no está desplegada: es la base a la que se apunta el
+  backend local cuando se quieren datos realistas.
 
 ---
 
 ## Traspaso 2026-10-16 — señalización de beta y Sentry
 
-Rama `feat/senalizar-beta`, sacada de `dev`. **Al momento de escribir esto no hay nada
-commiteado**: 12 archivos modificados y 2 nuevos, 742 inserciones. Nada de esto existe para
-nadie más hasta que la rama se pushee.
+Rama `feat/senalizar-beta`, sacada de `dev`: 12 archivos modificados y 2 nuevos, 742
+inserciones. **Ya está mergeada** — PR #100 a `dev` y PR #101 de `dev` a `main` (`97fe144`),
+así que llegó a producción.
 
 ### Hecho — señalizar que la app está en beta
 
@@ -494,7 +595,7 @@ nadie más hasta que la rama se pushee.
 
 ### Pendiente — de Tomás
 
-1. **Commitear y pushear `feat/senalizar-beta`.**
+1. ~~Commitear y pushear `feat/senalizar-beta`.~~ Hecho: PR #100 → `dev`, PR #101 → `main`.
 2. **Cargar `SENTRY_DSN` en Render** (el de `boxbox-backend`; está en Sentry → Settings →
    Projects → Client Keys). Se sacó a propósito del `.env` local para no quemar la cuota del
    plan gratis con errores de desarrollo.
@@ -507,8 +608,9 @@ nadie más hasta que la rama se pushee.
 
 ### Pendiente — técnico
 
-- **El frontend sigue sin instrumentar.** `boxbox-frontend` está creado pero vacío. Es el que ve
-  el crash en el browser del usuario: lo único que hoy no ve nadie, ni Render ni Vercel.
+- **El frontend sigue sin instrumentar en producción.** La instrumentación existe en `dev`
+  (PR #102) pero `main` no la tiene, y Vercel buildea `main` — así que el crash en el browser
+  del usuario sigue siendo lo único que no ve nadie. Se arregla mergeando `dev` → `main`.
 - **Source maps.** `sourceMap` no está activado en `backend/tsconfig.json`: en producción los
   stack traces apuntan a `dist/app.js`, legible pero compilado. En el frontend es peor, porque
   Vite minifica: sin source maps se ve `a.b.c is not a function`.
