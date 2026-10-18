@@ -56,16 +56,17 @@ const menuLinkClass = ({ isActive }: { isActive: boolean }) =>
       : 'text-slate-700 hover:bg-slate-50 dark:text-ink-text dark:hover:bg-ink-border'
   }`;
 
-// Las 3 pantallas de carga de datos, pedido del usuario 2026-10-15: antes vivian sueltas en la
+// Las pantallas de carga de datos, pedido del usuario 2026-10-15: antes vivian sueltas en la
 // barra de navegacion (Cargar resultados, Temporadas, Circuitos) compitiendo con Pilotos/
 // Campeonato/Mis ligas como si fueran contenido mas. Son una capacidad del rol ADMIN, no
 // navegacion de catalogo, asi que se agrupan aparte — en escritorio adentro del menu de
-// cuenta (UserMenu), en movil en su propia seccion con el mismo label "Carga" arriba de los
-// tres, sin moverlos del drawer (pedido explicito: ahi se quedan, solo agrupados).
+// cuenta (UserMenu), en movil en su propia seccion con el mismo label "Carga" arriba de
+// todas, sin moverlas del drawer (pedido explicito: ahi se quedan, solo agrupadas).
 const ADMIN_LINKS = [
   { to: '/admin/results', label: 'Resultados' },
   { to: '/admin/seasons', label: 'Temporadas' },
   { to: '/admin/circuits', label: 'Circuitos' },
+  { to: '/admin/races', label: 'Carreras' },
 ];
 
 // uppercase + tracking-wide: patron de encabezado de grupo no clickeable (no es un link, no
