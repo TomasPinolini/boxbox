@@ -26,6 +26,9 @@ const MESSAGES: Record<string, string> = {
   CIRCUIT_ALREADY_EXISTS: 'Ya hay un circuito con ese ID externo',
   CIRCUIT_HAS_DEPENDENCIES: 'No se puede dar de baja: el circuito tiene carreras programadas',
   CIRCUIT_NOT_FOUND: 'Ese circuito no existe',
+  RACE_NOT_FOUND: 'Esa carrera no existe',
+  RACE_ROUND_DUPLICATE: 'Ya hay una carrera con esa ronda en esa temporada',
+  RACE_HAS_DEPENDENCIES: 'No se puede borrar: la carrera ya tiene resultados cargados',
   NETWORK_ERROR: 'No se pudo conectar con el servidor',
   INTERNAL_ERROR: 'Algo salió mal, probá de nuevo',
 };
