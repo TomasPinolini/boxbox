@@ -2,6 +2,7 @@ import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Driver } from '../../models/driver';
+import type { Circuit } from '../../models/circuit';
 import type { Race } from '../../models/race';
 import { driversService } from '../../services/drivers.service';
 import { leaguesService } from '../../services/leagues.service';
@@ -13,13 +14,27 @@ vi.mock('../../services/races.service');
 vi.mock('../../services/drivers.service');
 vi.mock('../../services/leagues.service');
 
+const albertPark: Circuit = {
+  id: 10,
+  name: 'Albert Park',
+  country: 'Australia',
+  city: 'Melbourne',
+  circuitLength: 5.278,
+  externalId: 'albert_park',
+};
+
 const upcoming: Race = {
   id: 1,
   name: 'Australian Grand Prix',
   round: 1,
   date: '2026-03-21',
+  lockDate: '2026-03-20',
+  qualifyingDate: null,
+  sprintDate: null,
   status: 'UPCOMING',
   seasonId: 1,
+  circuitId: 10,
+  circuit: albertPark,
 };
 
 const completed: Race = {
@@ -27,8 +42,13 @@ const completed: Race = {
   name: 'Saudi Arabian Grand Prix',
   round: 2,
   date: '2026-03-28',
+  lockDate: '2026-03-27',
+  qualifyingDate: null,
+  sprintDate: null,
   status: 'COMPLETED',
   seasonId: 1,
+  circuitId: 10,
+  circuit: albertPark,
 };
 
 const verstappen: Driver = {

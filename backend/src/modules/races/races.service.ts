@@ -70,6 +70,34 @@ export async function update(id: number, data: UpdateRaceInput) {
 
 export async function remove(id: number) {
   await findById(id);
+
+  // Las cuatro tablas que apuntan a races (race_results, constructor_results,
+  // league_standings, predictions) tienen la FK con ON DELETE RESTRICT — ver el init en
+  // prisma/migrations. Sin este chequeo el DELETE falla adentro de Prisma con P2003, que no
+  // es un AppError: error-handler lo manda al 500 generico y le gasta un evento a Sentry por
+  // algo que no es un bug nuestro. Es el mismo arreglo que ya tiene seasons.service.ts, que
+  // nunca se replico aca.
+  //
+  // Un solo findUnique con _count en vez de cuatro count(): un round-trip, y la lista de
+  // relaciones queda en un lugar.
+  const counts = await prisma.race.findUnique({
+    where: { id },
+    select: {
+      _count: {
+        select: { raceResults: true, constructorResults: true, predictions: true, standings: true },
+      },
+    },
+  });
+
+  // counts no puede ser null: findById ya tiro 404 si la carrera no existe.
+  const dependencies = Object.values(counts?._count ?? {}).reduce((a, b) => a + b, 0);
+  if (dependencies > 0) {
+    throw new ConflictError(
+      'Cannot delete race with results, standings or predictions',
+      'RACE_HAS_DEPENDENCIES',
+    );
+  }
+
   return prisma.race.delete({ where: { id } });
 }
 

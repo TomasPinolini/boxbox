@@ -62,6 +62,30 @@ anota acá para que `features/` y este roadmap digan lo mismo; el detalle está 
   rótulo "Beta" leen el mismo archivo**, así que no hay texto duplicado. `changelog.test.ts`
   corre contra el `CHANGELOG.md` de verdad, no contra un fixture. Commit `ad600c1`, PR #100
   (2026-10-17).
+- **`features/admin/RacesPage.tsx`** — CRUD de carreras en `/admin/races`, detrás de
+  `RequireAdmin`, cuarto link del grupo "Carga" del menú de cuenta. Copia el patrón de
+  `CircuitsPage.tsx` (un formulario en dos modos + tabla + `ConfirmButton`) sobre
+  `races.queries.ts` y los métodos nuevos de `races.service.ts`. **Tres decisiones propias**:
+  (1) **`race-dates.ts`** es el puente entre `<input type="datetime-local">` (que entrega
+  `2026-07-05T14:00`, sin zona) y el `z.iso.datetime({ offset: true })` que exige el backend;
+  las dos funciones son simétricas a propósito, así editar una carrera sin tocar la fecha no la
+  mueve — pegarle un `Z` al valor del input habría corrido cada carrera por el offset del
+  admin. (2) La tabla muestra **año y nombre de circuito, no ids**, y ordena por temporada más
+  nueva y después por ronda: el backend sólo ordena por `round`, así que con dos temporadas
+  cargadas alternaría 1, 1, 2, 2. (3) El `<option>` placeholder dice "Elegí una temporada" pero
+  el error de validación dice "Obligatorio", como el resto del repo — con el mismo texto en los
+  dos lugares `getByText` encuentra dos nodos.
+  **Guarda que faltaba en el backend**: `races.service.ts` → `remove()` no chequeaba
+  dependencias y las cuatro FK contra `races` son `ON DELETE RESTRICT`, así que borrar una
+  carrera con resultados moría en Prisma con `P2003` → **500 + un evento a Sentry** por algo que
+  no es un bug. Ahora es un 409 `RACE_HAS_DEPENDENCIES` (`docs/error-codes.md`). Es el mismo
+  arreglo que `seasons.service.ts` tenía desde su slice y nunca se replicó acá — con la base de
+  prod cargada, ese 500 era el camino **normal**, no un caso raro.
+  **Tests**: `RacesPage.test.tsx` (9) + `race-dates.test.ts` (4) + 1 de integración en
+  `backend/src/modules/races/races.test.ts`. Smoke manual contra `npm run dev` completo: los
+  dos borrados (rechazado y exitoso), el alta, y la ida y vuelta de la fecha al editar.
+  **Sin pase responsive, a propósito**: decisión del usuario el 2026-10-17 — las pantallas de
+  `/admin/*` son herramientas de carga, no se van a penar para mobile. No "re-arreglar" esto.
 - **También sin registrar, verificado en el código y sólo listado acá**: el rollout de modo
   oscuro (`3fa7257` cierra el rollout, 2026-10-14), las pantallas de administración
   `/admin/seasons` y `/admin/circuits` bajo `RequireAdmin` (`62019ac`, `d79380f`, 2026-10-13),

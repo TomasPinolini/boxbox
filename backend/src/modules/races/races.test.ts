@@ -224,6 +224,33 @@ describe('DELETE /api/v1/races/:id', () => {
         .status,
     ).toBe(404);
   });
+
+  // La FK de race_results contra races es ON DELETE RESTRICT. Sin la guarda en el service el
+  // DELETE moria adentro de Prisma (P2003), que no es un AppError y salia como 500. Este test
+  // afirma el 409 tipado; si alguien saca la guarda, afirma el 500 que vuelve.
+  it('rechaza con 409 borrar una carrera que ya tiene resultados cargados', async () => {
+    const created = await request(app)
+      .post('/api/v1/races')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send(validRace());
+    const id = created.body.data.id;
+    const drivers = await createDrivers(4);
+
+    await request(app)
+      .post(`/api/v1/races/${id}/results`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ results: buildResults(drivers) })
+      .expect(201);
+
+    const res = await request(app)
+      .delete(`/api/v1/races/${id}`)
+      .set('Authorization', `Bearer ${adminToken}`);
+
+    expect(res.status).toBe(409);
+    expect(res.body.error.code).toBe('RACE_HAS_DEPENDENCIES');
+    // La carrera sigue ahi: el rechazo no borro nada a medias.
+    expect((await request(app).get('/api/v1/races')).body.data).toHaveLength(1);
+  });
 });
 
 // ─── Slice 7: RaceResult ingestion ───────────────────────────────

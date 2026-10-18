@@ -5,6 +5,7 @@ import { LoginPage } from '../features/auth/LoginPage';
 import { RegisterPage } from '../features/auth/RegisterPage';
 import { RaceResultsPage } from '../features/admin/RaceResultsPage';
 import { CircuitsPage } from '../features/admin/CircuitsPage';
+import { RacesPage } from '../features/admin/RacesPage';
 import { ConstructorDetailPage } from '../features/constructors/ConstructorDetailPage';
 import { SeasonsPage } from '../features/admin/SeasonsPage';
 import { RequireAdmin } from '../features/auth/RequireAdmin';
@@ -44,6 +45,7 @@ export const router = createBrowserRouter([
               { path: '/admin/results', element: <RaceResultsPage /> },
               { path: '/admin/seasons', element: <SeasonsPage /> },
               { path: '/admin/circuits', element: <CircuitsPage /> },
+              { path: '/admin/races', element: <RacesPage /> },
             ],
           },
         ],
