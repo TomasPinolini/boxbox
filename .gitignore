@@ -54,3 +54,5 @@ reports/
 research_notes/
 PRODUCT.md
 *.bak*
+docs/research/*.html
+docs/research/*.pdf
