@@ -1,8 +1,8 @@
 # Guion del video demo
 
 Lo único que hay que preparar para BOX-64. Una sola toma, narrada en vivo, sin edición y sin
-cortes: el video de referencia de la materia dura trece minutos y es cien por ciento la app en
-pantalla. Lo que hace que salga en una toma es tener escrito el orden, no ensayar el texto.
+cortes, de unos catorce minutos (el video de referencia de la materia dura trece y es cien
+por ciento la app en pantalla). Lo que hace que salga en una toma es tener escrito el orden, no ensayar el texto.
 
 Se graba **contra el deploy público**, no contra `localhost`:
 
@@ -19,88 +19,89 @@ Se graba **contra el deploy público**, no contra `localhost`:
 
 ## Antes de apretar grabar
 
-1. **Cuidado con el rate limit de registro: 5 por minuto por IP.** Es la trampa más fácil de
-   pisar, porque el guion registra **dos** usuarios por toma. Tres tomas seguidas son seis
-   registros y el sexto se come un `429`. Si vas a repetir, esperá el minuto entre tomas, o
-   reusá los usuarios de la toma anterior en vez de crear nuevos. El de login es más amable: 10
-   intentos **fallidos** por minuto, y los exitosos no consumen presupuesto.
-2. **Dos ventanas, no dos pestañas.** El token de acceso vive en memoria y sin `persist`, pero
-   dos pestañas de la misma ventana comparten el refresh cookie, así que la segunda sesión tiene
-   que ser **incógnito** o otro perfil del navegador. Acomodarlas lado a lado antes de grabar:
-   durante el draft las dos tienen que entrar en pantalla.
-3. **Un mail nuevo por usuario.** Si repetís uno ya usado sale `EMAIL_ALREADY_EXISTS` en cámara.
-4. **La API ya está despierta** — un cronjob la pinga cada 10 minutos y `/health` respondió en
-   **989 ms** la última medición (2026-10-16). No hace falta el ritual de despertarla, pero
-   abrirla una vez antes de grabar sigue costando cero.
-5. **Cerrar lo que no es la app.** Grabás la pantalla entera: pestañas de más, notificaciones y
-   la terminal quedan fuera.
+0. **Producción tiene que tener el CRUD de carreras.** Ya está en `main` (PR #106); abrir
+   `/admin/races` en el dominio público. Si no aparece "Carreras" bajo "Carga", no grabes.
+1. **Rate limit de registro: 20 por minuto por IP.** El guion registra dos usuarios por toma,
+   así que sólo molesta si encadenás muchas tomas seguidas.
+2. **Dos ventanas, no dos pestañas.** El token vive en memoria, pero dos pestañas de la misma
+   ventana comparten el refresh cookie: la segunda sesión va en **incógnito**. Lado a lado antes
+   de grabar — durante el draft las dos tienen que entrar en pantalla.
+3. **Un mail nuevo por usuario.** Repetir uno saca `EMAIL_ALREADY_EXISTS` en cámara.
+4. **Elegir de antemano la fecha del paso 12**: una carrera ya corrida en la realidad pero
+   todavía no cargada en prod. Si no queda ninguna, el paso 12 se hace a mano, sin Jolpica.
+5. **Cerrar lo que no es la app.** Notificaciones y pestañas de más fuera de cuadro. La terminal
+   sí queda abierta, minimizada, con `npm test` listo para el cierre.
 
 ## La toma
 
-Los tiempos son referencia, no cronómetro. Si algo se estira, lo que se recorta es el cierre.
+Cada paso dice entre corchetes qué requisito de la rúbrica cubre. Los tiempos son referencia.
 
-**1. Qué es BoxBox — 1 min.** Arrancar en `/drivers`, sin login, para que se vea que el catálogo
-es público. Las 22 tarjetas con la foto del piloto y el color de su escudería. Clic en una: el
-detalle trae su historial carrera por carrera, 17 fechas. Decir que **los datos son reales**,
-importados de Jolpica.
+**1. Catálogo público — 1 min.** `[Listado + filtro + detalle]` Arrancar en `/drivers` sin
+login. Las 22 tarjetas con foto y color de escudería. **Usar el filtro por escudería** y mostrar
+que el valor queda en la URL. Clic en un piloto: historial carrera por carrera. Decir que los
+datos son reales, importados de Jolpica.
 
-**2. La escudería, desde cualquier lado — 45 s.** La franja de abajo de cada tarjeta es un link
-real: lleva al detalle de la escudería, con sus pilotos y su tabla de resultados. Lo mismo desde
-el campeonato. Mostrarlo una vez y seguir.
+**2. Campeonato — 30 s.** `/standings`: pilotos y constructores, calculados al vuelo desde los
+resultados. Clic en una escudería para mostrar que los nombres son links.
 
-**3. Campeonato — 45 s.** `/standings`. Las dos tablas, pilotos y constructores, calculadas al
-vuelo desde los resultados que hay en la base — sin tabla intermedia ni migración. Los nombres
-son clickeables en las dos.
+**3. Responsive — 20 s.** `[Mobile-first, 3 breakpoints]` Achicar la ventana a ancho de celular
+(o DevTools a 375 → 768 → 1024): la grilla se reacomoda y la barra pasa a drawer.
 
-**4. Registro — 1,5 min.** `/register` con el primer mail nuevo. Cae en `/leagues` y **se abre
-solo el tour de bienvenida, cuatro pasos, una única vez por usuario**. Dejalo correr: es
-exactamente lo que ve alguien que entra por primera vez, y se explica solo.
+**4. Registro — 1 min.** `/register` con el primer mail. Cae en `/leagues` y se abre solo el tour
+de bienvenida, una única vez por usuario. Dejarlo correr.
 
-**5. Crear la liga — 1,5 min.** Nombre y **código de invitación propio** (ahí está la gracia: lo
-elige el usuario, no es un hash). En el detalle: el código para compartir, un solo miembro, y el
-tope de miembros que la temporada permite.
+**5. Crear la liga — 1 min.** Nombre y código de invitación elegido por el usuario. En el
+detalle: código para compartir, un miembro, y el tope de miembros (11, la mitad de la grilla).
 
-**6. El segundo jugador — 1,5 min.** Pasar a la ventana de incógnito, registrar el segundo
-usuario y unirse con el código. Volver a la primera: el miembro nuevo está ahí, con su avatar.
+**6. El segundo jugador — 1 min.** En incógnito: registrar el segundo usuario y unirse con el
+código. Volver a la primera ventana: el miembro nuevo aparece con su avatar.
 
-**7. El draft en vivo — 2,5 min. Este es el minuto que importa.** Las dos ventanas lado a lado.
-Iniciar el draft y narrar lo que se ve: el badge pasa a `LIVE`, aparece el cronómetro de 60 s y
-de quién es el turno. El picker dibuja **las mismas tarjetas que el catálogo**, no una lista
-aparte. Pickear en la ventana A y **mostrar que la B se actualiza sin refrescar** — eso es
-Socket.io, no polling. Completar las tres rondas: dos pilotos y una escudería, en orden
-serpiente. Si el cronómetro llega a cero, dejar que el auto-pick elija y nombrarlo: es una
-feature, no un error.
+**7. Draft en vivo — 2,5 min.** `[Epic 1]` Las dos ventanas lado a lado. Iniciar: badge `LIVE`,
+cronómetro de 60 s, de quién es el turno. Pickear en A y **mostrar que B se actualiza sin
+refrescar** — Socket.io, no polling. Tres rondas en serpiente: dos pilotos y una escudería. Si el
+reloj llega a cero, el auto-pick elige solo: es una feature.
 
-**8. El equipo y la tabla de la liga — 1 min.** El equipo armado, y la tabla de posiciones de la
-liga que ya tiene puntos de las fechas cargadas. Clic en el rival: su equipo en el popup.
+**8. Equipo y tabla de la liga — 45 s.** El equipo armado y la tabla con puntos. Clic en el
+rival: su equipo en el popup.
 
-**9. El perfil — 30 s.** Desde el menú de cuenta, editar nombre, lema y foto. Volver a la liga y
-mostrar que el avatar nuevo aparece en miembros y en la tabla. Es corto y se nota.
+**9. Un usuario común no entra a admin — 15 s.** `[Login con 2 niveles]` En la ventana del
+segundo jugador, tipear `/admin/races` en la barra: rebota a `/leagues`. Una frase: el front
+esconde la pantalla, pero quien autoriza es `requireAdmin` en el backend.
 
-**10. La tabla moviéndose — 2 min. El cierre del circuito.** Login como admin. Los links de
-carga **no están en la barra**: viven en el menú de cuenta, bajo **"Carga"** → *Cargar
-resultados*. En el `<select>`, el grupo *Cargar resultados* trae las fechas todavía no cargadas.
-Completar unas cuantas posiciones a mano, guardar, y volver a la liga: los totales cambiaron y
-las flechas de `positionChange` se movieron. Eso demuestra el ciclo completo — resultado →
-puntos del fantasy → posiciones de la liga.
+**10. CRUD simple — 1 min.** `[CRUD simple ×2]` En la primera ventana, salir y entrar como admin.
+Menú de cuenta → **Carga**. *Temporadas*: crear una temporada demo (año lejano, **sin
+activarla**). *Circuitos*: crear "Circuito demo" y editarle un campo.
 
-**11. Cierre — 30 s.** El repo, el board de Linear y los 12 ADR. Una frase, no un recorrido.
+**11. CRUD dependiente — 1,5 min.** `[CRUD dependiente]` *Carga → Carreras*. Crear una carrera
+eligiendo en los dos `<select>` la temporada demo y el Circuito demo: **ésa es la dependencia**.
+La tabla muestra nombres, no ids. Editar la fecha. Después, en este orden:
+   1. Intentar borrar el **Circuito demo** → rechazado: tiene una carrera.
+   2. Intentar borrar una carrera **Corrida** de 2026 → rechazada: tiene resultados.
+   3. Borrar la carrera demo → se borra. Borrar el Circuito demo → ahora sí.
+
+**12. La tabla moviéndose — 2 min.** `[Epic 2]` *Carga → Cargar resultados*. Elegir la fecha del
+punto 4 de la preparación y apretar **Importar de Jolpica**: llena la grilla como vista previa,
+sin escribir nada. Revisar y guardar. Volver a la liga: los totales cambiaron y las flechas de
+`positionChange` se movieron. Resultado real → puntos del fantasy → posiciones de la liga.
+
+**13. Perfil — 20 s.** Editar foto y lema; el avatar nuevo aparece en la tabla de la liga.
+
+**14. Cierre — 30 s.** `[Tests]` Terminal con `npm test` en verde (backend y frontend), el board
+de Linear y los 12 ADR. Una frase cada uno.
 
 ## Después de grabar
 
-1. **Deshacer la fecha que cargaste** si querés dejar la base como estaba. Es opcional. Si lo
-   hacés, borrá sus `race_results` y `constructor_results`, devolvé la carrera a `UPCOMING` y
-   **volvé a correr el recálculo de standings** — o las posiciones quedan con los puntos de una
-   carrera que ya no existe.
-2. **Linkear el video** en `docs/README.md`: la fila *Video demo* de la tabla "Para la cátedra"
-   hoy dice **pendiente**.
+1. **Borrar la temporada demo** desde *Carga → Temporadas*.
+2. **Deshacer la fecha cargada en el paso 12**, si querés dejar la base como estaba: borrar sus
+   `race_results` y `constructor_results`, devolver la carrera a `UPCOMING` y **volver a correr
+   el recálculo de standings** — si no, las posiciones quedan con puntos de una carrera que ya no
+   existe.
+3. **Linkear el video** en `docs/README.md`: la fila *Video demo* hoy dice **pendiente**.
 
 ## Si el tiempo se pone feo
 
-Grabálo igual con lo que haya. Un video de un recorrido incompleto vale muchísimo más que ningún
-video. El orden de lo que se puede sacar, de menos a más doloroso: el cierre (11), el perfil (9),
-la escudería (2), el campeonato (3). Los pasos 4 a 10 son los cuatro criterios que el ticket pide
-y no se negocian.
+Grabálo igual con lo que haya. Lo que se puede sacar, de menos a más doloroso: el perfil (13),
+el campeonato (2), el cierre (14). Los pasos 1 y 3 a 12 cubren la rúbrica y no se negocian.
 
 ---
 
