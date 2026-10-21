@@ -205,7 +205,7 @@ export async function getAvailablePicks(leagueId: number) {
     prisma.driverSeason.findMany({
       where: { seasonId: league.seasonId },
       // as Prisma.DriverSeasonSelect, no un literal inline: mismo choque de `constructor`
-      // con Object.prototype que en Slice 8 (ver CLAUDE.md, "Gotcha de tipos").
+      // con Object.prototype que en Slice 8.
       select: { driverId: true, constructorId: true } as Prisma.DriverSeasonSelect,
     }),
   ]);

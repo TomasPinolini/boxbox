@@ -62,7 +62,7 @@ export function HelpPopover({
     // El scroll se bloquea SOLO en la forma mobile. En desktop el panel está anclado al
     // gatillo y viaja con él, así que scrollear no lo despega de nada; bloquear ahí dejaba la
     // página muerta con un simple tooltip abierto.
-    // ponytail: se mide una vez al abrir. Si alguien cruza el breakpoint con el cartel abierto
+    // Límite conocido: se mide una vez al abrir. Si alguien cruza el breakpoint con el cartel abierto
     // queda con el valor viejo — un matchMedia con listener lo arregla si alguna vez molesta.
     const esMobile = window.innerWidth < 768;
     const previousOverflow = document.body.style.overflow;

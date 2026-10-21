@@ -22,7 +22,7 @@ export const leaguesService = {
   standings: (id: number) => apiClient.get<LeagueStandings>(`/leagues/${id}/standings`),
   // Los equipos armados de TODOS los miembros. No hay endpoint propio: /teams/me devuelve
   // solo el mio, y los picks del draft ya son los equipos. Mismo middleware de membresia.
-  // ponytail: reusa el estado del draft; si algun dia hace falta mas que los picks, ahi si
+  // Límite conocido: reusa el estado del draft; si algun dia hace falta mas que los picks, ahi si
   // vale un GET /leagues/:id/teams.
   draftState: (id: number) => apiClient.get<DraftState>(`/leagues/${id}/draft/state`),
   leave: (id: number) => apiClient.post<LeagueMember>(`/leagues/${id}/leave`),

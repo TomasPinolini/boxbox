@@ -1,7 +1,5 @@
 # Slice 13a — Frontend bootstrap (React + Vite) — Plan de implementación
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
-
 **Goal:** Un frontend React clickeable: registro, login, mis ligas (crear / unirme), detalle de liga con miembros y "Iniciar draft" para el owner — contra el backend real, sin curl.
 
 **Architecture:** SPA Vite + React 19 + TypeScript en `frontend/`, hablando con `backend/` a través de una clase `ApiClient` (axios + interceptores) y hooks de react-query. El access token vive en memoria en un store de zustand; la sesión persiste por la cookie httpOnly de refresh que el backend ya emite. Guards como layout routes de react-router. Componentes por feature; `components/ui` no conoce el dominio.

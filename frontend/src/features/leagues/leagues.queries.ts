@@ -28,7 +28,7 @@ export function useLeague(id: number) {
     // pantalla de la liga no esta conectada al socket: ese namespace se abre recien al entrar
     // a /draft. Sondear cada 5s es la forma mas barata de cubrirlo, y se apaga sola en cuanto
     // el estado deja de ser PENDING — una liga con el draft terminado no pide nada.
-    // ponytail: polling; si alguna vez molesta, el reemplazo es que el gateway emita el
+    // Límite conocido: es polling; si alguna vez molesta, el reemplazo es que el gateway emita el
     // cambio de estado a una sala por liga y la pantalla escuche ahi.
     refetchInterval: (query) => (query.state.data?.draftStatus === 'PENDING' ? 5000 : false),
     // Sin esto el sondeo se detiene cuando la ventana pierde el foco, y como providers.tsx
