@@ -5,15 +5,11 @@ import type { Request, Response, NextFunction } from 'express';
 import { ForbiddenError } from '../shared/errors';
 
 export function requireAdmin(req: Request, _res: Response, next: NextFunction) {
-  try {
-    const role = req.user!.role;
+  const role = req.user!.role;
 
-    if (role !== 'ADMIN') {
-      throw new ForbiddenError('Admin access required', 'ADMIN_REQUIRED');
-    }
-
-    next();
-  } catch (err) {
-    next(err);
+  if (role !== 'ADMIN') {
+    throw new ForbiddenError('Admin access required', 'ADMIN_REQUIRED');
   }
+
+  next();
 }

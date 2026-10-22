@@ -6,24 +6,20 @@ import { prisma } from '../shared/prisma';
 import { NotFoundError, ForbiddenError } from '../shared/errors';
 
 export async function requireLeagueMember(req: Request, _res: Response, next: NextFunction) {
-  try {
-    const leagueId = Number(req.params.id);
-    const userId = req.user!.userId;
+  const leagueId = Number(req.params.id);
+  const userId = req.user!.userId;
 
-    const member = await prisma.leagueMember.findUnique({
-      where: { leagueId_userId: { leagueId, userId } },
-    });
+  const member = await prisma.leagueMember.findUnique({
+    where: { leagueId_userId: { leagueId, userId } },
+  });
 
-    // LEFT/KICKED conservan su fila por historial, pero responden igual que "nunca fue miembro".
-    if (!member || member.status !== 'ACTIVE') {
-      throw new NotFoundError('League');
-    }
-
-    req.leagueMember = member;
-    next();
-  } catch (err) {
-    next(err);
+  // LEFT/KICKED conservan su fila por historial, pero responden igual que "nunca fue miembro".
+  if (!member || member.status !== 'ACTIVE') {
+    throw new NotFoundError('League');
   }
+
+  req.leagueMember = member;
+  next();
 }
 
 // Va despues de requireLeagueMember y reusa req.leagueMember. Aca 403 no filtra nada:
