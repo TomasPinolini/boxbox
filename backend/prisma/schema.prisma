@@ -69,9 +69,7 @@ model User {
   passwordHash String
   name         String
   avatarUrl    String?
-  // Frase corta, opcional — se ve en el popup "Ver equipo del rival" (RivalTeamModal). Limite
-  // de 40 chars en motto.max de updateProfileSchema (auth.schema.ts), no acá: Prisma String
-  // mapea a TEXT sin tope, igual que League.name.
+  // El tope de 40 chars vive en updateProfileSchema (auth.schema.ts): String mapea a TEXT sin tope.
   motto        String?
   role         Role     @default(USER)
   createdAt    DateTime @default(now())
