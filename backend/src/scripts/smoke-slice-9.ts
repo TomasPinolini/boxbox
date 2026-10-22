@@ -1,24 +1,6 @@
-// SMOKE — Slice 9: LeagueStanding por carrera
-// Pre-requisito: `npm run dev` corriendo en otra terminal (backend en :3000) + `npx prisma db seed`
-// Uso: SMOKE=1 npm run smoke:slice-9
-//
-// Que hace paso a paso, con logs:
-//   1. Health check del backend
-//   2. Login del admin del seed (necesario para cargar resultados y recalcular)
-//   3. Fixtures aislados: Season propia + circuito + 2 escuderias + 4 pilotos
-//   4. Dos usuarios nuevos: uno crea la liga, el otro se une por codigo
-//   5. Draft completo por REST: 3 rondas x 2 miembros = 6 picks, siguiendo los turnos
-//   6. Carrera 1: cargar resultados -> POST /races/:id/recalculate
-//   7. GET /leagues/:id/standings -> verificar la ARITMETICA, no solo que responda 200
-//   8. Carrera 2 con el orden dado vuelta -> verificar que los puntos ACUMULAN
-//   9. Verificar positionChange en las dos direcciones
-//  10. Recalcular dos veces la misma carrera -> idempotente
-//  11. Guardas: 409 en carrera no corrida, 403 sin admin, 404 a un no-miembro
-//
-// Aislamiento: cada corrida usa su propia Season (year derivado del runId) y sus propios
-// pilotos, asi que NO toca los datos del seed 2026 ni la demo. Se puede correr N veces.
-// Fail-fast: si algo no matchea, printea el diff y exit(1).
-// Borra sus fixtures al terminar. Con SMOKE_KEEP=1 los deja, para inspeccionarlos.
+// Smoke del scoring: requiere `npm run dev` corriendo (backend en :3000) y el seed cargado.
+// Cada corrida usa su propia Season y pilotos, asi que no toca los datos del seed 2026.
+// Borra sus fixtures al terminar; con SMOKE_KEEP=1 los deja.
 
 /* eslint-disable @typescript-eslint/no-explicit-any --
  * Este script consume la API como la consume un cliente real, y las respuestas no estan
@@ -177,17 +159,14 @@ async function main() {
     });
     const round = state.body.data.round as number;
 
-    // Se eligen EXPLICITAMENTE los pilotos y escuderias de esta corrida, no el primero de la
-    // lista. Motivo: getAvailablePicks devuelve el catalogo entero ordenado por apellido, asi
-    // que "el primero" son los del seed 2026 (Albon, Alonso...). Con esos, la carga de
-    // resultados rebota con DRIVER_NOT_IN_SEASON — correctamente, porque no corren esta
-    // temporada. Ver BOX-39: el draft deberia filtrar por temporada y no lo hace.
+    // Se eligen los pilotos de esta corrida y no el primero de la lista: si el catalogo trae
+    // pilotos del seed, la carga de resultados rebota con DRIVER_NOT_IN_SEASON.
     const fixtureDriverIds = new Set(drivers.map((d) => d.id));
     const fixtureConstructorIds = new Set(constructors.map((c) => c.id));
 
     let body: Record<string, number>;
     if (round === 3) {
-      // Ronda 3 es constructor (ADR-0006: 3 rondas, sin reserva).
+      // Ronda 3 es constructor (ADR-0006).
       const pick = (available.body.data.constructors as { id: number }[]).find((c) =>
         fixtureConstructorIds.has(c.id),
       );
@@ -212,8 +191,7 @@ async function main() {
 
   const teams = await prisma.fantasyTeam.findMany({
     where: { leagueMember: { leagueId } },
-    // `as Prisma.FantasyTeamSelect` por la colision del nombre `constructor` con
-    // Object.prototype — ver docs/roadmap.md. Tercera vez que aparece en el proyecto.
+    // El cast evita la colision del campo `constructor` con Object.prototype.
     select: {
       leagueMemberId: true,
       driver1Id: true,
@@ -254,9 +232,7 @@ async function main() {
     constructorId: number;
   }[];
 
-  // ── Helpers de carrera ────────────────────────────────────────────────
-  // Puntos por piloto; el resto de la grilla no corre. Los ConstructorResult los deriva
-  // loadResults solo (Slice 8), asi que no hay que mandarlos.
+  // Los ConstructorResult los deriva loadResults, asi que no hay que mandarlos.
   async function runRace(round: number, pointsByDriverId: Map<number, number>) {
     const race = await prisma.race.create({
       data: {
@@ -268,9 +244,7 @@ async function main() {
         circuitId: circuit.id,
       },
     });
-    // Los resultados se cargan para los pilotos que QUEDARON en los equipos, no para los del
-    // fixture: el draft no filtra por temporada (ver el chequeo del paso anterior), asi que
-    // puede haber elegido pilotos del catalogo que no son los que creamos aca.
+    // Se cargan para los pilotos que quedaron en los equipos, que pueden no ser los del fixture.
     const results = draftedDriverIds.map((driverId, i) => ({
       driverId,
       position: i + 1,
@@ -302,11 +276,9 @@ async function main() {
     }[];
   }
 
-  // ── Fecha 1 ───────────────────────────────────────────────────────────
   step('Fecha 1: cargar resultados y recalcular standings');
-  // A saca poco en la fecha 1 y B gana la 2. Asimetrico A PROPOSITO: con el mismo puntaje en
-  // las dos fechas los totales empatan y el positionChange se queda en cero, que es como
-  // quedo la primera version de este script — verde sin haber probado lo que importa.
+  // Asimetrico a proposito: con el mismo puntaje en las dos fechas los totales empatan y el
+  // positionChange nunca se mueve, asi que el chequeo de abajo no podria fallar.
   const race1 = await runRace(1, new Map([[teamA.driver1Id, 10]]));
   const recalc1 = await api('POST', `/races/${race1}/recalculate`, { token: adminToken });
   if (recalc1.status !== 200) fail('recalculate fecha 1 fallo', recalc1.body);
@@ -316,7 +288,6 @@ async function main() {
   const t1 = await standingsOf(owner.token);
   const a1 = t1.find((s) => s.leagueMemberId === teamA.leagueMemberId)!;
   const b1 = t1.find((s) => s.leagueMemberId === teamB.leagueMemberId)!;
-  // A: 25 de su piloto + los del constructor que le toco. B: lo que le quede.
   console.log(dim(`    A: ${a1.driverPoints}+${a1.constructorPoints}=${a1.totalPoints} (pos ${a1.position})`));
   console.log(dim(`    B: ${b1.driverPoints}+${b1.constructorPoints}=${b1.totalPoints} (pos ${b1.position})`));
   expect(a1.driverPoints, 10, 'A driverPoints');
@@ -325,7 +296,6 @@ async function main() {
   expect(b1.position, 2, 'B position');
   expect(a1.positionChange, 0, 'positionChange en la primera fecha');
 
-  // ── Fecha 2 ───────────────────────────────────────────────────────────
   step('Fecha 2 al reves: B saca 25, A saca 0');
   const race2 = await runRace(2, new Map([[teamB.driver1Id, 25]]));
   const recalc2 = await api('POST', `/races/${race2}/recalculate`, { token: adminToken });
@@ -344,9 +314,8 @@ async function main() {
 
   step('positionChange en las dos direcciones');
   console.log(dim(`    A: pos ${a1.position}->${a2.position} (change ${a2.positionChange}) · B: pos ${b1.position}->${b2.position} (change ${b2.positionChange})`));
-  // El fixture esta armado para que B pase a A (20 contra 50), asi que las posiciones TIENEN
-  // que darse vuelta. Si no lo hacen, o el scoring esta mal o alguien toco los puntajes de
-  // arriba y dejo el test sin filo.
+  // El fixture esta armado para que B pase a A: si las posiciones no se dan vuelta, o el
+  // scoring esta mal o alguien toco los puntajes de arriba y dejo el chequeo sin filo.
   if (a2.position === a1.position) {
     fail(
       `Las posiciones no se movieron (A sigue ${a1.position}, B sigue ${b1.position}). ` +
@@ -357,7 +326,6 @@ async function main() {
   expect(b2.positionChange, b1.position - b2.position, 'B positionChange (positivo = subio)');
   expect(b2.position, 1, 'B quedo primero');
 
-  // ── Guardas ───────────────────────────────────────────────────────────
   step('Idempotencia: recalcular dos veces no duplica');
   await api('POST', `/races/${race2}/recalculate`, { token: adminToken });
   const count = await prisma.leagueStanding.count({
@@ -399,10 +367,7 @@ async function main() {
 
   console.log(`\n${green('Slice 9 OK')} ${dim(`— liga ${leagueId}, temporada ${YEAR}`)}`);
 
-  // Limpieza POR DEFECTO. Arranco al reves —opt-in con SMOKE_CLEANUP=1— y en cinco corridas
-  // la DB de desarrollo junto 20 pilotos inventados, que aparecian en /drivers al lado de los
-  // 22 reales. El default tiene que ser el seguro; quien quiera inspeccionar los fixtures que
-  // lo pida a mano.
+  // Limpieza por defecto: si no, los pilotos inventados aparecen en /drivers junto a los reales.
   if (process.env.SMOKE_KEEP !== '1') {
     step('Limpieza de fixtures');
     await prisma.leagueStanding.deleteMany({ where: { leagueMember: { leagueId } } });
