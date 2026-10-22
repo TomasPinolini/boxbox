@@ -46,8 +46,7 @@ describe('DriversPage', () => {
   it('lista los pilotos que devuelve el servicio', async () => {
     renderWithQuery(<DriversPage />, { route: '/drivers' });
 
-    // DriverCard parte nombre y apellido en dos lineas (tarjeta horizontal) — no hay un solo
-    // nodo "Max Verstappen" que buscar.
+    // DriverCard parte nombre y apellido en dos nodos.
     expect(await screen.findByText('Max')).toBeInTheDocument();
     expect(screen.getByText('Verstappen')).toBeInTheDocument();
     expect(screen.getByText('Charles')).toBeInTheDocument();

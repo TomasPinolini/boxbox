@@ -1,6 +1,5 @@
-// TEST — módulo completo contra la DB real: HTTP → routes → controller → service → Prisma.
-// Lo unico stubeado es la red: `fetch` global devuelve fixtures recortados de respuestas reales
-// de Jolpica (sync.fixtures.ts). supertest no usa fetch, asi que el stub no toca nuestra app.
+// Lo unico stubeado es `fetch` global (fixtures de Jolpica). supertest no usa fetch, asi que el
+// stub no toca nuestra app.
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import request from 'supertest';

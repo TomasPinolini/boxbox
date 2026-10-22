@@ -7,39 +7,16 @@ import { EditProfileModal } from '../features/profile/EditProfileModal';
 import { authService } from '../services/auth.service';
 import { useAuthStore } from '../store/auth.store';
 
-// AppLayout: la barra de navegacion persistente + el contenido de la ruta.
-//
-// Vive en app/ y no en components/ui/ porque lee el store de auth, y la convencion del
-// proyecto reserva components/ui/ para primitivas sin logica de dominio.
-//
-// Se monta como layout route envolviendo todo menos /login y /register, que son las unicas
-// pantallas sin navegacion. Asi aparece en las 7 pantallas de la app sin que ninguna tenga
-// que pasarla, y sin tocar PageShell.
-//
-// Antes cada pagina armaba sus propios links en su prop `actions`, con tres consecuencias:
-// la lista era distinta en cada una, desde una pantalla de detalle solo se podia volver, y
-// "Salir" existia unicamente en Mis ligas.
-//
-// Dos barras, no una que se reacomoda: apretar varios links + usuario + Salir en una fila con
-// flex-wrap (como era antes) dejaba la navegacion en 2-3 lineas en un telefono. Abajo de md es
-// la barra angosta (hamburguesa + logo) con un drawer; de md para arriba es la fila horizontal
-// de siempre, sin tocar.
-//
-// Resultados/Temporadas/Circuitos (ADMIN) ya no estan en esa fila ni en esa lista: son una
-// capacidad del rol, no navegacion de catalogo como Pilotos/Campeonato, asi que viven
-// agrupadas bajo "Carga" — en escritorio adentro de UserMenu, en movil en su propia seccion
-// del drawer. Pedido del usuario 2026-10-15; ver ADMIN_LINKS/AdminLinksGroup mas abajo.
+// Vive en app/ y no en components/ui/ porque lee el store de auth.
+// Dos barras y no una que se reacomoda: con flex-wrap la navegacion ocupaba 2-3 lineas en un
+// telefono. Abajo de md, hamburguesa + drawer; de md para arriba, la fila horizontal.
 
-// NavLink pone aria-current="page" solo en el link activo. El color marca donde estas: el
-// acento rojo es la posicion actual, no un link cualquiera.
 const linkClass = ({ isActive }: { isActive: boolean }) =>
   isActive
     ? 'font-semibold text-red-600 underline underline-offset-4'
     : 'font-semibold text-slate-600 hover:text-slate-900 dark:text-ink-muted dark:hover:text-ink-text hover:underline';
 
-// Mismo activo-en-rojo que linkClass, pero como fila de lista vertical: el acento es un borde
-// izquierdo + fondo tenue, no un subrayado — un subrayado en una fila de ancho completo no se
-// lee igual que en un link suelto.
+// En una fila de ancho completo un subrayado no se lee como activo: borde izquierdo + fondo.
 const drawerLinkClass = ({ isActive }: { isActive: boolean }) =>
   `block rounded-r-md py-3 pl-4 pr-3 font-semibold ${
     isActive
@@ -47,8 +24,6 @@ const drawerLinkClass = ({ isActive }: { isActive: boolean }) =>
       : 'border-l-4 border-transparent text-slate-600 hover:bg-slate-50 dark:text-ink-muted dark:hover:bg-ink-surface'
   }`;
 
-// Igual que linkClass pero como item de un menu angosto (el de cuenta, UserMenu mas abajo):
-// fondo en hover en vez de subrayado, mismo tratamiento que "Cerrar sesion" en ese mismo menu.
 const menuLinkClass = ({ isActive }: { isActive: boolean }) =>
   `block px-4 py-2 text-sm font-semibold ${
     isActive
@@ -56,12 +31,8 @@ const menuLinkClass = ({ isActive }: { isActive: boolean }) =>
       : 'text-slate-700 hover:bg-slate-50 dark:text-ink-text dark:hover:bg-ink-border'
   }`;
 
-// Las pantallas de carga de datos, pedido del usuario 2026-10-15: antes vivian sueltas en la
-// barra de navegacion (Cargar resultados, Temporadas, Circuitos) compitiendo con Pilotos/
-// Campeonato/Mis ligas como si fueran contenido mas. Son una capacidad del rol ADMIN, no
-// navegacion de catalogo, asi que se agrupan aparte — en escritorio adentro del menu de
-// cuenta (UserMenu), en movil en su propia seccion con el mismo label "Carga" arriba de
-// todas, sin moverlas del drawer (pedido explicito: ahi se quedan, solo agrupadas).
+// Son una capacidad del rol ADMIN, no navegacion de catalogo: van agrupadas bajo "Carga",
+// adentro del menu de cuenta en escritorio y en su propia seccion del drawer en movil.
 const ADMIN_LINKS = [
   { to: '/admin/results', label: 'Resultados' },
   { to: '/admin/seasons', label: 'Temporadas' },
@@ -69,9 +40,6 @@ const ADMIN_LINKS = [
   { to: '/admin/races', label: 'Carreras' },
 ];
 
-// uppercase + tracking-wide: patron de encabezado de grupo no clickeable (no es un link, no
-// se confunde con uno), mismo criterio que separar visualmente sin agregar jerarquia de
-// navegacion real.
 function AdminLinksGroup({
   className,
   labelClassName,
@@ -81,8 +49,7 @@ function AdminLinksGroup({
   className: (props: { isActive: boolean }) => string;
   labelClassName: string;
   onNavigate: () => void;
-  // true adentro de UserMenu (role="menu"): cada link necesita role="menuitem" para el
-  // patron ARIA de menu. false en el drawer, que es un <nav> con links comunes.
+  // Adentro de UserMenu (role="menu") cada link necesita role="menuitem"; el drawer es un <nav>.
   asMenuItems?: boolean;
 }) {
   return (
@@ -103,11 +70,8 @@ function AdminLinksGroup({
   );
 }
 
-// El logo tiene el trazo en negro de marca (#111113, ver public/logo.svg) fijo en el
-// archivo — invisible sobre el fondo oscuro. logo-dark.svg es el mismo trazo pero en
-// --color-ink-text, mismo rojo de marca sin tocar. Dos <img> y CSS puro (dark:hidden /
-// hidden dark:block) para elegir cual se ve: no hace falta JS porque el modo oscuro sigue
-// el sistema operativo, no un estado de React.
+// logo.svg tiene el trazo negro fijo en el archivo, invisible sobre fondo oscuro. Alcanza con
+// CSS para elegir cual se ve: el modo oscuro sigue al sistema operativo, no a un estado de React.
 function Logo({ className }: { className: string }) {
   return (
     <>
@@ -117,30 +81,16 @@ function Logo({ className }: { className: string }) {
   );
 }
 
-// Rotulo de etapa del producto. NO usa el Badge de components/ui: ese es `uppercase` a proposito
-// (son estados de dominio dentro de un Card, "DRAFT PENDIENTE") y la guia de Atlassian pide
-// sentence case para los rotulos de etapa — "Beta", nunca "BETA". Son seis clases copiadas, no
-// vale una prop nueva en Badge para un solo llamador.
-//
-// Vive aca y en ningun otro lugar: el dia que BoxBox salga de beta, se borra este componente y
-// sus dos usos, y no hay que ir a buscar donde mas quedo.
-//
-// Va como HERMANO del <Link> del logo, nunca adentro: el popover que explica que significa beta
-// es un <button>, y un boton dentro de un <a> es HTML invalido.
-//
-// "beta" habla del producto (faltan features, los puntos pueden recalcularse), no del contrato
-// HTTP, que sigue siendo v1.0.0 y estable. Los dos ejes son distintos a proposito: ver la entrada
-// `beta` en docs/glossary.md y ADR-0011.
+// No usa Badge: ese es uppercase y un rotulo de etapa va en sentence case ("Beta", no "BETA").
+// Va como hermano del <Link> del logo, nunca adentro: el popover es un <button>, y un boton
+// dentro de un <a> es HTML invalido. "Beta" es del producto, no del contrato HTTP (ADR-0011).
 function BetaMark() {
   return (
     <>
       <span className="inline-block rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold tracking-wide text-blue-800 dark:bg-blue-950 dark:text-blue-200">
         Beta
       </span>
-      {/* El rotulo solo dice QUE es beta; Cloudscape pide ademas que venga explicado. La
-          explicacion usa el "?" que ya es la convencion de ayuda de la app (HelpPopover), y la
-          lista de lo que falta sale de CHANGELOG.md — no esta escrita aca, para que no se
-          desincronice el dia que arreglemos una de las tres. */}
+      {/* La lista de lo que falta sale de CHANGELOG.md, no de aca, para que no se desincronice. */}
       <HelpPopover title="¿Qué significa que esté en beta?">
         <p className="mb-3">
           BoxBox anda, pero todavía le faltan cosas. Si encontramos un error en el cálculo de
@@ -163,15 +113,8 @@ function BetaMark() {
   );
 }
 
-// Menu de cuenta de escritorio: el avatar (foto o iniciales, UserAvatar de mas arriba) abre un
-// menu chico con el nombre y "Cerrar sesion" — reemplaza el nombre suelto + boton "Salir" que
-// estaban como hermanos en la barra. Pedido del usuario 2026-10-15: patron estandar (Gmail,
-// GitHub, Slack), asi que no hace falta inventar nada.
-//
-// Cierra con click afuera (el listener en document, no en el boton: un click ADENTRO del menu
-// nunca debe cerrarlo antes de que el item corra su propio onClick) y con Escape, mismo
-// criterio que el drawer mobile y RivalTeamModal. Sin bloqueo de scroll del body: a diferencia
-// de esos dos, este menu no tapa la pantalla, no hace falta.
+// El listener de click afuera va en document y chequea el contenedor: un click ADENTRO del menu
+// no debe cerrarlo antes de que el item corra su onClick. No bloquea el scroll: no tapa la pantalla.
 function UserMenu({
   user,
   onLogout,
@@ -223,8 +166,7 @@ function UserMenu({
       {open && (
         <div
           role="menu"
-          // "Opciones de la cuenta" y no "Cuenta": el gatillo se llama "Cuenta de <nombre>" y
-          // el menu colgaba adentro con un nombre que era subcadena del suyo.
+          // No "Cuenta": seria subcadena del nombre del gatillo ("Cuenta de <nombre>").
           aria-label="Opciones de la cuenta"
           className="absolute right-0 top-full z-20 mt-2 w-48 rounded-md bg-white py-1 shadow-lg ring-1 ring-slate-200 dark:bg-ink-surface dark:ring-ink-border"
         >
@@ -232,7 +174,6 @@ function UserMenu({
             <p className="truncate text-sm font-semibold text-slate-900 dark:text-ink-text">
               {user.name}
             </p>
-            {/* Mismo lápiz que RenameLeague.tsx — trazo simple, dos paths, nada de relleno. */}
             <button
               type="button"
               aria-label="Editar perfil"
@@ -300,14 +241,11 @@ export function AppLayout() {
 
   function closeDrawer() {
     setDrawerOpen(false);
-    // El foco vuelve al botón que abrió el drawer — si no, al cerrar (Escape, overlay, un
-    // link) el foco queda en un elemento que ya no está en pantalla y el teclado se pierde.
+    // Si el foco no vuelve a la hamburguesa, queda en un elemento que ya no esta en pantalla.
     hamburgerRef.current?.focus();
   }
 
-  // Al abrir: foco adentro del drawer (el cierre, primer elemento interactivo) y scroll del
-  // body bloqueado — si no, atrás del overlay se puede seguir scrolleando la pagina con el
-  // drawer flotando encima, que se siente roto. Escape cierra, como cualquier panel flotante.
+  // Bloquea el scroll del body: si no, la pagina scrollea atras del overlay con el drawer encima.
   useEffect(() => {
     if (!drawerOpen) return;
     closeButtonRef.current?.focus();
@@ -323,10 +261,6 @@ export function AppLayout() {
     };
   }, [drawerOpen]);
 
-  // Misma lista de links en dos lugares (fila horizontal de escritorio, lista vertical del
-  // drawer) con dos tratamientos visuales distintos — un subrayado se lee bien en una fila
-  // suelta, no en una fila de ancho completo. `className` es la funcion de aria-current que
-  // decide el color; el resto de la estructura es identica.
   function renderNavLinks(className: (props: { isActive: boolean }) => string) {
     return (
       <>
@@ -347,10 +281,7 @@ export function AppLayout() {
 
   return (
     <>
-      {/* Skip link. Lo pide la barra de navegacion de abajo: con varios links persistentes,
-          alguien que navega con teclado tiene que pasar por todos en CADA pantalla antes de
-          llegar al contenido. Esta oculto hasta que recibe foco (sr-only + focus:not-sr-only),
-          que es el patron estandar: solo aparece para quien lo necesita, en el primer Tab. */}
+      {/* Skip link: sin el, quien navega con teclado recorre toda la barra en cada pantalla. */}
       <a
         href="#contenido"
         className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-white focus:px-4 focus:py-2 focus:font-semibold focus:text-red-600 focus:shadow-md focus:ring-1 focus:ring-slate-300 dark:focus:bg-ink-surface dark:focus:ring-ink-border"
@@ -359,9 +290,7 @@ export function AppLayout() {
       </a>
 
       <nav aria-label="Principal" className="border-b border-slate-200 bg-white dark:border-ink-border dark:bg-ink">
-        {/* Barra angosta: hamburguesa a la izquierda (abre un drawer que entra por la
-            izquierda — el boton queda del lado por el que aparece el panel) y logo a la
-            derecha, para no competir por el mismo lado. Visible solo abajo de md. */}
+        {/* La hamburguesa va a la izquierda porque el drawer entra por ese lado. */}
         <div className="mx-auto flex w-full max-w-5xl items-center justify-between px-4 py-3 md:hidden">
           <button
             ref={hamburgerRef}
@@ -384,9 +313,7 @@ export function AppLayout() {
           </div>
         </div>
 
-        {/* Mismo contenedor que PageShell (max-w-5xl px-4 md:px-6) para que la barra quede
-            alineada con el contenido de la pagina. Fila horizontal de siempre, de md en
-            adelante. */}
+        {/* Mismo contenedor que PageShell, para alinear la barra con el contenido. */}
         <div className="mx-auto hidden w-full max-w-5xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 text-sm md:flex md:px-6">
           <div className="mr-auto flex items-center gap-2">
             <Link to="/leagues">
@@ -407,15 +334,11 @@ export function AppLayout() {
           )}
         </div>
       </nav>
-      {/* aria-hidden: es decoracion pura, no tiene por que aparecer en el arbol de
-          accesibilidad de nadie. */}
       <div aria-hidden="true" className="checkered h-2" />
 
       {drawerOpen && (
         <>
-          {/* El overlay cierra con un click: es el area "afuera" del panel, el gesto estandar
-              para descartarlo. type="button" + aria-hidden porque es puramente un gesto de
-              cierre, no algo que un lector de pantalla necesite anunciar como boton. */}
+          {/* aria-hidden: es solo el gesto de cerrar, no un boton que anunciar. */}
           <button
             type="button"
             aria-hidden="true"
@@ -439,10 +362,6 @@ export function AppLayout() {
                       {user.name}
                     </span>
                   </div>
-                  {/* Mismo lápiz que UserMenu (escritorio) — ahí es el único lugar de donde se
-                      podía editar la foto/el lema; en el drawer esta fila mostraba nombre y
-                      foto pero no tenía ningún botón para cambiarlos. Bug reportado por el
-                      usuario 2026-10-16. */}
                   <button
                     type="button"
                     aria-label="Editar perfil"
@@ -482,13 +401,8 @@ export function AppLayout() {
               </button>
             </div>
 
-            {/* No "Principal": ya hay un nav con esa etiqueta en la pagina (el de arriba, la
-                barra), y dos landmarks con el mismo nombre a la vez confunden la navegacion
-                por regiones de un lector de pantalla. */}
-            {/* "Secciones" y no "Menú": el <dialog> de afuera ya se llama asi, y dos regiones
-                anidadas con el MISMO nombre se anuncian "Menú, dialogo" / "Menú, navegacion"
-                una atras de la otra. Ademas hay otro <nav> en la pagina (el de escritorio,
-                "Principal"), asi que el nombre tiene que distinguirlos. */}
+            {/* Ni "Principal" (ya lo usa el nav de arriba) ni "Menú" (el dialog): dos landmarks
+                con el mismo nombre confunden la navegacion por regiones de un lector de pantalla. */}
             <nav aria-label="Secciones" className="flex flex-1 flex-col gap-0.5 overflow-y-auto py-2">
               {renderNavLinks(drawerLinkClass)}
               {user?.role === 'ADMIN' && (

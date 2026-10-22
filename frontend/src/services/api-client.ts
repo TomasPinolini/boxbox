@@ -12,12 +12,9 @@ interface AuthPayload {
   accessToken: string;
 }
 
-// ApiClient: la unica puerta hacia el backend (patron fachada). Una clase, una instancia.
-//   - request: Authorization: Bearer <token del store>; withCredentials para la cookie.
-//   - response 401 fuera de /auth/*: UN refresh (deduplicado si hay varios 401 a la vez),
-//     reintenta el request original; si el refresh falla, cierra la sesion.
-//   - cualquier error sale como ApiError. Los componentes nunca ven un AxiosError.
-export class ApiClient {
+// Un 401 fuera de /auth/* dispara un refresh y reintenta; si el refresh falla, cierra la sesion.
+// Todo error sale como ApiError: los componentes nunca ven un AxiosError.
+class ApiClient {
   private readonly http: AxiosInstance;
   private refreshing: Promise<string> | null = null;
 
@@ -56,8 +53,7 @@ export class ApiClient {
     );
   }
 
-  // refreshOnce: si ya hay un refresh en vuelo, todos esperan el mismo (evita N refresh
-  // cuando N requests fallan juntos con 401). El backend devuelve { user, accessToken }.
+  // Si ya hay un refresh en vuelo, todos esperan el mismo: N requests con 401 no disparan N refresh.
   refreshOnce(): Promise<string> {
     if (!this.refreshing) {
       this.refreshing = this.post<AuthPayload>('/auth/refresh')

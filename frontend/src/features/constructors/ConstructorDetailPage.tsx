@@ -28,8 +28,7 @@ export function ConstructorDetailPage() {
   }
 
   const c = constructor.data;
-  // Sin temporada resuelta no hay pilotos ni resultados que mostrar. Se dice con una frase, no
-  // con tablas vacias: una tabla en cero parece un dato y es la ausencia de uno.
+  // Sin temporada se dice con una frase, no con tablas vacias: una tabla en cero parece un dato.
   const sinTemporada = c.seasonId === null;
 
   return (
@@ -39,10 +38,7 @@ export function ConstructorDetailPage() {
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <ConstructorLogo constructor={c} />
-              {/* La franja de color es dato, no adorno: identifica la escuderia igual que en
-                  la tarjeta de piloto. El nombre NO se repite aca: ya es el titulo de la
-                  pagina, y dos encabezados con el mismo texto son ruido para quien navega por
-                  encabezados. */}
+              {/* El nombre no se repite: ya es el <h1>, y dos encabezados iguales son ruido. */}
               <span
                 aria-hidden
                 className="inline-block h-8 w-1.5 rounded-full"
@@ -87,9 +83,8 @@ export function ConstructorDetailPage() {
                         to={`/drivers/${driver.id}`}
                         className="flex items-center gap-2 font-medium hover:underline"
                       >
-                        {/* Se pasa `driver` pelado: DriverAvatar solo usa nombre, apellido y foto, y
-                            una prop llamada `constructor` colisiona con Object.prototype y hace
-                            que tsc espere un Function. Lo caza `npm run build`, no `tsc --noEmit`. */}
+                        {/* `driver` pelado: una prop `constructor` colisiona con Object.prototype
+                            y tsc espera un Function. Lo caza `npm run build`, no `tsc --noEmit`. */}
                         <DriverAvatar driver={driver} size={32} />
                         <span>
                           <span className="font-display tabular-nums text-slate-500 dark:text-ink-muted">
@@ -115,9 +110,6 @@ export function ConstructorDetailPage() {
                       <tr className="border-b border-slate-200 text-slate-500 dark:border-ink-border dark:text-ink-muted">
                         <th className={TH}>#</th>
                         <th className={TH}>Carrera</th>
-                        {/* Una columna por piloto, con su apellido. Antes decia "Piloto 1" y
-                            "Piloto 2" porque era lo unico que ConstructorResult sabia: ahi los
-                            numeros son "el mayor" y "el segundo", no dos personas (BOX-65). */}
                         {c.drivers.map((driver) => (
                           <th key={driver.id} className="py-2 text-right font-medium">
                             {driver.lastName}
@@ -136,9 +128,7 @@ export function ConstructorDetailPage() {
                               key={driver.id}
                               className="py-2 text-right font-display tabular-nums"
                             >
-                              {/* Sin el desglose el backend es viejo: "—" dice que no se
-                                  sabe. Con desglose, un piloto sin puntos en esa carrera es
-                                  un 0 de verdad. */}
+                              {/* Sin desglose (backend viejo) "—" = no se sabe; con desglose, 0 es 0. */}
                               {r.pointsByDriverId ? (r.pointsByDriverId[driver.id] ?? 0) : '—'}
                             </td>
                           ))}

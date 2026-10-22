@@ -1,17 +1,8 @@
-// Trae los resultados REALES de una temporada desde Jolpica y los deja congelados en un
-// archivo que el seed carga. Se corre a mano, cuando hace falta refrescar los datos:
-//
+// Congela los resultados reales de una temporada en un JSON que carga el seed:
 //   npx ts-node src/scripts/fetch-jolpica-results.ts 2026
 //
-// Por que un archivo y no sincronizar contra la base: la suite del backend trunca todo y el
-// posttest repone el seed, asi que cualquier resultado cargado a mano desaparece en la
-// siguiente corrida de `npm test`. Lo unico que sobrevive es lo que el seed sabe crear.
-//
-// Por que no lo hace el seed directo: un seed que pega a la red no es reproducible ni corre
-// sin internet, y corre en el posttest de CADA `npm test`. Mismo criterio que
-// modules/sync/sync.fixtures.ts, que guarda respuestas reales grabadas para los tests.
-//
-// La fuente de verdad sigue siendo Jolpica. Este archivo es una foto fechada de Jolpica.
+// Un archivo y no la base: la suite trunca todo y el posttest repone solo lo que el seed sabe
+// crear. Y el seed no pega a la red porque corre en cada `npm test` y tiene que andar offline.
 
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -19,8 +10,7 @@ import { fetchRaceResults, fetchRaces } from '../shared/jolpica';
 import { mapStatus } from '../modules/sync/sync.service';
 
 interface StoredResult {
-  // El driverId de Jolpica. Es el mismo valor que Driver.externalId en nuestra base — el seed
-  // ya usa la convencion de Jolpica, incluido `max_verstappen`.
+  // El driverId de Jolpica, que coincide con Driver.externalId (incluido `max_verstappen`).
   driverExternalId: string;
   position: number | null;
   points: number;
@@ -62,9 +52,7 @@ async function main() {
         const status = mapStatus(r.positionText);
         return {
           driverExternalId: r.Driver.driverId,
-          // Jolpica numera tambien a los que no clasificaron: para nosotros `position`
-          // significa "puesto final", asi que solo la llevan los CLASSIFIED. Mismo criterio
-          // que mapResult del sync.
+          // Jolpica numera tambien a los no clasificados; `position` es puesto final, solo CLASSIFIED.
           position: status === 'CLASSIFIED' ? r.position : null,
           points: r.points,
           status,

@@ -1,12 +1,7 @@
-// SCHEMAS Zod para Draft — fuente unica de verdad sobre que shape acepta cada endpoint.
-// start/state/available/reset no llevan body. Solo pick necesita schema.
-
 import { z } from 'zod';
 
-// POST /leagues/:id/draft/pick body. Exactamente uno de los dos campos — cual corresponde
-// depende de la ronda actual (rondas 1-3 = driver, ronda 4 = constructor). Mandar ambos o
-// ninguno es 400 VALIDATION_ERROR; mandar el que no corresponde a la ronda es 409
-// WRONG_PICK_CATEGORY (eso lo valida el service, no Zod, porque depende del estado del draft).
+// Que campo corresponde a la ronda lo valida el service (409 WRONG_PICK_CATEGORY): depende
+// del estado del draft, no del body.
 export const draftPickSchema = z
   .object({
     driverId: z.number().int().positive().optional(),

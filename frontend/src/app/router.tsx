@@ -27,8 +27,6 @@ export const router = createBrowserRouter([
       { path: '/register', element: <RegisterPage /> },
     ],
   },
-  // AppLayout envuelve TODO menos /login y /register: son las unicas pantallas sin barra de
-  // navegacion. Asi las 7 pantallas de la app la tienen sin pasarla una por una.
   {
     element: <AppLayout />,
     children: [
@@ -38,7 +36,6 @@ export const router = createBrowserRouter([
           { path: '/leagues', element: <LeaguesPage /> },
           { path: '/leagues/:id', element: <LeagueDetailPage /> },
           { path: '/leagues/:id/draft', element: <DraftPage /> },
-          // Segundo nivel, anidado: primero "hay sesion" (RequireAuth), despues "es ADMIN".
           {
             element: <RequireAdmin />,
             children: [
@@ -50,12 +47,9 @@ export const router = createBrowserRouter([
           },
         ],
       },
-      // Publicas, a proposito: los GET del catalogo no piden auth en el backend, asi que la
-      // pantalla lo espeja. Van dentro de AppLayout igual, para que la barra aparezca
-      // tambien sin sesion.
+      // Publicas a proposito: el backend no pide auth en los GET del catalogo.
       { path: '/drivers', element: <DriversPage /> },
       { path: '/drivers/:id', element: <DriverDetailPage /> },
-      // Publica como el detalle de piloto: los GET del catalogo no piden auth en el backend.
       { path: '/constructors/:id', element: <ConstructorDetailPage /> },
       { path: '/standings', element: <ChampionshipPage /> },
       { path: '/novedades', element: <NovedadesPage /> },

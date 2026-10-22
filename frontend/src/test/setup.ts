@@ -1,13 +1,8 @@
 import '@testing-library/jest-dom/vitest';
 
-// Node 26 define `localStorage`/`sessionStorage` como getters lazy que devuelven undefined
-// salvo que el proceso arranque con --localstorage-file. Vitest copia las props de la window
-// de jsdom sobre globalThis pero no reemplaza las que Node ya definio, y como aca
-// `window === globalThis`, el storage real de jsdom queda inaccesible: `localStorage` es
-// undefined dentro de los tests aunque el environment sea jsdom (rompe auth.store.test.ts).
-//
-// Detectamos el caso por el descriptor —un accessor es el global de Node, un value property
-// es el de jsdom— para no invocar el getter, que emite un ExperimentalWarning en stderr.
+// Node 26 define `localStorage`/`sessionStorage` como getters lazy que devuelven undefined, y
+// Vitest no los reemplaza por los de jsdom: dentro de los tests `localStorage` es undefined.
+// Se detecta por el descriptor para no invocar el getter, que emite un ExperimentalWarning.
 function isNodeLazyGlobal(name: string): boolean {
   const descriptor = Object.getOwnPropertyDescriptor(globalThis, name);
   return descriptor !== undefined && typeof descriptor.get === 'function';

@@ -1,6 +1,4 @@
-// ROUTES — solo la parte scopeada a una liga.
-// El otro endpoint del modulo, POST /races/:id/recalculate, se monta desde races.routes.ts
-// porque es race-scoped y admin-only. La logica de los dos vive en standings.service.ts.
+// POST /races/:id/recalculate se monta desde races.routes.ts: es race-scoped y admin-only.
 
 import { Router } from 'express';
 import * as standingsController from './standings.controller';

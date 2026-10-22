@@ -1,18 +1,10 @@
 #!/bin/sh
 # Avisa cuando un pull trajo cambios que dejan tu base de datos vieja.
 #
-# El caso que lo motivó (2026-10-15): el PR #80 agregó los logos de 3 escuderías y cambió
-# `teamLogos` en seed.ts. Al traerlo, el código quedó al día y la DB no. La única señal fue
-# un cuadradito de color en /standings, un síntoma que no apunta a su causa. CLAUDE.md
-# documenta `db seed` con cuatro disparadores distintos; "el pull tocó el seed" no era uno.
-#
-# AVISA, no corre nada. Re-seedear es rápido pero escribe en tu base, y un hook que te
-# cambia datos sin pedirte permiso es peor que el problema que resuelve.
-#
-# Siempre sale con 0: un hook roto no tiene por qué ensuciarte un pull que salió bien.
+# Solo avisa, no corre nada: re-seedear escribe en tu base, y un hook no debería cambiar
+# datos sin pedir permiso. Siempre sale con 0 para no ensuciar un pull que salió bien.
 
-# ORIG_HEAD es donde estabas antes del pull. Lo setean tanto merge como rebase, así que el
-# mismo diff sirve para los dos caminos (ver .githooks/post-rewrite).
+# ORIG_HEAD lo setean tanto merge como rebase, así que el mismo diff sirve para los dos.
 prev=$(git rev-parse --quiet --verify ORIG_HEAD) || exit 0
 [ -n "$prev" ] || exit 0
 

@@ -53,13 +53,11 @@ describe('ConstructorDetailPage', () => {
     renderWithQuery(<ConstructorDetailPage />);
 
     expect(await screen.findByRole('heading', { name: 'Williams' })).toBeInTheDocument();
-    // Por rol y no por texto: desde que la tabla tiene una columna por piloto, el apellido
-    // aparece dos veces — en la lista de arriba y en el encabezado de su columna.
+    // Por rol y no por texto: el apellido aparece en la lista y en el encabezado de columna.
     expect(screen.getByRole('link', { name: /Albon/ })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Sainz/ })).toBeInTheDocument();
     expect(screen.getByText('GP de Italia')).toBeInTheDocument();
     expect(screen.getByText('GP de Brasil')).toBeInTheDocument();
-    // Los puntos totales de la temporada, que es el dato que se viene a buscar.
     expect(screen.getByText('34')).toBeInTheDocument();
   });
 
@@ -94,7 +92,6 @@ describe('ConstructorDetailPage', () => {
     renderWithQuery(<ConstructorDetailPage />);
     await screen.findByText('Resultados');
 
-    // Los encabezados dicen quién es quién, en vez de "Piloto 1" y "Piloto 2".
     const encabezados = screen.getAllByRole('columnheader').map((th) => th.textContent);
     expect(encabezados).toEqual(['#', 'Carrera', 'Albon', 'Sainz', 'Total']);
 

@@ -1,20 +1,5 @@
-// SMOKE — Slice 4: FantasyTeam shell
-// Pre-requisito: `npm run dev` corriendo en otra terminal (backend en :3000)
-// Uso: npm run smoke:slice-4
-//
-// Que hace paso a paso, con logs:
-//   1. Health check del backend
-//   2. Fixture: Season (year=2029) find-or-create
-//   3. Register owner + POST /leagues → verificar FantasyTeam auto-creado (todos los slots null)
-//   4. Register segundo user + POST /leagues/join → verificar FantasyTeam tambien se crea al joinear
-//   5. GET /leagues/:id/teams/me (owner) → 200 con slots null
-//   6. GET /leagues/:id/teams/me (member) → 200 con slots null
-//   7. Leave + rejoin del member → verificar que sigue habiendo un solo FantasyTeam (no duplica)
-//   8. GET /leagues/:id/teams/me con un user no-member → 404 LEAGUE_NOT_FOUND
-//   9. GET /leagues/:id/teams/me sin token → 401 TOKEN_MISSING
-//
-// El script fail-fast: si algo no matchea lo esperado, printea el diff y exit(1).
-// No hace cleanup — deja fixtures en dev DB. Reset con `npm run db:migrate reset` si molesta.
+// Smoke del FantasyTeam: requiere `npm run dev` corriendo (backend en :3000).
+// No hace cleanup: deja sus fixtures en la DB de desarrollo.
 
 import { prisma } from '../shared/prisma';
 
@@ -82,21 +67,19 @@ function expectEmptySlots(team: Record<string, unknown>, label: string) {
 async function main() {
   console.log(cyan(`▶ Slice 4 smoke starting... (runId=${runId})`));
 
-  // ── 1. Backend health ──────────────────────────────────────
   step('Backend health check');
   const health = await api('GET', '/health');
   if (health.status !== 200)
     fail(`Backend not responding on ${API}. ¿Corriste 'npm run dev'?`, health);
   ok('Backend up on :3000');
 
-  // ── 2. Fixture: Season find-or-create ────────────────────────
   step('Fixture: find-or-create Season 2029');
   let season = await prisma.season.findFirst({ where: { year: 2029 } });
   if (!season) {
     const s = await api<{ data: { id: number } }>('POST', '/seasons', {
       body: { year: 2029 },
     });
-    // Sin owner admin todavia en este script — si /seasons exige admin, fallback a Prisma directo.
+    // /seasons exige admin y el script no tiene uno: si falla, se crea por Prisma.
     if (s.status === 201) {
       season = { id: (s.body as { data: { id: number } }).data.id } as never;
     } else {
@@ -105,7 +88,6 @@ async function main() {
   }
   ok(`Season id=${season!.id} (year=2029)`);
 
-  // ── 3. Owner crea la liga → FantasyTeam auto-creado ──────────
   step('Owner: register + POST /leagues (esperar 201)');
   const owner = await registerUser('owner');
   const inviteCode = `s4-${runId}`.slice(0, 20);
@@ -117,7 +99,6 @@ async function main() {
   const leagueId = (league.body as { data: { id: number } }).data.id;
   ok(`League id=${leagueId} creada (owner=${owner.userId})`);
 
-  // ── 4. Member joinea → FantasyTeam tambien se crea ───────────
   step('Member: register + POST /leagues/join (esperar 201)');
   const member = await registerUser('member');
   const join = await api('POST', '/leagues/join', {
@@ -127,7 +108,6 @@ async function main() {
   if (join.status !== 201) fail('Join failed', join.body);
   ok(`Member ${member.userId} joineo la liga`);
 
-  // ── 5. GET /teams/me (owner) ─────────────────────────────────
   step('GET /leagues/:id/teams/me (owner) → 200 con slots null');
   const ownerTeam = await api<{ data: Record<string, unknown> }>(
     'GET',
@@ -137,7 +117,6 @@ async function main() {
   if (ownerTeam.status !== 200) fail(`Esperado 200, obtuve ${ownerTeam.status}`, ownerTeam.body);
   expectEmptySlots((ownerTeam.body as { data: Record<string, unknown> }).data, 'Owner team');
 
-  // ── 6. GET /teams/me (member) ────────────────────────────────
   step('GET /leagues/:id/teams/me (member) → 200 con slots null');
   const memberTeam = await api<{ data: Record<string, unknown> }>(
     'GET',
@@ -148,7 +127,6 @@ async function main() {
     fail(`Esperado 200, obtuve ${memberTeam.status}`, memberTeam.body);
   expectEmptySlots((memberTeam.body as { data: Record<string, unknown> }).data, 'Member team');
 
-  // ── 7. Leave + rejoin → sigue habiendo un solo FantasyTeam ──
   step('Member: leave + rejoin → no debe duplicar el FantasyTeam (@@unique)');
   const leave = await api('POST', `/leagues/${leagueId}/leave`, { token: member.token });
   if (leave.status !== 200) fail('Leave failed', leave.body);
@@ -160,7 +138,6 @@ async function main() {
   if (teamCount !== 1) fail(`Esperaba 1 FantasyTeam tras rejoin, hay ${teamCount}`);
   ok('Rejoin no duplico el FantasyTeam (count=1)');
 
-  // ── 8. No-member → 404 LEAGUE_NOT_FOUND ──────────────────────
   step('GET /leagues/:id/teams/me con user no-member → 404 LEAGUE_NOT_FOUND');
   const outsider = await registerUser('outsider');
   const outsiderRes = await api<{ error: { code: string } }>(
@@ -174,7 +151,6 @@ async function main() {
   }
   ok('404 LEAGUE_NOT_FOUND (P2-1 unification ok)');
 
-  // ── 9. Sin token → 401 TOKEN_MISSING ─────────────────────────
   step('GET /leagues/:id/teams/me sin token → 401 TOKEN_MISSING');
   const noAuth = await api<{ error: { code: string } }>('GET', `/leagues/${leagueId}/teams/me`);
   const code9 = (noAuth.body as { error?: { code?: string } }).error?.code;

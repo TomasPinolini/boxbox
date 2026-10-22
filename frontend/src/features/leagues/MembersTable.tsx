@@ -1,7 +1,6 @@
 import { Badge, ConfirmButton, UserAvatar } from '../../components/ui';
 import type { LeagueMember } from '../../models/league-member';
 
-// MembersTable: lista de miembros. En SM se apila (cada miembro = 2 lineas); desde md: fila.
 // `canKick` lo decide la pagina (owner + roster abierto); la tabla solo muestra el boton.
 export function MembersTable({
   members,
@@ -26,12 +25,8 @@ export function MembersTable({
           </div>
           <div className="flex shrink-0 items-center gap-4 text-sm text-slate-500 dark:text-ink-muted">
             <span>desde {new Date(m.joinedAt).toLocaleDateString('es-AR')}</span>
-            {/* ConfirmButton y no un click directo: echar a alguien es irreversible desde la
-                UI (no hay forma de reinvitarla salvo que vuelva a usar el codigo), mismo
-                criterio que "Archivar liga" y "Salir de la liga" en esta misma pantalla — las
-                tres acciones sin vuelta atras se confirman igual. El aria-label nombra a quien
-                se echa: "Echar" repetido una vez por miembro no distingue nada para un lector
-                de pantalla. */}
+            {/* Echar no tiene vuelta atras desde la UI, por eso se confirma. El aria-label
+                nombra a quien se echa: "Echar" repetido no distingue nada para un lector. */}
             {canKick && !m.isOwner && (
               <ConfirmButton
                 variant="danger"

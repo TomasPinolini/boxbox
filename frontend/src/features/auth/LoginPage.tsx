@@ -8,17 +8,15 @@ import { ApiError, toApiError } from '../../services/api-error';
 import { authService } from '../../services/auth.service';
 import { AboutBoxBox } from './AboutBoxBox';
 
-// Mismas reglas que loginSchema del backend: email valido, password >= 8.
+// Mismas reglas que loginSchema del backend.
 const schema = z.object({
   email: z.string().email('No parece un email'),
   password: z.string().min(8, 'Mínimo 8 caracteres'),
 });
 type LoginForm = z.infer<typeof schema>;
 
-// Input "de vidrio": sin recuadro propio, solo una linea inferior sobre la foto. Field/
-// inputClass (components/ui) asumen fondo claro — son para el resto de la app. Esta pantalla
-// es la unica con foto de fondo oscura, asi que el estilo vive local en vez de ramificar un
-// primitivo compartido para un solo consumidor.
+// Local y no en components/ui: inputClass asume fondo claro, y esta es la unica pantalla sobre
+// una foto oscura.
 const glassInputClass =
   'w-full rounded-t-md border-0 border-b border-white/35 bg-white/10 px-3 py-2.5 text-white placeholder:text-white/40 focus:border-red-500 focus:bg-white/15 focus:outline-none';
 
@@ -43,11 +41,7 @@ export function LoginPage() {
 
   return (
     <div className="relative min-h-dvh overflow-hidden">
-      {/* Dos fotos, una por ancho — mobile hasta md, PC de md en adelante (el tablet propio
-          todavia no existe; hasta tenerlo, hereda la de PC, que no se rompe en esos anchos).
-          scale-105 + blur: el blur de una imagen tambien difumina su propio borde, y afuera de
-          ese borde no hay pixel que lo tape — agrandarla un poco empuja ese filo fuera de la
-          pantalla. */}
+      {/* scale-105: el blur difumina tambien el borde de la imagen, y agrandarla lo saca de pantalla. */}
       <img
         src="/login-hero-mobile.jpg"
         alt=""
@@ -60,9 +54,7 @@ export function LoginPage() {
         aria-hidden="true"
         className="absolute inset-0 hidden h-full w-full scale-105 object-cover blur-[2px] md:block"
       />
-      {/* Oscurecido + degrade: asegura el contraste de logo/texto/inputs pase lo que pase en
-          esa zona de la foto — es lo que la vuelve "aporta sin molestar" en vez de una
-          decoracion que compite con el formulario que flota directo encima, sin card. */}
+      {/* Oscurecido + degrade: asegura el contraste del form sobre cualquier zona de la foto. */}
       <div className="absolute inset-0 bg-black/55" />
       <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-black/10" />
 
@@ -123,7 +115,6 @@ export function LoginPage() {
                 Registrate
               </Link>
             </p>
-            {/* El catalogo de pilotos es publico: se puede mirar sin cuenta. */}
             <p className="mt-2 text-sm text-white/70">
               O{' '}
               <Link to="/drivers" className="font-semibold text-white hover:underline">

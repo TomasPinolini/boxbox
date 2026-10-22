@@ -1,16 +1,8 @@
-// TESTS — integracion HTTP → controller → service → Prisma → DB real.
-// Sin mocks (ADR-0003). setup.ts trunca todas las tablas antes de cada test,
-// asi que cada test arranca con DB vacia y necesita crear Season + User inline.
-
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import request from 'supertest';
 import app from '../../app';
 import { prisma } from '../../shared/prisma';
 
-// ─── Helpers locales (no van a shared/) ───────────────────────────────
-
-// authedUser: registra un user con email basado en suffix y devuelve { userId, token }.
-// suffix permite tener multiples users en un mismo test (ej. tests de ownership con A y B).
 async function authedUser(suffix = '') {
   const res = await request(app)
     .post('/api/v1/auth/register')
@@ -25,8 +17,6 @@ async function authedUser(suffix = '') {
   return { userId: res.body.data.user.id, token: res.body.data.accessToken };
 }
 
-// seedSeason: crea Season 2026 (necesario porque truncate-cascade borra todas las seasons).
-// Devuelve la Season completa para que el test agarre el id.
 async function seedSeason(driverCount = 22) {
   return prisma.season.create({
     data: { year: 2026, isActive: true, driverCount },
@@ -56,7 +46,6 @@ describe('POST /api/v1/leagues', () => {
       maxMembers: 11, // default
     });
 
-    // Slice 3: createLeague debe crear el LeagueMember(creator, isOwner=true) atomicamente.
     const member = await prisma.leagueMember.findUnique({
       where: { leagueId_userId: { leagueId: res.body.data.id, userId: me.userId } },
     });
@@ -64,8 +53,6 @@ describe('POST /api/v1/leagues', () => {
     expect(member!.isOwner).toBe(true);
     expect(member!.status).toBe('ACTIVE');
 
-    // Slice 4: el FantasyTeam del creator debe crearse atomicamente junto al LeagueMember,
-    // con todos los slots null (draft todavia no corrio).
     const team = await prisma.fantasyTeam.findUnique({
       where: { leagueMemberId: member!.id },
     });
@@ -75,7 +62,7 @@ describe('POST /api/v1/leagues', () => {
       driver2Id: null,
       constructorId: null,
     });
-    // ADR-0006: la reserva no existe — ni como columna.
+    // ADR-0006: la reserva no existe, ni como columna.
     expect(team).not.toHaveProperty('reserveDriverId');
   });
 
@@ -133,7 +120,6 @@ describe('POST /api/v1/leagues', () => {
 
   it('devuelve 404 SEASON_NOT_FOUND si seasonId no existe', async () => {
     const me = await authedUser();
-    // NO creamos season → seasonId 99999 no existe.
 
     const res = await request(app)
       .post('/api/v1/leagues')
@@ -148,13 +134,11 @@ describe('POST /api/v1/leagues', () => {
     const me = await authedUser();
     const season = await seedSeason();
 
-    // Primer create OK.
     await request(app)
       .post('/api/v1/leagues')
       .set('Authorization', `Bearer ${me.token}`)
       .send({ name: 'L1', inviteCode: 'taken', seasonId: season.id });
 
-    // Segundo create con mismo inviteCode.
     const res = await request(app)
       .post('/api/v1/leagues')
       .set('Authorization', `Bearer ${me.token}`)
@@ -187,7 +171,6 @@ describe('GET /api/v1/leagues', () => {
     const bob = await authedUser('b');
     const season = await seedSeason();
 
-    // Alice crea 2 ligas (es auto-member de ambas como owner).
     await request(app)
       .post('/api/v1/leagues')
       .set('Authorization', `Bearer ${alice.token}`)
@@ -196,20 +179,17 @@ describe('GET /api/v1/leagues', () => {
       .post('/api/v1/leagues')
       .set('Authorization', `Bearer ${alice.token}`)
       .send({ name: 'A2', inviteCode: 'a2-liga', seasonId: season.id });
-    // Bob crea 1 (Alice NO es member de esta).
     await request(app)
       .post('/api/v1/leagues')
       .set('Authorization', `Bearer ${bob.token}`)
       .send({ name: 'B1', inviteCode: 'b1-liga', seasonId: season.id });
 
-    // Alice solo debe ver las suyas (donde es ACTIVE member).
     const res = await request(app)
       .get('/api/v1/leagues')
       .set('Authorization', `Bearer ${alice.token}`);
 
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveLength(2);
-    // Slice 2 assertaba createdById; Slice 3 sigue siendo equivalente porque creator es auto-member.
     expect(res.body.data.every((l: { createdById: number }) => l.createdById === alice.userId)).toBe(true);
   });
 
@@ -218,19 +198,16 @@ describe('GET /api/v1/leagues', () => {
     const bob = await authedUser('b');
     const season = await seedSeason();
 
-    // Alice crea una liga.
     const created = await request(app)
       .post('/api/v1/leagues')
       .set('Authorization', `Bearer ${alice.token}`)
       .send({ name: 'Alice Liga', inviteCode: 'a-liga', seasonId: season.id });
 
-    // Bob joinea.
     await request(app)
       .post('/api/v1/leagues/join')
       .set('Authorization', `Bearer ${bob.token}`)
       .send({ inviteCode: 'a-liga' });
 
-    // Bob ve esta liga en su list aunque NO la creo.
     const res = await request(app)
       .get('/api/v1/leagues')
       .set('Authorization', `Bearer ${bob.token}`);
@@ -276,9 +253,7 @@ describe('GET /api/v1/leagues/:id', () => {
       .get(`/api/v1/leagues/${aliceLeague.body.data.id}`)
       .set('Authorization', `Bearer ${bob.token}`);
 
-    // P2-1 (security fix Slice 2): cuando user no tiene relacion con la liga, 404 — NO 403.
-    // 403 leakeaba que el id existia. 404 trata "existe pero no es tuya" indistinguible
-    // de "no existe".
+    // 404 y no 403: un 403 revelaria que el id existe.
     expect(res.status).toBe(404);
     expect(res.body.error.code).toBe('LEAGUE_NOT_FOUND');
   });
@@ -350,8 +325,7 @@ describe('PATCH /api/v1/leagues/:id', () => {
       (l) => l.id === created.body.data.id,
     );
 
-    // Recien creada la liga el FantasyTeam existe con los slots vacios, no es null: lo crea
-    // el mismo nested write que la membresia (Slice 4).
+    // El FantasyTeam existe desde la creacion, con los slots vacios: no es null.
     expect(liga?.myTeam).toMatchObject({
       driver1Id: null,
       driver2Id: null,
@@ -359,9 +333,7 @@ describe('PATCH /api/v1/leagues/:id', () => {
     });
   });
 
-  // Archivar es la via por la que el owner cierra una liga (ADR-0009). Si la liga archivada
-  // sigue apareciendo en el listado, el owner no consigue lo unico que queria: sacarsela de
-  // encima. Hasta hoy listLeagues no miraba League.status en absoluto.
+  // Archivar es como el owner cierra una liga (ADR-0009): si sigue en el listado, no sirvio.
   it('la liga archivada desaparece de GET /leagues, para todos sus miembros', async () => {
     const owner = await authedUser('own');
     const socio = await authedUser('soc');
@@ -410,7 +382,7 @@ describe('PATCH /api/v1/leagues/:id', () => {
       .set('Authorization', `Bearer ${bob.token}`)
       .send({ name: 'Robada' });
 
-    // Bob no es member → 404, NO 403. requireLeagueMember tira NotFoundError antes que requireLeagueOwner.
+    // Bob no es member: 404 y no 403, requireLeagueMember corta antes que requireLeagueOwner.
     expect(res.status).toBe(404);
     expect(res.body.error.code).toBe('LEAGUE_NOT_FOUND');
   });
@@ -425,7 +397,6 @@ describe('PATCH /api/v1/leagues/:id', () => {
       .set('Authorization', `Bearer ${alice.token}`)
       .send({ name: 'A', inviteCode: 'a-liga', seasonId: season.id });
 
-    // Bob joinea — ahora es ACTIVE member pero no owner.
     await request(app)
       .post('/api/v1/leagues/join')
       .set('Authorization', `Bearer ${bob.token}`)
@@ -436,8 +407,7 @@ describe('PATCH /api/v1/leagues/:id', () => {
       .set('Authorization', `Bearer ${bob.token}`)
       .send({ name: 'Cambio Bob' });
 
-    // Bob es member → requireLeagueMember pasa → requireLeagueOwner tira 403.
-    // Es el unico caso donde 403 NO leakea info (Bob ya sabe que la liga existe porque es member).
+    // Aca el 403 no revela nada: Bob es member, ya sabe que la liga existe.
     expect(res.status).toBe(403);
     expect(res.body.error.code).toBe('NOT_LEAGUE_OWNER');
   });
@@ -446,7 +416,6 @@ describe('PATCH /api/v1/leagues/:id', () => {
     const me = await authedUser();
     const season = await seedSeason();
 
-    // Crear dos ligas con codigos distintos.
     const l1 = await request(app)
       .post('/api/v1/leagues')
       .set('Authorization', `Bearer ${me.token}`)
@@ -456,7 +425,6 @@ describe('PATCH /api/v1/leagues/:id', () => {
       .set('Authorization', `Bearer ${me.token}`)
       .send({ name: 'L2', inviteCode: 'codigo-dos', seasonId: season.id });
 
-    // PATCH de L1 cambiando su inviteCode al que ya tiene L2.
     const res = await request(app)
       .patch(`/api/v1/leagues/${l1.body.data.id}`)
       .set('Authorization', `Bearer ${me.token}`)
@@ -485,7 +453,7 @@ describe('PATCH /api/v1/leagues/:id', () => {
   });
 });
 
-// ─── POST /leagues/join (Slice 3) ─────────────────────────────────────
+// ─── POST /leagues/join ───────────────────────────────────────────────
 
 describe('POST /api/v1/leagues/join', () => {
   it('happy path: Bob joinea con inviteCode de Alice', async () => {
@@ -510,7 +478,7 @@ describe('POST /api/v1/leagues/join', () => {
       status: 'ACTIVE',
     });
 
-    // Slice 4: joinLeague tambien crea el FantasyTeam, no solo createLeague.
+    // joinLeague tambien crea el FantasyTeam, no solo createLeague.
     const team = await prisma.fantasyTeam.findUnique({
       where: { leagueMemberId: res.body.data.id },
     });
@@ -539,13 +507,11 @@ describe('POST /api/v1/leagues/join', () => {
       .set('Authorization', `Bearer ${alice.token}`)
       .send({ name: 'L', inviteCode: 'a-liga', seasonId: season.id });
 
-    // Bob joinea OK
     await request(app)
       .post('/api/v1/leagues/join')
       .set('Authorization', `Bearer ${bob.token}`)
       .send({ inviteCode: 'a-liga' });
 
-    // Bob intenta joinear de nuevo
     const res = await request(app)
       .post('/api/v1/leagues/join')
       .set('Authorization', `Bearer ${bob.token}`)
@@ -647,7 +613,6 @@ describe('POST /api/v1/leagues/join', () => {
       .post('/api/v1/leagues')
       .set('Authorization', `Bearer ${alice.token}`)
       .send({ name: 'L', inviteCode: 'a-liga', seasonId: season.id });
-    // Alice archiva.
     await request(app)
       .patch(`/api/v1/leagues/${created.body.data.id}`)
       .set('Authorization', `Bearer ${alice.token}`)
@@ -671,7 +636,7 @@ describe('POST /api/v1/leagues/join', () => {
   });
 });
 
-// ─── POST /leagues/:id/leave (Slice 3) ────────────────────────────────
+// ─── POST /leagues/:id/leave ──────────────────────────────────────────
 
 describe('POST /api/v1/leagues/:id/leave', () => {
   it('member normal puede salir, status pasa a LEFT', async () => {
@@ -733,7 +698,7 @@ describe('POST /api/v1/leagues/:id/leave', () => {
   });
 });
 
-// ─── GET /leagues/:id/members (Slice 3) ───────────────────────────────
+// ─── GET /leagues/:id/members ─────────────────────────────────────────
 
 describe('GET /api/v1/leagues/:id/members', () => {
   it('lista solo ACTIVE members', async () => {
@@ -747,7 +712,6 @@ describe('GET /api/v1/leagues/:id/members', () => {
       .set('Authorization', `Bearer ${alice.token}`)
       .send({ name: 'L', inviteCode: 'a-liga', seasonId: season.id });
 
-    // Bob y Carl joinean.
     await request(app)
       .post('/api/v1/leagues/join')
       .set('Authorization', `Bearer ${bob.token}`)
@@ -806,7 +770,7 @@ describe('GET /api/v1/leagues/:id/members', () => {
   });
 });
 
-// ─── DELETE /leagues/:id/members/:userId (Slice 3) ────────────────────
+// ─── DELETE /leagues/:id/members/:userId ──────────────────────────────
 
 describe('DELETE /api/v1/leagues/:id/members/:userId', () => {
   it('owner kickea a un member, status pasa a KICKED', async () => {
@@ -895,7 +859,7 @@ describe('DELETE /api/v1/leagues/:id/members/:userId', () => {
   });
 });
 
-// ─── GET /leagues/:id/teams/me (Slice 4) ──────────────────────────────
+// ─── GET /leagues/:id/teams/me ────────────────────────────────────────
 
 describe('GET /api/v1/leagues/:id/teams/me', () => {
   it('devuelve mi FantasyTeam vacio (200), creado atomicamente al joinear', async () => {
@@ -922,7 +886,7 @@ describe('GET /api/v1/leagues/:id/teams/me', () => {
       driver2Id: null,
       constructorId: null,
     });
-    // ADR-0006: el shape publico del FantasyTeam tiene 3 slots, no 4.
+    // ADR-0006: el FantasyTeam tiene 3 slots, sin reserva.
     expect(res.body.data).not.toHaveProperty('reserveDriverId');
   });
 
@@ -961,8 +925,7 @@ describe('GET /api/v1/leagues/:id/teams/me', () => {
       .post(`/api/v1/leagues/${created.body.data.id}/leave`)
       .set('Authorization', `Bearer ${bob.token}`);
 
-    // Rejoin: si el service intentara recrear el FantasyTeam aca, esto rompería con
-    // P2002 (@@unique en leagueMemberId). El happy path prueba que no lo hace.
+    // Si el rejoin intentara recrear el FantasyTeam, romperia con P2002 (@@unique en leagueMemberId).
     const rejoin = await request(app)
       .post('/api/v1/leagues/join')
       .set('Authorization', `Bearer ${bob.token}`)
@@ -993,10 +956,8 @@ describe('GET /api/v1/leagues/:id/teams/me', () => {
   });
 });
 
-// ─── Tope de miembros derivado de la temporada (ADR-0006 / BOX-14) ────
-// Cada miembro draftea 2 pilotos y los picks son exclusivos por liga, asi que el tope es
-// floor(driverCount / 2): 11 para una grilla de 22, 10 para una de 20. Antes el 11 era un
-// numero fijo que no miraba la temporada.
+// ─── Tope de miembros derivado de la temporada ────────────────────────
+// Cada miembro draftea 2 pilotos exclusivos, asi que el tope es floor(driverCount / 2).
 
 describe('tope de miembros = pilotos de la temporada / 2', () => {
   it('sin maxMembers en el body, usa floor(driverCount / 2) de la temporada', async () => {
@@ -1043,12 +1004,9 @@ describe('tope de miembros = pilotos de la temporada / 2', () => {
   });
 });
 
-// ─── Roster bloqueado una vez que arranca el draft (B2 / BOX-17) ───────
-// startDraft materializa el orden de picks para los miembros que hay en ESE momento. Si
-// despues alguien entra, sale o es echado, el draft queda inconsistente: el que entra no
-// tiene picks ni turno; el que sale deja turnos que nadie puede jugar. Mientras draftStatus
-// no sea PENDING, join/leave/kick responden 409 ROSTER_LOCKED. Un reset (vuelve a PENDING)
-// desbloquea.
+// ─── Roster bloqueado una vez que arranca el draft ────────────────────
+// startDraft fija los turnos para los miembros de ese momento: el que entra despues no tiene
+// turno y el que sale deja turnos que nadie juega. Un reset desbloquea.
 
 describe('roster bloqueado con draft LIVE o COMPLETED', () => {
   async function leagueWithLiveDraft() {
@@ -1122,16 +1080,10 @@ describe('roster bloqueado con draft LIVE o COMPLETED', () => {
   });
 });
 
-// ─── Rate limit user-based (B3 / PER-18) ──────────────────────────────
-// El limiter tiene `skip: isTestEnv` (rateLimit.ts) para que el resto de la suite no tope el
-// cap de 5/min. Este describe lo re-activa apagando las dos envs que isTestEnv mira — se
-// evalua por request, asi que alcanza con setearlas antes y restaurarlas despues.
-//
-// Lo que se prueba es la KEY del limiter, no el cap: dos users distintos desde la misma IP
-// (supertest siempre pega desde 127.0.0.1) no deben compartir contador. Si el limiter corre
-// antes que requireAuth, req.user es undefined en keyGenerator y cae al fallback por IP:
-// el 1er POST de B despues de los 5 de A da 429. Con requireAuth primero, B tiene su
-// propio bucket y da 201.
+// ─── Rate limit user-based ────────────────────────────────────────────
+// Re-activa el limiter apagando las envs que mira isTestEnv (se evaluan por request).
+// Se prueba la key, no el cap: dos users desde la misma IP no comparten contador. Si el
+// limiter corriera antes que requireAuth, caeria al fallback por IP y B daria 429.
 
 describe('rate limit de POST /api/v1/leagues es por user, no por IP', () => {
   const savedEnv = { NODE_ENV: process.env.NODE_ENV, VITEST: process.env.VITEST };

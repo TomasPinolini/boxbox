@@ -1,12 +1,7 @@
 import { expect, test, type Browser, type Page } from '@playwright/test';
 
-// Draft de punta a punta contra el backend real (seed cargado). Es el unico spec con DOS
-// contextos de navegador: el draft es la unica pantalla donde lo que ve un jugador cambia
-// por lo que hace otro, y con un solo navegador eso no se puede probar.
-//
-// Cada test arma su propia liga con dos jugadores. Sale ~8s de preparacion por test, y se
-// paga a gusto: un draft no se puede resetear desde la UI, asi que compartir liga entre
-// tests los volveria dependientes del orden.
+// Unico spec con dos navegadores: en el draft lo que ve un jugador cambia por lo que hace otro.
+// Cada test arma su propia liga: un draft no se resetea desde la UI, y compartirla ataria los tests al orden.
 
 /**
  * Identificadores irrepetibles. La DB de desarrollo no se trunca entre corridas, y ademas
@@ -25,15 +20,10 @@ async function registrar(page: Page, nombre: string) {
   await page.getByLabel('Contraseña').fill('hunter22test');
   await page.getByRole('button', { name: 'Crear cuenta' }).click();
   await expect(page).toHaveURL(/\/leagues$/);
-  // Un usuario reción registrado cae en /leagues con el tour de bienvenida abierto. Se saltea:
-  // lo que este helper prepara es una liga, el tour lo prueba leagues.spec.ts.
+  // Al registrarse se abre el tour de bienvenida; se prueba en leagues.spec.ts.
   await page.getByRole('button', { name: 'Saltear' }).click();
 }
 
-/**
- * Deja a dos jugadores dentro de una liga nueva, los dos parados en /leagues/:id.
- * Devuelve las dos paginas y el id. Los contextos se cierran solos al terminar el test.
- */
 async function ligaConDosJugadores(browser: Browser) {
   const ctxDuenio = await browser.newContext();
   const ctxSocio = await browser.newContext();
@@ -45,16 +35,13 @@ async function ligaConDosJugadores(browser: Browser) {
 
   const code = unico('e2e').slice(0, 20);
   await duenio.getByLabel('Nombre').fill('Liga Draft E2E');
-  // exact: true — ver el comentario del mismo locator en leagues.spec.ts: el "?" de ayuda al
-  // lado de "Crear liga" tambien matchea "codigo de invitacion" por subcadena.
+  // exact: el "?" de ayuda junto a "Crear liga" tambien matchea por subcadena.
   await duenio.getByLabel('Código de invitación', { exact: true }).fill(code);
   await duenio.getByRole('button', { name: 'Crear', exact: true }).click();
   await expect(duenio).toHaveURL(/\/leagues\/\d+$/);
   const id = Number(/\/leagues\/(\d+)/.exec(duenio.url())![1]);
 
-  // El formulario de unirse etiqueta su campo "Código que te pasaron"; "Código de invitación"
-  // es el de CREAR liga, en la misma pantalla. El exact sigue porque getByLabel matchea por
-  // subcadena: 'Código' a secas seguiria agarrando los dos campos y los dos "?" de ayuda.
+  // exact: getByLabel matchea por subcadena y "Código" agarraria varios campos.
   await socio.getByLabel('Código que te pasaron', { exact: true }).fill(code);
   await socio.getByRole('button', { name: 'Unirme', exact: true }).click();
   await socio.goto(`/leagues/${id}`);
@@ -65,15 +52,11 @@ async function ligaConDosJugadores(browser: Browser) {
   return { duenio, socio, id, cerrar: () => Promise.all([ctxDuenio.close(), ctxSocio.close()]) };
 }
 
-/**
- * Hace el pick del jugador que tenga el turno, sea cual sea. El orden serpiente arranca de
- * un orden base shuffleado, asi que no se puede predecir a quien le toca primero.
- */
+/** El orden serpiente arranca de un orden base aleatorio: no se sabe a quien le toca. */
 async function pickDelQueTengaElTurno(jugadores: Page[]) {
   let conTurno: Page | undefined;
-  // El picker es una grilla de <button>, uno por piloto o escuderia, agrupada en un
-  // role="group". El <select> que queda en el DOM es el fallback nativo de telefono y en
-  // escritorio no esta visible, asi que no sirve para detectar el turno.
+  // El <select> es el fallback de telefono y en escritorio esta oculto: el turno se detecta
+  // por la grilla de botones.
   const opciones = (p: Page) => p.getByRole('group').getByRole('button');
   await expect
     .poll(
@@ -90,12 +73,9 @@ async function pickDelQueTengaElTurno(jugadores: Page[]) {
     )
     .toBe(true);
 
-
-  // El pick viaja por socket, asi que hay que esperar a que VUELVA, no a que se envie.
-  // No sirve esperar a que el boton desaparezca: el orden serpiente hace que un jugador
-  // elija dos veces seguidas (ronda 1 ultimo, ronda 2 primero) y entonces el panel se queda.
-  // La señal confiable es la lista de picks creciendo — salvo en el ultimo, donde la lista
-  // entera da paso a los equipos armados.
+  // El pick viaja por socket: hay que esperar a que VUELVA. No sirve esperar a que el boton
+  // desaparezca, porque en serpiente un jugador elige dos veces seguidas. La señal es la lista
+  // de picks creciendo, salvo en el ultimo, donde da paso a los equipos armados.
   const picksHechos = conTurno!.locator('li').filter({ hasText: /^Ronda/ });
   const antes = await picksHechos.count();
 
@@ -114,10 +94,7 @@ async function pickDelQueTengaElTurno(jugadores: Page[]) {
     .toBe(true);
 }
 
-/**
- * Arranca el draft. Son DOS clicks: desde el rediseño de la pantalla de liga, la accion
- * irreversible pide confirmacion con la cuenta de miembros antes de ejecutarse.
- */
+/** Dos clicks: la accion irreversible pide confirmacion. */
 async function arrancarDraft(duenio: Page) {
   await duenio.getByRole('button', { name: 'Iniciar draft' }).click();
   await duenio.getByRole('button', { name: 'Sí, arrancar' }).click();
@@ -172,8 +149,6 @@ test('un draft de dos jugadores termina mostrando el equipo armado', async ({ br
     await pickDelQueTengaElTurno([duenio, socio]);
   }
 
-  // Terminado: el titulo deja de decir "en vivo" y la lista cruda de picks da paso a los
-  // equipos. Los dos jugadores ven su propio equipo y el del otro.
   for (const jugador of [duenio, socio]) {
     await expect(jugador.getByRole('heading', { level: 1, name: 'Draft terminado' })).toBeVisible();
     await expect(jugador.getByRole('heading', { name: 'Tu equipo' })).toBeVisible();

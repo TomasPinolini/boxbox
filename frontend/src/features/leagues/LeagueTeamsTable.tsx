@@ -4,21 +4,11 @@ import { ConstructorLogo } from '../drivers/ConstructorLogo';
 import { DriverAvatar } from '../drivers/DriverAvatar';
 import type { Standing } from '../../models/standing';
 
-// La tabla de la liga despues del draft. Reemplaza a las dos tarjetas que habia antes
-// —"Posiciones" y "Miembros"— que listaban la misma gente dos veces.
-//
-// La manejan los MIEMBROS, no las posiciones, y esa es la decision que define el componente:
-// una fila de LeagueStanding recien existe cuando un admin procesa una carrera. Una liga que
-// acaba de terminar el draft tiene cero. Si la tabla se dibujara con standings, la pantalla
-// quedaria vacia justo en el momento de mas entusiasmo. Asi las columnas de posicion, puntos
-// y movimiento aparecen cuando hay con que llenarlas, y el resto se ve desde el primer dia.
+// Las filas salen de los miembros, no de los standings: una LeagueStanding recien existe
+// cuando se procesa una carrera, y la tabla no puede quedar vacia justo despues del draft.
 
-// Flecha de movimiento contra la carrera anterior. Texto ademas de color: el color solo no
-// alcanza para daltonismo. (Venia de StandingsTable, que este componente reemplaza.)
-//
-// El mismo razonamiento, un paso mas: el GLIFO tampoco alcanza. Un lector de pantalla dice
-// "triangulo negro apuntando hacia arriba" o directamente nada, segun cual sea. Asi que el
-// simbolo se oculta y al lado va la palabra, visible solo para el lector.
+// Ni el color ni el glifo alcanzan (daltonismo, lectores de pantalla): el simbolo se
+// oculta y va la palabra en sr-only.
 function Change({ value }: { value: number }) {
   if (value === 0)
     return (
@@ -58,9 +48,8 @@ export function LeagueTeamsTable({
   /** Avisa que fila eligieron. Sin esto el nombre es texto: no se promete un click que no hace nada. */
   onSelect?: (leagueMemberId: number) => void;
 }) {
-  // Si nadie tiene standing todavia, las tres columnas de competencia no se dibujan. No es
-  // lo mismo que ponerlas con guiones: una tabla de posiciones vacia se lee como "voy
-  // primero", no como "todavia no paso nada".
+  // Sin standings las columnas de competencia no se dibujan: una tabla vacia se lee como
+  // "voy primero", no como "todavia no paso nada".
   const hayCarreras = rows.some((r) => r.standing !== null);
 
   return (
@@ -79,8 +68,7 @@ export function LeagueTeamsTable({
           {rows.map((r) => (
             <tr
               key={r.leagueMemberId}
-              // Tu fila marcada con un borde y no con un fondo de color: la tabla ya tiene
-              // los colores de las once escuderias adentro, y un fondo mas competiria con ellos.
+              // Borde y no fondo: un fondo competiria con los colores de las escuderias.
               className={`border-b border-slate-100 dark:border-ink-border ${r.isMe ? 'border-l-2 border-l-red-600' : ''}`}
             >
               {hayCarreras && (
@@ -106,15 +94,8 @@ export function LeagueTeamsTable({
                 </span>
               </td>
               <td className="py-2 pr-3">
-                {/* Los pilotos y la escuderia como iconos, en una sola celda: el nombre del
-                    jugador ya ocupa su columna y repetir tres nombres mas por fila hace una
-                    tabla que no entra en un telefono.
-                    El title da el nombre completo AL MOUSE y a nadie mas: es un tooltip, no
-                    se anuncia y el teclado no llega. El nombre para el lector va en un
-                    sr-only, y lo que se ve (el codigo de 3 letras, el logo) queda oculto para
-                    no escuchar "Max Verstappen VER". La escuderia era el caso grave: el logo
-                    es aria-hidden en sus dos ramas, asi que la celda se leia "VER, HAM" y
-                    despues silencio — no habia forma de saber de que equipo era nadie. */}
+                {/* El title solo sirve al mouse: el nombre para el lector va en sr-only y lo
+                    visible (codigo, logo) queda oculto para no oir "Max Verstappen VER". */}
                 <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
                   {r.drivers.map((d) => (
                     <span

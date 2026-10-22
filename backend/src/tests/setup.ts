@@ -4,41 +4,26 @@ import { hashPassword } from '../shared/password';
 import { signAccessToken } from '../shared/jwt';
 import { assertLocalDatabase } from './db-guard';
 
-// Antes de cualquier TRUNCATE: si DATABASE_URL no es local, abortar la suite entera.
 assertLocalDatabase(process.env.DATABASE_URL);
 
-// Clean all tables before each test so tests don't affect each other
 beforeEach(async () => {
-  // Delete in order that respects foreign key constraints (children first)
-  await prisma.$executeRawUnsafe('TRUNCATE TABLE sync_logs CASCADE');
-  await prisma.$executeRawUnsafe('TRUNCATE TABLE league_standings CASCADE');
-  await prisma.$executeRawUnsafe('TRUNCATE TABLE predictions CASCADE');
-  await prisma.$executeRawUnsafe('TRUNCATE TABLE race_results CASCADE');
-  await prisma.$executeRawUnsafe('TRUNCATE TABLE constructor_results CASCADE');
-  await prisma.$executeRawUnsafe('TRUNCATE TABLE draft_picks CASCADE');
-  await prisma.$executeRawUnsafe('TRUNCATE TABLE fantasy_teams CASCADE');
-  await prisma.$executeRawUnsafe('TRUNCATE TABLE league_members CASCADE');
-  await prisma.$executeRawUnsafe('TRUNCATE TABLE leagues CASCADE');
-  await prisma.$executeRawUnsafe('TRUNCATE TABLE driver_seasons CASCADE');
-  await prisma.$executeRawUnsafe('TRUNCATE TABLE races CASCADE');
-  await prisma.$executeRawUnsafe('TRUNCATE TABLE circuits CASCADE');
-  await prisma.$executeRawUnsafe('TRUNCATE TABLE seasons CASCADE');
-  await prisma.$executeRawUnsafe('TRUNCATE TABLE drivers CASCADE');
-  await prisma.$executeRawUnsafe('TRUNCATE TABLE constructors CASCADE');
-  await prisma.$executeRawUnsafe('TRUNCATE TABLE users CASCADE');
+  // Un solo TRUNCATE con todas las tablas: Postgres las vacía juntas y el orden no importa.
+  // Una tabla nueva tiene que sumarse acá.
+  await prisma.$executeRawUnsafe(`
+    TRUNCATE TABLE
+      sync_logs, league_standings, predictions, race_results, constructor_results,
+      draft_picks, fantasy_teams, league_members, leagues, driver_seasons,
+      races, circuits, seasons, drivers, constructors, users
+    CASCADE
+  `);
 });
 
-// Disconnect from DB after all tests finish
 afterAll(async () => {
   await prisma.$disconnect();
 });
 
-// ─── TEST HELPERS ────────────────────────────────────────────────
-// Crean users via Prisma directo + firman el JWT sin pasar por HTTP.
-// Motivo: los tests que necesitan un usuario autenticado no deberian re-testear
-// register/login (eso ya lo hace auth.test.ts). Bypass = tests mas rapidos y
-// menos frágiles a cambios en el flujo de auth.
-
+// Crean el usuario por Prisma y firman el JWT sin pasar por HTTP: register/login ya los
+// cubre auth.test.ts.
 let testUserCounter = 0;
 
 type CreateTestUserOverrides = Partial<{
@@ -64,7 +49,6 @@ export async function createTestUser(overrides: CreateTestUserOverrides = {}) {
   return { user, accessToken };
 }
 
-// Sugar sobre createTestUser para el caso mas comun en tests admin-only.
 export function createTestAdmin(overrides: Omit<CreateTestUserOverrides, 'role'> = {}) {
   return createTestUser({ ...overrides, role: 'ADMIN' });
 }

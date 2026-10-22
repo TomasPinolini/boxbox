@@ -10,8 +10,7 @@ import {
 
 const keys = { races: ['races', 'active-season'] as const };
 
-// Carreras de la temporada activa. El filtro a "cargables" lo hace la pantalla: es la misma
-// regla que LOADABLE_STATUSES en backend/src/modules/races/races.service.ts.
+// El filtro a "cargables" lo hace la pantalla, con la regla de LOADABLE_STATUSES del backend.
 export function useActiveSeasonRaces() {
   return useQuery<Race[], ApiError>({
     queryKey: keys.races,
@@ -19,9 +18,8 @@ export function useActiveSeasonRaces() {
   });
 }
 
-// El Epic 2 en una mutacion: cargar resultados y recalcular standings. Son dos requests y NO
-// son atomicos entre si — si el segundo falla, la carrera ya quedo COMPLETED. No es grave:
-// recalculate es idempotente (upsert), asi que se puede reintentar solo.
+// Dos requests NO atomicos: si el segundo falla la carrera ya quedo COMPLETED, pero
+// recalculate es idempotente y se puede reintentar.
 export function useProcessRace() {
   const qc = useQueryClient();
   return useMutation<
@@ -33,7 +31,6 @@ export function useProcessRace() {
       await racesService.loadResults(raceId, results);
       return racesService.recalculate(raceId);
     },
-    // Invalida todo lo que cambio: status de la carrera, stats de pilotos y standings de ligas.
     onSettled: () => {
       void qc.invalidateQueries({ queryKey: ['races'] });
       void qc.invalidateQueries({ queryKey: ['drivers'] });
@@ -42,15 +39,13 @@ export function useProcessRace() {
   });
 }
 
-// Vista previa desde Jolpica. Es mutation y no query: la dispara un boton, y cada corrida deja
-// un SyncLog en el backend — no queremos que React Query la repita sola al re-enfocar la pestaña.
+// Mutation y no query: cada corrida deja un SyncLog y React Query no tiene que repetirla sola.
 export function useJolpicaPreview() {
   return useMutation<JolpicaPreview, ApiError, number>({
     mutationFn: (raceId) => racesService.previewFromJolpica(raceId),
   });
 }
 
-// Recalcular standings para una carrera que ya tiene resultados. Idempotente: repetir no duplica.
 export function useRecalculateStandings() {
   const qc = useQueryClient();
   return useMutation<{ raceId: number; leagues: number; standings: number }, ApiError, number>({

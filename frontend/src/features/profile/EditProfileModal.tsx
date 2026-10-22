@@ -4,36 +4,24 @@ import type { User } from '../../models/user';
 import { useRemoveAvatar, useUpdateAvatar, useUpdateProfile } from './profile.queries';
 
 const MOTTO_MAX = 40;
-// Mismo tope que el bucket de Supabase (backend/src/modules/auth/auth.service.ts,
-// MAX_AVATAR_BYTES) — fallar acá es instantáneo, fallar en el servidor tarda un viaje de red.
+// Mismo tope que MAX_AVATAR_BYTES en backend/src/modules/auth/auth.service.ts: se valida
+// aca para no gastar un viaje de red.
 const MAX_AVATAR_BYTES = 2 * 1024 * 1024;
 const ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
 
-// EditProfileModal: nombre + lema + foto, desde el lápiz de UserMenu (AppLayout.tsx). Pedido
-// del usuario 2026-10-15, bocetado antes de escribir una sola línea de código real.
-//
-// Dos formas, no una que se adapta — mismo patrón que HelpPopover (components/ui/): en
-// escritorio es un diálogo centrado (como RivalTeamModal), en mobile sube como una hoja desde
-// abajo. A diferencia de HelpPopover, acá SÍ bloquea todo en los dos tamaños — es un form con
-// guardado real, no un tooltip de ayuda que conviene dejar pasar el resto de la pantalla.
-//
-// La foto se previsualiza antes de guardar (FileReader → data URL en estado local) pero no se
-// sube hasta tocar "Guardar" — si cancela, el archivo elegido nunca sale del navegador.
+// La foto se previsualiza en local y no se sube hasta "Guardar": si cancela, el archivo
+// nunca sale del navegador.
 export function EditProfileModal({ user, onClose }: { user: User; onClose: () => void }) {
   const [name, setName] = useState(user.name);
   const [motto, setMotto] = useState(user.motto ?? '');
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
-  // true = "al guardar, sacar la foto actual". Separado de avatarPreview === null porque eso
-  // es ambiguo (¿no hay foto nueva, o hay que borrar la que ya estaba?) — ver el badge "x" en
-  // avatarButton, mas abajo.
+  // Aparte de avatarPreview === null, que es ambiguo: ¿no hay foto nueva o hay que borrar la actual?
   const [removePhoto, setRemovePhoto] = useState(false);
   const [avatarError, setAvatarError] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  // Dos refs, no una: las dos formas (mobile/desktop) conviven siempre en el DOM, CSS decide
-  // cuál se ve (igual que HelpPopover). Enfocar el input de escritorio cuando el que se ve es
-  // el de mobile no hace nada (display:none no es enfocable) — mismo problema que HelpPopover
-  // ya resolvió, misma solución: medir el ancho una vez al montar.
+  // Dos refs: las formas mobile y desktop conviven en el DOM y CSS oculta una, y un input
+  // con display:none no se puede enfocar. Se elige midiendo el ancho al montar.
   const mobileFirstFieldRef = useRef<HTMLInputElement>(null);
   const desktopFirstFieldRef = useRef<HTMLInputElement>(null);
 
@@ -69,16 +57,12 @@ export function EditProfileModal({ user, onClose }: { user: User; onClose: () =>
       setAvatarError('No puede pesar más de 2MB');
       return;
     }
-    // Elegir un archivo nuevo cancela cualquier "sacar foto" pendiente — las dos cosas no
-    // tienen sentido juntas, y la foto elegida gana.
     setRemovePhoto(false);
     const reader = new FileReader();
     reader.onload = () => setAvatarPreview(reader.result as string);
     reader.readAsDataURL(file);
   }
 
-  // El badge "x" de avatarButton. No pega al servidor todavía — mismo criterio que elegir una
-  // foto nueva: se confirma recien en "Guardar", y "Cancelar" lo deja todo como estaba.
   function onRemovePhoto() {
     setAvatarError(null);
     setAvatarPreview(null);
@@ -87,8 +71,7 @@ export function EditProfileModal({ user, onClose }: { user: User; onClose: () =>
 
   async function onSave() {
     try {
-      // Secuencial, no Promise.all: si la foto falla, no tiene sentido guardar nombre/lema
-      // como si todo hubiera salido bien — el usuario tiene que ver el mismo error sí o sí.
+      // Secuencial, no Promise.all: si la foto falla, no se guarda el resto como si nada.
       if (avatarPreview) {
         await updateAvatar.mutateAsync(avatarPreview);
       } else if (removePhoto && user.avatarUrl) {
@@ -99,19 +82,14 @@ export function EditProfileModal({ user, onClose }: { user: User; onClose: () =>
       }
       onClose();
     } catch {
-      // El error ya quedó en updateProfile.error / updateAvatar.error / removeAvatar.error —
-      // se muestra abajo, el modal se queda abierto para reintentar.
+      // El error queda en la mutacion y se muestra abajo; el modal sigue abierto.
     }
   }
 
-  // Hay algo para sacar si hay una foto nueva sin guardar, o si el user ya tenia una y todavia
-  // no la marcamos para sacar. Sin foto (iniciales) no hay nada que mostrar el badge.
   const hasPhotoToRemove = Boolean(avatarPreview) || (Boolean(user.avatarUrl) && !removePhoto);
 
   const avatarButton = (
-    // Wrapper relative: el boton de cambiar y el badge "x" de sacar son dos elementos
-    // interactivos hermanos (no se puede anidar un boton dentro de otro), cada uno con su
-    // propia area de click, posicionados contra este contenedor.
+    // Dos botones hermanos y no anidados: un <button> no puede ir dentro de otro.
     <div className="relative shrink-0" style={{ width: 88, height: 88 }}>
       <button
         type="button"
@@ -124,7 +102,6 @@ export function EditProfileModal({ user, onClose }: { user: User; onClose: () =>
         ) : (
           <UserAvatar user={removePhoto ? { ...user, avatarUrl: null } : user} size={88} />
         )}
-        {/* Solo ícono, sin texto "Cambiar" — pedido del usuario 2026-10-15. */}
         <span className="absolute inset-0 flex items-center justify-center bg-black/60 text-white opacity-0 transition-opacity group-hover:opacity-100">
           <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
@@ -132,9 +109,7 @@ export function EditProfileModal({ user, onClose }: { user: User; onClose: () =>
           </svg>
         </span>
       </button>
-      {/* Badge siempre visible, no atado a hover (a diferencia de la camara de arriba) — en
-          mobile no hay hover, y esto tiene que poder tocarse ahí tambien. Wireframeado y
-          aprobado por el usuario 2026-10-16 antes de escribir esto. */}
+      {/* Siempre visible, no en hover: en mobile no hay hover. */}
       {hasPhotoToRemove && (
         <button
           type="button"
@@ -203,8 +178,6 @@ export function EditProfileModal({ user, onClose }: { user: User; onClose: () =>
     <>
       {hiddenFileInput}
 
-      {/* Scrim: bloquea los dos tamaños, a diferencia de HelpPopover — este modal sí reemplaza
-          la pantalla entera, hay un guardado real detrás. */}
       <button
         type="button"
         aria-hidden="true"
@@ -213,7 +186,6 @@ export function EditProfileModal({ user, onClose }: { user: User; onClose: () =>
         className="enter-fade fixed inset-0 z-40 bg-slate-900/55"
       />
 
-      {/* Mobile: hoja que sube desde abajo, mismo patrón que HelpPopover/el drawer de nav. */}
       <div
         role="dialog"
         aria-modal="true"
@@ -252,7 +224,6 @@ export function EditProfileModal({ user, onClose }: { user: User; onClose: () =>
         <div className="mt-6 flex flex-col gap-2">{actions}</div>
       </div>
 
-      {/* Desktop: diálogo centrado, mismo patrón que RivalTeamModal. */}
       <div className="fixed inset-0 z-40 hidden items-center justify-center p-4 md:flex">
         <div className="enter-scale w-full max-w-md rounded-xl bg-white p-6 shadow-2xl dark:bg-ink">
           <h2 className="mb-4 text-lg font-bold text-slate-900 dark:text-ink-text">Editar perfil</h2>

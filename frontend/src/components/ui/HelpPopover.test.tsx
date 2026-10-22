@@ -3,10 +3,8 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { HelpPopover } from './HelpPopover';
 
-// Las aserciones usan getAllBy* y no getBy*: cuando el cartel está abierto hay DOS copias en el
-// DOM a propósito (el sheet de mobile y el panel de desktop), y lo que deja una sola a la vista
-// es CSS, que jsdom no aplica. Un getBy* fallaría por "found multiple elements", que es
-// exactamente lo contrario del defecto que este test busca.
+// getAllBy* y no getBy*: abierto hay dos copias en el DOM (mobile y desktop) y jsdom no aplica
+// el CSS que oculta una.
 describe('HelpPopover', () => {
   it('arranca cerrado', () => {
     render(<HelpPopover title="¿Por qué el tope es 11?">Porque hay 22 pilotos.</HelpPopover>);

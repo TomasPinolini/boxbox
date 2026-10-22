@@ -1,17 +1,13 @@
 import { expect, test } from '@playwright/test';
 
-// Contra el backend real con el seed cargado (3 fechas COMPLETED — ver prisma/seed.ts).
-// Si estas pantallas dan vacio, corre `npx prisma db seed` en backend/.
-//
-// Estas rutas son publicas a proposito: ningun test de acá hace login.
+// Contra el backend real con el seed cargado. Rutas publicas: ningun test de aca hace login.
 
 test('pilotos: filtrar por escuderia y abrir el detalle', async ({ page }) => {
   await page.goto('/drivers');
 
   await expect(page.getByRole('heading', { name: 'Pilotos' })).toBeVisible();
-  // Apellido solo, no "Max Verstappen" entero: DriverCard (tarjeta horizontal) parte nombre
-  // y apellido en dos lineas, y unir texto entre bloques es un comportamiento de Playwright
-  // del que no conviene depender.
+  // Apellido solo: DriverCard parte nombre y apellido en dos lineas, y unir texto entre
+  // bloques es un comportamiento de Playwright del que no conviene depender.
   await expect(page.getByText('Verstappen')).toBeVisible();
   await expect(page.getByText('Leclerc')).toBeVisible();
 
@@ -23,26 +19,20 @@ test('pilotos: filtrar por escuderia y abrir el detalle', async ({ page }) => {
   await expect(page.getByText('Hamilton')).toBeVisible();
   await expect(page.getByText('Verstappen')).not.toBeVisible();
 
-  // Ferrari tiene dos pilotos y se ordenan por apellido, asi que el primero es Hamilton.
-  // Se clickea el de Leclerc por nombre en vez de por posicion.
+  // Por nombre y no por posicion: ordenados por apellido, el primero de Ferrari es Hamilton.
   await page.getByRole('button', { name: 'Ver piloto Charles Leclerc' }).click();
 
   await expect(page).toHaveURL(/\/drivers\/\d+$/);
   await expect(page.getByRole('heading', { name: /Leclerc/ })).toBeVisible();
 
-  // "Puntos" aparece dos veces en la pantalla (etiqueta de la estadistica y encabezado de la
-  // tabla), asi que se apunta al <dt>/<dd> por su rol.
-  //
-  // Se asserta la ESTRUCTURA, no un valor concreto: desde 3b19816 el seed carga el calendario
-  // real de 2026 sin resultados (Jolpica es la fuente de verdad, BOX-9 — los resultados entran
-  // por el sync). Atar el test a un total de puntos lo volveria a romper con cada import.
+  // "Puntos" aparece dos veces, asi que se apunta al <dt>/<dd>. Se asserta la estructura y no
+  // un valor: los resultados cambian con cada sync.
   const puntos = page.getByRole('term').filter({ hasText: 'Puntos' });
   await expect(puntos).toBeVisible();
   await expect(puntos.locator('+ dd')).toHaveText(/^\d+$/);
 });
 
-// El par simetrico de "sin sesion, /leagues redirige a /login" en leagues.spec.ts: prueba que
-// estas rutas quedaron deliberadamente fuera de RequireAuth.
+// Par de "sin sesion, /leagues redirige a /login": estas rutas quedan fuera de RequireAuth.
 test('sin sesion, /drivers NO redirige a /login', async ({ page }) => {
   await page.goto('/drivers');
   await expect(page).toHaveURL(/\/drivers$/);

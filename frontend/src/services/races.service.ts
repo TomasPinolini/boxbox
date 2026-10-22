@@ -21,8 +21,7 @@ export interface JolpicaPreview {
   skipped: { ref: string; reason: string }[];
 }
 
-// Lo que viaja al backend al crear o editar una carrera. Espejo de createRaceSchema. Las dos
-// fechas opcionales se omiten cuando no se cargan: el schema las tiene optional, no nullable.
+// Las fechas opcionales se omiten si no se cargan: el schema del backend es optional, no nullable.
 export interface RaceInput {
   name: string;
   round: number;
@@ -39,12 +38,11 @@ export const racesService = {
   bySeason: (seasonId: number) => apiClient.get<Race[]>(`/races?seasonId=${seasonId}`),
   create: (input: RaceInput) => apiClient.post<Race>('/races', input),
   update: (id: number, input: RaceInput) => apiClient.patch<Race>(`/races/${id}`, input),
-  // 204 sin body, a diferencia de circuitos: el borrado de una carrera es fisico, no logico.
+  // Borrado fisico, no logico como el de circuitos.
   remove: (id: number) => apiClient.delete(`/races/${id}`),
-  // Los dos de abajo son admin-only (requireAuth -> requireAdmin en el backend).
   loadResults: (raceId: number, results: RaceResultInput[]) =>
     apiClient.post(`/races/${raceId}/results`, { results }),
-  // dryRun: mapea los resultados de Jolpica y los devuelve SIN escribirlos. Es la vista previa.
+  // dryRun: devuelve el mapeo de Jolpica sin escribirlo.
   previewFromJolpica: (raceId: number) =>
     apiClient.post<JolpicaPreview>(`/admin/sync/races/${raceId}/results?dryRun=true`),
   recalculate: (raceId: number) =>

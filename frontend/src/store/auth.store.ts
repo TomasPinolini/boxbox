@@ -8,15 +8,14 @@ interface AuthState {
   sessionReady: boolean;
   isLoggedIn: () => boolean;
   setSession: (user: User, accessToken: string) => void;
-  // Para PATCH /auth/me y POST /auth/me/avatar: el user ya está logueado, solo cambió un
-  // campo — no hay un accessToken nuevo que guardar, a diferencia de setSession.
+  // A diferencia de setSession, no hay un accessToken nuevo que guardar.
   updateUser: (user: User) => void;
   clear: () => void;
   markReady: () => void;
 }
 
-// El token vive ACA, en memoria. Sin middleware `persist` a proposito: la persistencia entre
-// recargas la da la cookie httpOnly de refresh, no localStorage (spec §3, D3).
+// El token vive solo en memoria, sin `persist` a proposito: entre recargas la sesion la da la
+// cookie httpOnly de refresh, no localStorage.
 export const useAuthStore = create<AuthState>((set, get) => ({
   accessToken: null,
   user: null,

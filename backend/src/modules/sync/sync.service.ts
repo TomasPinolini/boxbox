@@ -1,13 +1,6 @@
-// SERVICE — sync con Jolpica (Slice 12b carreras, 12c resultados).
-//
-// Dos reglas que atraviesan todo el archivo:
-//   1. El sync NUNCA crea Drivers ni DriverSeasons. Jolpica lista 32 pilotos para 2026
-//      (suplentes incluidos) y maxMembersForSeason depende de driverCount — ver BOX-9.
-//      Lo que no matchea se reporta como `skipped` y el SyncLog queda PARTIAL.
-//   2. Las reglas de carga de resultados viven en races.service.ts (loadResults). Aca solo
-//      se traduce el formato de Jolpica al input de esa funcion.
-//
-// Cada corrida deja exactamente un SyncLog — tambien las que fallan y los dryRun.
+// El sync nunca crea Drivers ni DriverSeasons: Jolpica lista 32 pilotos para 2026 (suplentes
+// incluidos) y maxMembersForSeason depende de driverCount. Lo que no matchea queda `skipped`.
+// Las reglas de carga viven en races.service.ts (loadResults); aca solo se traduce el formato.
 
 import { prisma } from '../../shared/prisma';
 import type { RaceResultStatus, SyncType } from '../../generated/prisma/enums';
@@ -53,8 +46,6 @@ async function withSyncLog<T extends Outcome>(
   }
 }
 
-// ─── 12b — carreras ──────────────────────────────────────────────
-
 const oneHourBefore = (date: Date) => new Date(date.getTime() - 60 * 60 * 1000);
 const toDate = (s: { date: string; time?: string }) =>
   new Date(`${s.date}T${s.time ?? '00:00:00Z'}`);
@@ -74,8 +65,8 @@ export function syncRaces(year: number, triggeredById: number) {
     };
 
     for (const r of remote) {
-      // Circuit: solo se crea si falta. Nunca se pisa uno existente — el seed trae nombres y
-      // ciudades curados, y un soft-deleted conserva su externalId (es @unique).
+      // Nunca se pisa un Circuit existente: el seed trae nombres curados, y un soft-deleted
+      // conserva su externalId (es @unique).
       const externalId = r.Circuit.circuitId;
       let circuit = await prisma.circuit.findUnique({ where: { externalId } });
       if (!circuit) {
@@ -108,9 +99,8 @@ export function syncRaces(year: number, triggeredById: number) {
         continue;
       }
 
-      // La trampa de BOX-9: Race no tiene externalId, su clave es (seasonId, round). Si esa
-      // fecha ya tiene resultados de OTRO circuito, pisarla dejaria esos resultados pegados
-      // a una carrera que no es. No se toca: que lo resuelva una persona.
+      // Race no tiene externalId, su clave es (seasonId, round): si esa fecha ya tiene
+      // resultados de otro circuito, pisarla los pegaria a una carrera que no es.
       if (existing.circuitId !== circuit.id) {
         const results = await prisma.raceResult.count({ where: { raceId: existing.id } });
         if (results > 0) {
@@ -131,13 +121,9 @@ export function syncRaces(year: number, triggeredById: number) {
   });
 }
 
-// ─── 12c — resultados ────────────────────────────────────────────
-
-// Se mapea por positionText y NO por status. Relevado contra las 14 fechas corridas de 2026:
-// hay `status: "Retired"` con posicion numerica (abandono pero clasifico por distancia) y
-// `status: "Lapped"` con positionText "R". positionText es el campo que dice si clasifico.
-// Exportada para el script prisma/seed-data: tiene que traducir positionText igual que el
-// sync, o el seed y la sincronizacion en vivo diferirian sobre la misma carrera.
+// Por positionText y no por status: hay "Retired" con posicion numerica (clasifico por
+// distancia) y "Lapped" con positionText "R". La usa tambien el script del seed, para que
+// seed y sync no difieran sobre la misma carrera.
 export function mapStatus(positionText: string): RaceResultStatus {
   if (/^\d+$/.test(positionText)) return 'CLASSIFIED';
   if (positionText === 'D' || positionText === 'E') return 'DSQ'; // disqualified / excluded
@@ -149,8 +135,7 @@ function mapResult(r: JolpicaResult, driverId: number): LoadRaceResultsInput['re
   const status = mapStatus(r.positionText);
   return {
     driverId,
-    // Jolpica numera tambien a los que no clasificaron (es solo un orden). Para nosotros
-    // `position` significa "puesto final", asi que solo la llevan los CLASSIFIED.
+    // Jolpica numera tambien a los no clasificados; aca `position` es puesto final.
     ...(status === 'CLASSIFIED' ? { position: r.position } : {}),
     points: r.points,
     // grid 0 = largo desde boxes: no tiene posicion de grilla.
@@ -176,8 +161,7 @@ export function syncResults(raceId: number, triggeredById: number, dryRun: boole
         'SYNC_RESULTS_NOT_AVAILABLE',
       );
     }
-    // Emparejamos por round, asi que verificamos que el round apunte a la misma carrera en
-    // los dos lados. Sin esto, un calendario local desfasado carga Miami adentro de Japon.
+    // Se empareja por round: sin este chequeo un calendario desfasado carga Miami adentro de Japon.
     if (remote.Circuit.circuitId !== race.circuit.externalId) {
       throw new ConflictError(
         `Round ${race.round} is "${race.name}" (${race.circuit.externalId}) here but "${remote.raceName}" (${remote.Circuit.circuitId}) in Jolpica — sync the races first`,
@@ -209,8 +193,7 @@ export function syncResults(raceId: number, triggeredById: number, dryRun: boole
       }
     }
 
-    // Mismo schema que valida el body de POST /races/:id/results: aca no hay middleware que lo
-    // corra, y es lo que ataja p. ej. medios puntos (RaceResult.points es Int).
+    // Aca no hay middleware que valide: el schema ataja p. ej. medios puntos (points es Int).
     const parsed = loadRaceResultsSchema.safeParse({ results: mapped });
     if (!parsed.success) {
       throw new AppError(

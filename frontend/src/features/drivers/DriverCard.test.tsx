@@ -16,8 +16,7 @@ const driver: Driver = {
   constructor: { id: 3, name: 'Red Bull Racing', color: '#3671C6', logoUrl: null },
 };
 
-// La franja de escuderia es un <Link> real (linkea a /constructors/:id), asi que necesita un
-// Router alrededor aunque el componente no haga queries — a diferencia de LeagueCard.test.tsx.
+// La franja de escuderia es un <Link>: necesita un Router aunque el componente no haga queries.
 function renderCard(ui: ReactElement) {
   return render(<MemoryRouter>{ui}</MemoryRouter>);
 }

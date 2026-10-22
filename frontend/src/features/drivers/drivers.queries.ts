@@ -3,8 +3,6 @@ import type { ConstructorRef, Driver, DriverDetail } from '../../models/driver';
 import { ApiError } from '../../services/api-error';
 import { driversService } from '../../services/drivers.service';
 
-// Mismo patron que leagues.queries.ts: un hook por lectura, keys como tuplas, sin exportar
-// el objeto de keys.
 const keys = {
   all: (constructorId?: number) => ['drivers', { constructorId }] as const,
   one: (id: number) => ['drivers', id] as const,
@@ -15,9 +13,7 @@ export function useDrivers(constructorId?: number) {
   return useQuery<Driver[], ApiError>({
     queryKey: keys.all(constructorId),
     queryFn: () => driversService.list(constructorId),
-    // El filtro es server-side: sin esto, cada cambio vacia la lista mientras viaja el
-    // request y la pantalla parpadea. Con placeholderData la tabla anterior se queda
-    // hasta que llega la nueva.
+    // El filtro es server-side: sin esto la lista se vacia mientras viaja el request.
     placeholderData: (previous) => previous,
   });
 }
@@ -29,9 +25,7 @@ export function useDriver(id: number) {
   });
 }
 
-// Puebla el <select> del filtro. Se piden aparte a proposito: si las opciones salieran del
-// listado ya filtrado, al elegir Ferrari quedaria Ferrari como unica opcion y no habria
-// forma de volver atras.
+// Aparte del listado: si salieran de la lista filtrada, al elegir Ferrari no habria vuelta atras.
 export function useConstructors() {
   return useQuery<ConstructorRef[], ApiError>({
     queryKey: keys.constructors,

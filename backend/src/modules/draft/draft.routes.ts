@@ -1,10 +1,4 @@
-// ROUTES — a diferencia de los demas modulos, este router NO se registra en app.ts.
-// Draft es un sub-recurso de League (URLs /leagues/:id/draft/*), asi que se monta desde
-// leagues.routes.ts via `router.use('/:id/draft', ...)`. La chain comun a TODAS las rutas de
-// aca (requireAuth → validateParams(leagueIdParamSchema) → requireLeagueMember) se aplica
-// UNA sola vez en ese mount point, no ruta por ruta — todas las rutas de este router
-// requieren, como minimo, ser member de la liga. start/reset agregan requireLeagueOwner
-// encima porque son owner-only.
+// Se monta desde leagues.routes.ts, que ya aplica requireAuth y requireLeagueMember a todo.
 
 import { Router } from 'express';
 import * as draftController from './draft.controller';

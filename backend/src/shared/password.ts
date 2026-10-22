@@ -1,11 +1,6 @@
-// PASSWORD HELPERS — envoltorio fino de bcrypt
-// Encapsulado acá para que el resto del codebase no toque bcrypt directo.
-// Si mañana cambiamos a argon2, solo este archivo cambia.
-
 import bcrypt from 'bcryptjs';
 
-// 10 rounds = ~100ms en hardware moderno (2024-2026).
-// Industry default para apps web. Si Security review pide subir, mover acá.
+// ~100ms por hash: el default habitual para apps web.
 const ROUNDS = 10;
 
 export function hashPassword(plain: string): Promise<string> {

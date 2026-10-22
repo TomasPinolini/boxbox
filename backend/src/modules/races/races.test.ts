@@ -4,15 +4,13 @@ import app from '../../app';
 import { prisma } from '../../shared/prisma';
 import { createTestAdmin, createTestUser } from '../../tests/setup';
 
-// adminToken: el CRUD de races es admin-only (A5 / BOX-15), igual que /results desde Slice 7.
-// Se recrea por test (setup.ts trunca la DB).
+// Se recrea por test porque setup.ts trunca la DB.
 let adminToken: string;
 
 beforeEach(async () => {
   adminToken = (await createTestAdmin()).accessToken;
 });
 
-// Races depend on Season + Circuit, so we create those first in each test
 let seasonId: number;
 let circuitId: number;
 
@@ -65,6 +63,26 @@ describe('GET /api/v1/races', () => {
 
     const empty = await request(app).get('/api/v1/races?seasonId=9999');
     expect(empty.body.data).toHaveLength(0);
+  });
+
+  // Igual que /drivers: un seasonId que no es numero es un pedido mal armado, no un "sin filtro".
+  it('returns 400 for a non-numeric seasonId', async () => {
+    const res = await request(app).get('/api/v1/races?seasonId=abc');
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  it('ignores an invalid status instead of failing', async () => {
+    await request(app)
+      .post('/api/v1/races')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send(validRace());
+
+    for (const status of ['NOEXISTE', 'toString']) {
+      const res = await request(app).get(`/api/v1/races?status=${status}`);
+      expect(res.status).toBe(200);
+      expect(res.body.data).toHaveLength(1);
+    }
   });
 });
 
@@ -148,8 +166,7 @@ describe('POST /api/v1/races', () => {
     expect(res.status).toBe(400);
   });
 
-  // A2 / BOX-12: z.coerce.date() aceptaba null/true/0 y los guardaba como 1970-01-01. Una
-  // carrera con lockDate en 1970 esta "cerrada" desde hace 56 anios para predicciones.
+  // z.coerce.date() convertiria null/true/0 en 1970-01-01 sin fallar.
   it('rejects non-ISO dates instead of coercing them to 1970 (null, true, 0)', async () => {
     for (const bad of [{ lockDate: null }, { qualifyingDate: true }, { date: 0 }]) {
       const res = await request(app)
@@ -225,9 +242,7 @@ describe('DELETE /api/v1/races/:id', () => {
     ).toBe(404);
   });
 
-  // La FK de race_results contra races es ON DELETE RESTRICT. Sin la guarda en el service el
-  // DELETE moria adentro de Prisma (P2003), que no es un AppError y salia como 500. Este test
-  // afirma el 409 tipado; si alguien saca la guarda, afirma el 500 que vuelve.
+  // Sin la guarda del service, la FK ON DELETE RESTRICT termina en P2003 y un 500.
   it('rechaza con 409 borrar una carrera que ya tiene resultados cargados', async () => {
     const created = await request(app)
       .post('/api/v1/races')
@@ -253,13 +268,8 @@ describe('DELETE /api/v1/races/:id', () => {
   });
 });
 
-// ─── Slice 7: RaceResult ingestion ───────────────────────────────
-// POST /api/v1/races/:id/results (admin) — carga manual de resultados de carrera.
-
-// createDrivers: crea n drivers y, salvo que se pida lo contrario, los vincula a la temporada
-// del test de a pares por constructor via DriverSeason (drivers 1-2 -> constructor 1, 3-4 ->
-// constructor 2, ...). Slice 8 necesita ese vinculo para computar ConstructorResult; sin el,
-// loadResults rechaza con 409 DRIVER_NOT_IN_SEASON.
+// Vincula los drivers a la temporada de a pares por constructor (1-2 -> equipo 1, 3-4 -> 2...).
+// Sin DriverSeason, loadResults rechaza con 409 DRIVER_NOT_IN_SEASON.
 type SeededDriver = { id: number; constructorId: number | null };
 
 async function createDrivers(
@@ -299,7 +309,6 @@ async function createDrivers(
   return drivers;
 }
 
-// Points table F1 moderno (top 10 puntúa; 1-25 pto para la vuelta rapida ignorado aca).
 const F1_POINTS_TABLE = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1];
 
 function buildResults(drivers: Array<{ id: number }>) {
@@ -331,7 +340,6 @@ describe('POST /api/v1/races/:id/results', () => {
 
     expect(res.status).toBe(201);
 
-    // Aserciones DB directas — matchea el "Done when" del roadmap literal.
     const count = await prisma.raceResult.count({ where: { raceId } });
     expect(count).toBe(20);
 
@@ -339,7 +347,6 @@ describe('POST /api/v1/races/:id/results', () => {
     expect(race?.status).toBe('COMPLETED');
   });
 
-  // ── Auth guards ────────────────────────────────────────────────
   it('sin token → 401 TOKEN_MISSING', async () => {
     const raceRes = await request(app)
       .post('/api/v1/races')
@@ -372,7 +379,6 @@ describe('POST /api/v1/races/:id/results', () => {
     expect(res.body.error.code).toBe('ADMIN_REQUIRED');
   });
 
-  // ── Not found ──────────────────────────────────────────────────
   it('Race inexistente → 404 RACE_NOT_FOUND', async () => {
     const drivers = await createDrivers(3);
     const { accessToken } = await createTestAdmin();
@@ -395,8 +401,6 @@ describe('POST /api/v1/races/:id/results', () => {
     const drivers = await createDrivers(2);
     const { accessToken } = await createTestAdmin();
 
-    // Mezclamos 2 drivers validos + 1 ID inventado. El pre-check debe cortar
-    // antes de la transaccion, o sea que nada se inserta.
     const results = [
       ...buildResults(drivers),
       { driverId: 999999, position: 3, points: 15, status: 'CLASSIFIED' as const },
@@ -410,12 +414,10 @@ describe('POST /api/v1/races/:id/results', () => {
     expect(res.status).toBe(404);
     expect(res.body.error.code).toBe('DRIVER_NOT_FOUND');
 
-    // Verificamos que NINGUN result quedo escrito (atomicidad).
     const count = await prisma.raceResult.count({ where: { raceId } });
     expect(count).toBe(0);
   });
 
-  // ── Conflict — race en estado no cargable ──────────────────────
   it('Race ya COMPLETED → 409 RACE_ALREADY_COMPLETED (idempotency guard)', async () => {
     const raceRes = await request(app)
       .post('/api/v1/races')
@@ -425,13 +427,11 @@ describe('POST /api/v1/races/:id/results', () => {
     const drivers = await createDrivers(3);
     const { accessToken } = await createTestAdmin();
 
-    // Primera carga — deja la Race en COMPLETED.
     await request(app)
       .post(`/api/v1/races/${raceId}/results`)
       .set('Authorization', `Bearer ${accessToken}`)
       .send({ results: buildResults(drivers) });
 
-    // Segunda carga — deberia rechazar.
     const res = await request(app)
       .post(`/api/v1/races/${raceId}/results`)
       .set('Authorization', `Bearer ${accessToken}`)
@@ -447,7 +447,6 @@ describe('POST /api/v1/races/:id/results', () => {
       .set('Authorization', `Bearer ${adminToken}`)
       .send(validRace());
     const raceId = raceRes.body.data.id;
-    // Ponemos la Race en CANCELLED via update directo — no hay endpoint publico para esto.
     await prisma.race.update({ where: { id: raceId }, data: { status: 'CANCELLED' } });
 
     const drivers = await createDrivers(3);
@@ -488,8 +487,6 @@ describe('POST /api/v1/races/:id/results', () => {
       .set('Authorization', `Bearer ${adminToken}`)
       .send(validRace());
     const raceId = raceRes.body.data.id;
-    // QUALIFYING_LOCKED es el otro estado en LOADABLE_STATUSES ademas de UPCOMING.
-    // Verificamos explicitamente que ambos son aceptados.
     await prisma.race.update({ where: { id: raceId }, data: { status: 'QUALIFYING_LOCKED' } });
 
     const drivers = await createDrivers(3);
@@ -514,16 +511,12 @@ describe('POST /api/v1/races/:id/results', () => {
     const drivers = await createDrivers(2);
     const { accessToken } = await createTestAdmin();
 
-    // Insertamos un RaceResult A MANO para simular estado inconsistente
-    // (ej: un slice futuro que carga results parcialmente sin pasar por este endpoint).
+    // Una fila insertada a mano simula una carga previa que no paso por este endpoint.
     await prisma.raceResult.create({
       data: { raceId, driverId: drivers[0].id, points: 25, status: 'CLASSIFIED' },
     });
 
-    // Ahora POST con los mismos 2 drivers. El pre-check "duplicate en payload" no ve
-    // conflicto (son 2 driverIds unicos). El @@unique([raceId, driverId]) explota en
-    // driver[0]; el catch de loadResults traduce el P2002 a un 409 tipado (Slice 12 —
-    // antes escalaba a 500).
+    // El payload no trae duplicados, asi que lo frena el @@unique (P2002 traducido a 409).
     const res = await request(app)
       .post(`/api/v1/races/${raceId}/results`)
       .set('Authorization', `Bearer ${accessToken}`)
@@ -537,7 +530,6 @@ describe('POST /api/v1/races/:id/results', () => {
     expect(race?.status).toBe('UPCOMING');
   });
 
-  // ── Conflict — payload malformado (aunque valido para Zod) ─────
   it('driverId duplicado en el payload → 409 RACE_RESULT_DUPLICATE_DRIVER', async () => {
     const raceRes = await request(app)
       .post('/api/v1/races')
@@ -546,7 +538,6 @@ describe('POST /api/v1/races/:id/results', () => {
     const drivers = await createDrivers(2);
     const { accessToken } = await createTestAdmin();
 
-    // 2 filas para el MISMO driver — el pre-check debe atraparlo.
     const results = [
       { driverId: drivers[0].id, position: 1, points: 25, status: 'CLASSIFIED' as const },
       { driverId: drivers[0].id, position: 2, points: 18, status: 'CLASSIFIED' as const },
@@ -561,7 +552,6 @@ describe('POST /api/v1/races/:id/results', () => {
     expect(res.body.error.code).toBe('RACE_RESULT_DUPLICATE_DRIVER');
   });
 
-  // ── Zod validation (400) ───────────────────────────────────────
   it('array de results vacio → 400 VALIDATION_ERROR', async () => {
     const raceRes = await request(app)
       .post('/api/v1/races')
@@ -597,10 +587,6 @@ describe('POST /api/v1/races/:id/results', () => {
     expect(res.body.error.code).toBe('VALIDATION_ERROR');
   });
 });
-
-// ─── Slice 8: ConstructorResult derivado de RaceResult ─────────────
-// Al cargar results, loadResults agrupa los puntos por constructor (via DriverSeason de la
-// temporada de la Race) y crea un ConstructorResult por constructor, en la misma transaccion.
 
 describe('POST /api/v1/races/:id/results — ConstructorResult (Slice 8)', () => {
   async function createRace() {
@@ -725,9 +711,6 @@ describe('GET /api/v1/races/:id/results', () => {
   });
 });
 
-// ─── Solo admin muta el catalogo (A5 / BOX-15) ─────────────────────────
-// /results ya estaba gateado desde Slice 7; esto extiende el mismo criterio al CRUD.
-
 describe('races — solo admin puede mutar', () => {
   it('rechaza POST sin token (401 TOKEN_MISSING)', async () => {
     const res = await request(app).post('/api/v1/races').send({});
@@ -745,7 +728,7 @@ describe('races — solo admin puede mutar', () => {
   });
 });
 
-// A3 / BOX-13: un :id no numerico antes llegaba a Prisma como NaN y explotaba en 500.
+// Sin validateParams, un :id no numerico llega a Prisma como NaN y da 500.
 describe('races — :id no numerico', () => {
   it('GET /races/abc responde 400 VALIDATION_ERROR, no 500', async () => {
     const res = await request(app).get('/api/v1/races/abc');

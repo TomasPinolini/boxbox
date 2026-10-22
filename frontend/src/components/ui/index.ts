@@ -4,7 +4,6 @@ export { Card } from './Card';
 export { ConfirmButton } from './ConfirmButton';
 export { Badge, type BadgeTone } from './Badge';
 export { Alert } from './Alert';
-export { errorMessageFor } from './error-messages';
 export { HelpPopover } from './HelpPopover';
 export { PageShell } from './PageShell';
 export { Position } from './Position';

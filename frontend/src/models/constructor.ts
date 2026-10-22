@@ -14,21 +14,15 @@ export interface ConstructorDetail {
   results: ConstructorRaceResult[];
 }
 
-export interface ConstructorRaceResult {
+interface ConstructorRaceResult {
   raceId: number;
   raceName: string;
   round: number;
   raceDate: string | null;
-  /**
-   * NO son pilotos: driver1Points es "el mayor de los dos" y se reordena carrera a carrera.
-   * Ver BOX-65. Para mostrar quien hizo cada punto está pointsByDriverId.
-   */
+  /** NO son pilotos: driver1Points es "el mayor de los dos" y cambia de dueño cada carrera. */
   driver1Points: number;
   driver2Points: number;
   totalPoints: number;
-  /**
-   * Puntos por piloto en esa carrera, por id. Sale de RaceResult, que sí ata punto a persona.
-   * Ausente cuando el backend es anterior a este desglose — ausente NO es cero.
-   */
+  /** Sale de RaceResult, que sí ata punto a persona. Ausente NO es cero. */
   pointsByDriverId?: Record<number, number>;
 }

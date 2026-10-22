@@ -1,20 +1,7 @@
 /**
- * Dev seed — pobla la DB con la grilla y el calendario 2026. El calendario es el de Jolpica
- * (23 fechas, mismos `round` y `circuitId`), asi el sync del Slice 12 empareja por `round`.
- * Los resultados NO se seedean: se importan de Jolpica.
- *
- * Cómo se corre:
- *   npx prisma db seed        -> idempotente, podés correrlo cuantas veces quieras
- *   npx prisma migrate reset  -> wipea la DB y re-migra; correr `db seed` aparte
- *                                después (Prisma 7 ya NO lo auto-corre).
- *
- * Cómo es idempotente: cada operación usa `upsert` con `update: {}` (o un
- * update mínimo donde hace falta — ver DriverSeason). Eso significa que si
- * el registro existe, no lo toca; si no existe, lo crea.
- *
- * Estructura: los datos (`teams2026`, `circuits2026`, `races2026`) están
- * separados de la lógica. Agregar un equipo / circuito / carrera = agregar
- * una entrada al array, NO copiar bloques de upsert.
+ * Dev seed de la temporada 2026. El calendario copia los `round` de Jolpica para que el sync
+ * empareje por `round`. Idempotente: todo es `upsert`, casi siempre con `update: {}`.
+ * `prisma migrate reset` en Prisma 7 no lo corre solo: hay que correr `db seed` aparte.
  */
 
 import { existsSync, readFileSync } from 'node:fs';
@@ -23,10 +10,6 @@ import { prisma } from '../src/shared/prisma';
 import { hashPassword } from '../src/shared/password';
 
 const oneHourBefore = (date: Date) => new Date(date.getTime() - 60 * 60 * 1000);
-
-// ───────────────────────────────────────────────────────────────────────────
-// Tipos de datos de seed
-// ───────────────────────────────────────────────────────────────────────────
 
 type DriverData = {
   externalId: string;
@@ -57,10 +40,6 @@ type RaceData = {
   date: string;
   circuitExternalId: string;
 };
-
-// ───────────────────────────────────────────────────────────────────────────
-// Datos — parrilla 2026 (11 equipos, 22 pilotos)
-// ───────────────────────────────────────────────────────────────────────────
 
 const teams2026: TeamData[] = [
   {
@@ -95,7 +74,6 @@ const teams2026: TeamData[] = [
         number: 3,
         code: 'VER',
       },
-      // Hadjar ascendido desde RB tras la salida de Lawson del equipo principal.
       { externalId: 'hadjar', firstName: 'Isack', lastName: 'Hadjar', number: 6, code: 'HAD' },
     ],
   },
@@ -153,7 +131,6 @@ const teams2026: TeamData[] = [
     color: '#6692FF',
     drivers: [
       { externalId: 'lawson', firstName: 'Liam', lastName: 'Lawson', number: 30, code: 'LAW' },
-      // Lindblad: rookie absoluto promocionado desde la academia.
       {
         externalId: 'arvid_lindblad',
         firstName: 'Arvid',
@@ -203,10 +180,6 @@ const teams2026: TeamData[] = [
     ],
   },
 ];
-
-// ───────────────────────────────────────────────────────────────────────────
-// Datos — circuitos 2026 (agregar nuevos acá, no abajo)
-// ───────────────────────────────────────────────────────────────────────────
 
 const circuits2026: CircuitData[] = [
   {
@@ -370,10 +343,7 @@ const circuits2026: CircuitData[] = [
   },
 ];
 
-// ───────────────────────────────────────────────────────────────────────────
-// Datos — calendario 2026, tal cual lo publica Jolpica (relevado el 2026-09-21).
-// Re-sincronizable con POST /api/v1/admin/sync/races?year=2026.
-// ───────────────────────────────────────────────────────────────────────────
+// Calendario tal cual lo publica Jolpica; se re-sincroniza con POST /admin/sync/races?year=2026.
 
 const races2026: RaceData[] = [
   {
@@ -516,21 +486,8 @@ const races2026: RaceData[] = [
   },
 ];
 
-// ───────────────────────────────────────────────────────────────────────────
-// Multimedia
-// ───────────────────────────────────────────────────────────────────────────
-
-// Logos de escuderia, servidos como estaticos desde frontend/public/logos/.
-// Origen y licencia de cada archivo: frontend/public/logos/CREDITS.md.
-//
-// Son MARCAS, no wordmarks: el speedmark de McLaren, la estrella de Mercedes, la "A" de
-// Alpine. El criterio es el tamano mas chico en que se usan, 24px en la tabla del
-// campeonato. Un logo apaisado con el nombre del equipo adentro a 24px es una mancha; una
-// marca se sigue reconociendo.
-//
-// Las 11 tienen logo. Antes Aston Martin y Williams quedaban afuera porque no habia una
-// version libre que fuera solo la marca (sin el wordmark) — eso ya no es un problema con
-// este lote, ver CREDITS.md.
+// Estaticos de frontend/public/logos/ (licencias en CREDITS.md). Son marcas y no wordmarks
+// porque se usan a 24px, donde un logo con el nombre adentro es una mancha.
 const teamLogos: Record<string, string> = {
   alpine: '/logos/alpine.png',
   cadillac: '/logos/cadillac.png',
@@ -545,17 +502,8 @@ const teamLogos: Record<string, string> = {
   williams: '/logos/williams.png',
 };
 
-// Fotos de pilotos: se guarda la URL, NO el archivo. Son imagenes de prensa de F1 alojadas en
-// su CDN y este repositorio es publico, asi que bajarlas y commitearlas seria redistribuirlas.
-// Las URLs salieron del campo `headshot_url` de la API de OpenF1 (gratuita, sin credenciales).
-// El `2col` del path es el escalon de tamano: 1col=93px, 2col=206px, 3col=319px, 4col=432px.
-// Archivos propios, no la URL de F1.com: recortadas al primer tercio (cara + torso, donde
-// vive el logo de la escudería) de la foto de cuerpo entero que manda F1.com, con
-// ImageMagick (`convert original.avif -gravity North -crop 440x422+0+0 +repage salida.png`).
-// Viven en `frontend/public/drivers/<externalId>.png`, mismo patrón que `Constructor.logoUrl`
-// con `frontend/public/logos/` — un archivo estático servido por el propio frontend, la DB
-// solo guarda la ruta relativa. Todas las 22 (antes 21 — Hadjar no tenía, OpenF1 no lo
-// devolvía) vienen del mismo lote, recortadas igual.
+// Estaticos de frontend/public/drivers/: la foto de F1.com recortada al primer tercio, donde
+// se ve el logo de la escuderia (`convert original.avif -gravity North -crop 440x422+0+0`).
 const driverHeadshots: Record<string, string> = {
   albon: '/drivers/albon.png',
   alonso: '/drivers/alonso.png',
@@ -581,23 +529,8 @@ const driverHeadshots: Record<string, string> = {
   stroll: '/drivers/stroll.png',
 };
 
-// ───────────────────────────────────────────────────────────────────────────
-// Lógica — recorre los arrays y persiste vía upsert
-// ───────────────────────────────────────────────────────────────────────────
-// Resultados reales, congelados desde Jolpica
-// ───────────────────────────────────────────────────────────────────────────
-//
-// El archivo lo genera `npx ts-node src/scripts/fetch-jolpica-results.ts 2026` y se commitea.
-// La fuente de verdad sigue siendo Jolpica: esto es una foto fechada de Jolpica.
-//
-// Por que congelado y no una llamada desde aca: el seed corre en el posttest de CADA
-// `npm test`. Un seed que pega a la red no es reproducible, no corre sin internet y sumaria
-// 20 segundos a cada corrida. Mismo criterio que modules/sync/sync.fixtures.ts.
-//
-// Por que en el seed y no cargado a mano: la suite trunca todas las tablas y el posttest
-// repone el seed, asi que cualquier resultado cargado por fuera desaparece en la siguiente
-// corrida de tests.
-
+// Resultados congelados por src/scripts/fetch-jolpica-results.ts. Se leen de un archivo y no
+// de la red porque el seed corre en el posttest de cada `npm test` y tiene que andar offline.
 interface StoredResult {
   driverExternalId: string;
   position: number | null;
@@ -616,31 +549,18 @@ interface StoredResultsFile {
 }
 
 function loadStoredResults(year: number): StoredResultsFile | null {
-  // SEED_SKIP_RESULTS=1 carga la grilla y el calendario pero NINGUN resultado, asi el
-  // campeonato arranca en cero. Es lo que hace falta para que una liga nueva se pueda jugar:
-  // con los 17 resultados de 2026 cargados, el draft reparte pilotos y la tabla sale resuelta
-  // de entrada, porque los puntos ya existen. Sin resultados, se cargan despues a mano desde
-  // /admin/results, una fecha por vez, al ritmo que se quiera.
+  // SEED_SKIP_RESULTS=1 deja el campeonato en cero: con los resultados ya cargados, una liga
+  // nueva nace con la tabla resuelta. Despues se cargan por fecha desde /admin/results.
   if (process.env.SEED_SKIP_RESULTS === '1') return null;
   const path = join(__dirname, 'seed-data', `results-${year}.json`);
   if (!existsSync(path)) return null;
   return JSON.parse(readFileSync(path, 'utf8')) as StoredResultsFile;
 }
 
-// ───────────────────────────────────────────────────────────────────────────
-
 async function main() {
-  // 0. Admin ----------------------------------------------------------------
-  // El CRUD de catalogo (drivers, constructors, circuits, seasons, races) es admin-only
-  // (A5 / BOX-15) y `POST /auth/register` siempre crea USER. Sin este upsert no hay forma de
-  // cargar pilotos o resultados desde la API: promover un USER a ADMIN requiere un UPDATE a
-  // mano en la DB, no hay endpoint.
-  //
-  // La password sale de SEED_ADMIN_PASSWORD. El default 'admin1234' es de desarrollo y esta
-  // publicado en este repo y en docs/tutorial.md, asi que en una base alcanzable desde
-  // internet es un agujero completo: cualquiera que lea el repo entra como ADMIN. Con
-  // NODE_ENV=production la variable pasa a ser obligatoria y el seed aborta si falta, en vez
-  // de crear el agujero en silencio.
+  // Register solo crea USER y no hay endpoint para promover: este es el unico camino a un ADMIN.
+  // El default 'admin1234' esta publicado en el repo, por eso en produccion la variable es
+  // obligatoria.
   const adminPassword = process.env.SEED_ADMIN_PASSWORD;
   if (process.env.NODE_ENV === 'production') {
     if (!adminPassword) {
@@ -653,11 +573,8 @@ async function main() {
     }
   }
 
-  // El hash se calcula una vez y se usa en las dos ramas. Que `update` lo incluya NO es un
-  // detalle: sin eso el upsert deja la password vieja para siempre, y una base seedeada alguna
-  // vez con el default se queda con la password publicada aunque despues le pases la variable.
-  // Verificado: pasaba justo eso. Con la variable, el seed es autoritativo y rota la password
-  // de un admin que ya exista; sin la variable no la toca, para que un re-seed en dev no churnee.
+  // `update` tiene que incluir el hash: si no, una base seedeada con el default se queda con la
+  // password publicada aunque despues pases la variable. Sin la variable no se toca.
   const adminHash = adminPassword ? await hashPassword(adminPassword) : null;
 
   await prisma.user.upsert({
@@ -671,7 +588,6 @@ async function main() {
     },
   });
 
-  // 1. Season ---------------------------------------------------------------
   const season = await prisma.season.upsert({
     where: { year: 2026 },
     update: {},
@@ -686,8 +602,6 @@ async function main() {
     });
   };
 
-  // 2. Constructors + Drivers + DriverSeasons -------------------------------
-  // Se guardan los ids reales mientras se crean: la seccion 5 los necesita.
   const driverIdByExternalId = new Map<string, number>();
   const constructorIdByDriverId = new Map<number, number>();
 
@@ -695,9 +609,8 @@ async function main() {
     const logoUrl = teamLogos[team.externalId] ?? null;
     const teamConstructor = await prisma.constructor.upsert({
       where: { externalId: team.externalId },
-      // logoUrl SI se actualiza (a diferencia del resto de los upserts, que usan `update: {}`):
-      // el seed es su fuente de verdad, asi que agregar un logo nuevo tiene que impactar en una
-      // DB ya seedeada sin obligar a borrarla.
+      // logoUrl si se actualiza: el seed es su fuente de verdad y un logo nuevo tiene que llegar
+      // a una DB ya seedeada.
       update: { logoUrl },
       create: { externalId: team.externalId, name: team.name, color: team.color, logoUrl },
     });
@@ -722,9 +635,6 @@ async function main() {
     }
   }
 
-  // 3. Circuits -------------------------------------------------------------
-  // Guardamos el id real (autoincrement) por externalId para que las races
-  // puedan referenciarlo sin tener variables sueltas.
   const circuitIdByExternalId = new Map<string, number>();
   for (const c of circuits2026) {
     const circuit = await prisma.circuit.upsert({
@@ -735,7 +645,6 @@ async function main() {
     circuitIdByExternalId.set(c.externalId, circuit.id);
   }
 
-  // 4. Races ----------------------------------------------------------------
   const raceIdByRound = new Map<number, number>();
   for (const r of races2026) {
     const circuitId = circuitIdByExternalId.get(r.circuitExternalId);
@@ -761,15 +670,9 @@ async function main() {
     raceIdByRound.set(r.round, race.id);
   }
 
-  // 5. Resultados reales de Jolpica, congelados --------------------------------
-  // El seed NO inventa resultados: carga la foto que dejo
-  // `npx ts-node src/scripts/fetch-jolpica-results.ts 2026`. Si el archivo no esta, el seed
-  // sigue sin el — un clone recien hecho funciona igual, solo que el campeonato queda en cero.
   const stored = loadStoredResults(2026);
   if (!stored) {
-    // Dos motivos distintos para no tener resultados, y el mensaje tiene que decir cual: si
-    // mandaba a generar el archivo cuando el archivo esta y fue una decision, el log pide una
-    // accion equivocada.
+    // El mensaje distingue los dos motivos para no pedir generar un archivo que ya existe.
     console.log(
       process.env.SEED_SKIP_RESULTS === '1'
         ? 'SEED_SKIP_RESULTS=1: resultados salteados a proposito, el campeonato arranca en cero. ' +
@@ -789,8 +692,7 @@ async function main() {
       for (const r of race.results) {
         const driverId = driverIdByExternalId.get(r.driverExternalId);
         if (!driverId) {
-          // Jolpica puede traer un suplente que nuestra grilla no tiene. Se saltea y se avisa
-          // al final: perder una fila en silencio seria peor que un campeonato incompleto.
+          // Jolpica puede traer un suplente que la grilla no tiene: se saltea y se avisa al final.
           sinPiloto.add(r.driverExternalId);
           continue;
         }
@@ -816,9 +718,8 @@ async function main() {
         pointsByConstructor.set(constructorId, bucket);
       }
 
-      // Mismo criterio que buildConstructorResults (Slice 8): driver1Points es el MAYOR de los
-      // dos, no un piloto fijo — ver BOX-65. Aca no se tira error si hay mas de dos pilotos
-      // (puede pasar con un suplente): se toman los dos mejores y el seed sigue.
+      // Como buildConstructorResults: driver1Points es el mayor, no un piloto fijo. Con un
+      // suplente puede haber tres pilotos; se toman los dos mejores en vez de fallar.
       for (const [constructorId, points] of pointsByConstructor) {
         const [driver1Points = 0, driver2Points = 0] = [...points].sort((a, b) => b - a);
         await prisma.constructorResult.upsert({
@@ -844,7 +745,6 @@ async function main() {
     }
   }
 
-  // 6. Summary --------------------------------------------------------------
   const counts = {
     admins: await prisma.user.count({ where: { role: 'ADMIN' } }),
     seasons: await prisma.season.count(),

@@ -5,10 +5,7 @@ import { ConstructorLogo } from '../drivers/ConstructorLogo';
 import { DriverAvatar } from '../drivers/DriverAvatar';
 import { DRAFT_LABEL } from './draft-label';
 
-// LeagueCard: una liga en la lista. Entrada: la liga. Salida: onOpen(id). No llama a ningun
-// servicio — eso es de la pagina. Mismo patron que DriverCard, ahora de verdad: la tarjeta
-// entera es el boton (stretched link), el nombre se trunca, y el "Ver liga ->" que ocupaba una
-// linea propia con 20px de area tactil desaparecio.
+// La tarjeta entera es el boton (stretched link), como DriverCard.
 export function LeagueCard({
   league,
   drivers,
@@ -22,25 +19,19 @@ export function LeagueCard({
 }) {
   const draft = DRAFT_LABEL[league.draftStatus];
 
-  // Los lookups viven en el componente y no en la pagina porque son del render de ESTA
-  // tarjeta: el backend manda ids, el catalogo de pilotos ya esta en cache para toda la
-  // pantalla, y resolverlo aca evita que la pagina arme un objeto por liga.
   const equipo = league.myTeam;
   const misPilotos = [equipo?.driver1Id, equipo?.driver2Id]
     .map((driverId) => drivers.find((d) => d.id === driverId))
     .filter((d): d is Driver => d !== undefined);
   const miEscuderia = constructors.find((c) => c.id === equipo?.constructorId) ?? null;
-  // Sin pilotos ni escuderia no se dibuja nada: antes del draft el FantasyTeam existe con
-  // los slots vacios, y una fila de guiones no comunica nada.
+  // Antes del draft el FantasyTeam existe con los slots vacios: no se dibuja nada.
   const hayEquipo = misPilotos.length > 0 || miEscuderia !== null;
 
   return (
     <Card className="relative transition-shadow hover:shadow-md">
-      {/* El nombre va solo en su linea, con el badge abajo. Compartiendo linea con un badge
-          ancho como "DRAFT PENDIENTE", un nombre corto se truncaba sobrando lugar. */}
+      {/* El badge va abajo: al lado de "DRAFT PENDIENTE" un nombre corto se truncaba igual. */}
       <div className="flex items-start gap-2">
-        {/* min-w-0 es lo que hace funcionar al truncate: sin el, un item de flex no se encoge
-            por debajo del ancho de su contenido y el nombre largo desborda la tarjeta. */}
+        {/* Sin min-w-0 un item de flex no se encoge bajo su contenido y truncate no actua. */}
         <h2 className="min-w-0 flex-1 truncate text-lg font-semibold">{league.name}</h2>
         <span aria-hidden="true" className="shrink-0 font-semibold text-red-600">
           →
@@ -66,9 +57,8 @@ export function LeagueCard({
               title={`${d.firstName} ${d.lastName}`}
             >
               <DriverAvatar driver={d} size={24} />
-              {/* El title es un tooltip de mouse: no se anuncia y el teclado no llega. El
-                  nombre para el lector va en sr-only, y el codigo de 3 letras se oculta para
-                  no escuchar "Max Verstappen VER". El avatar ya es aria-hidden. */}
+              {/* El title solo sirve al mouse: el nombre para el lector va en sr-only y el
+                  codigo se oculta para no oir "Max Verstappen VER". */}
               <span className="sr-only">
                 {d.firstName} {d.lastName}
               </span>
@@ -89,8 +79,7 @@ export function LeagueCard({
         </div>
       )}
 
-      {/* aria-label con el nombre: el nombre accesible tiene que distinguir esta liga de las
-          otras. Sin el, todas las tarjetas suenan igual fuera de contexto. */}
+      {/* aria-label con el nombre: sin el, todas las tarjetas suenan igual. */}
       <button
         type="button"
         aria-label={`Ver liga ${league.name}`}

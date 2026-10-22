@@ -1,10 +1,5 @@
-// Guarda contra correr la suite de tests sobre una base que no sea local.
-//
-// setup.ts trunca 16 tablas antes de CADA test. Si DATABASE_URL apunta a Supabase
-// (o a cualquier host remoto), eso vacia esa base. Hasta ahora lo unico que lo
-// evitaba era acordarse de cambiar el .env antes de correr `npm test`.
-//
-// Pura y sin DB a proposito: se testea sin tocar Postgres.
+// setup.ts trunca todas las tablas antes de cada test: si DATABASE_URL apunta a una base
+// remota, la vaciaria.
 
 const ALLOWED_HOSTS = ['localhost', '127.0.0.1', '::1'];
 
@@ -18,10 +13,8 @@ export function assertLocalDatabase(url: string | undefined): void {
 
   let host: string;
   try {
-    // Dos normalizaciones, las dos necesarias:
-    //  - los brackets de IPv6 (postgresql://user@[::1]:5432/db) quedan en .hostname;
-    //  - el host NO viene en minusculas, porque new URL() solo normaliza el host de los
-    //    esquemas especiales (http, https, ws, file) y postgresql: no es uno de ellos.
+    // Los brackets de IPv6 quedan en .hostname, y new URL() no pasa a minusculas el host
+    // de esquemas no especiales como postgresql:.
     host = new URL(url).hostname.replace(/^\[|\]$/g, '').toLowerCase();
   } catch {
     throw new Error(

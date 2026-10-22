@@ -1,7 +1,5 @@
-// FIXTURES — respuestas REALES de Jolpica (2026, relevadas el 2026-09-21), recortadas a los
-// campos que lee shared/jolpica.ts y a las filas que ejercitan una rama cada una.
-// Los puntos son distintos en cada fecha a proposito: con la misma tabla en las dos, un bug
-// que cargara la fecha equivocada pasaria en verde.
+// Respuestas reales de Jolpica (2026), recortadas a los campos que lee shared/jolpica.ts.
+// Los puntos difieren entre fechas a proposito: si no, cargar la fecha equivocada pasaria en verde.
 
 const albertPark = {
   circuitId: 'albert_park',

@@ -1,8 +1,6 @@
 import type { ConstructorRef, Driver } from './driver';
 
-// Espejo de GET /drivers/standings y GET /constructors/standings (Slice 16).
-// Es el campeonato real de F1, NO la tabla de una liga fantasy (LeagueStanding) — por eso el
-// archivo no se llama standing.ts.
+// El campeonato real de F1, NO la tabla de una liga fantasy (eso es standing.ts).
 
 export interface DriverStanding {
   position: number;

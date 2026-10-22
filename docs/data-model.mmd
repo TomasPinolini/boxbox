@@ -184,11 +184,11 @@ erDiagram
 
     %% Verificado campo por campo contra backend/prisma/schema.prisma el 2026-10-05.
     %% Si cambia uno, cambia el otro.
-    %%
+
     %% Decision de diseno: RaceResult NO guarda constructorId. La relacion piloto->escuderia
     %% es propiedad de DriverSeason, que tiene @@unique([driverId, seasonId]) — una escuderia
     %% por piloto por temporada. ConstructorResult se deriva de ahi al cargar resultados.
-    %%
+
     %% Limitacion conocida, encontrada con datos reales de Jolpica: un piloto que cambia de
     %% equipo a mitad de temporada (Lawson 2026: Racing Bulls y Red Bull) acredita todos sus
     %% puntos a una sola escuderia. El arreglo seria mover constructorId a RaceResult o dar

@@ -54,3 +54,14 @@ reports/
 research_notes/
 PRODUCT.md
 *.bak*
+docs/research/*.html
+docs/research/*.pdf
+
+# herramientas locales
+# Estado de herramientas de asistencia por máquina: no es parte del producto.
+.vibe-wise/
+.sensible-vibes/
+graphify-out/
+.cursor/
+skills-lock.json
+docs/research/prompt-*.md

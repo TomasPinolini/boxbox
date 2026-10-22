@@ -3,8 +3,8 @@ import type { Race } from '../../models/race';
 import { ApiError } from '../../services/api-error';
 import { racesService, type RaceInput } from '../../services/races.service';
 
-// ['races'] a secas y no ['races', 'all']: admin.queries.ts usa ['races', 'active-season'] y
-// ya invalida por el prefijo ['races'], asi que cargar resultados refresca esta tabla tambien.
+// ['races'] a secas: admin.queries.ts invalida por ese prefijo y asi cargar resultados
+// refresca esta tabla tambien.
 const keys = { all: ['races'] as const };
 
 export function useRaces() {
@@ -14,8 +14,7 @@ export function useRaces() {
 export function useCreateRace() {
   const qc = useQueryClient();
   return useMutation<Race, ApiError, RaceInput>({
-    // Envuelta y no `racesService.create` a secas: React Query le pasa su contexto como
-    // segundo argumento, y entonces el servicio recibe un parametro que no espera.
+    // Envuelta: React Query pasa su contexto como segundo argumento y el servicio no lo espera.
     mutationFn: (input) => racesService.create(input),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.all }),
   });

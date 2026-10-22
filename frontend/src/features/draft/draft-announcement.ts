@@ -10,20 +10,8 @@ export interface AnnouncementInput {
   lastPick: { memberName: string; label: string } | null;
 }
 
-// Arma la frase que escucha un lector de pantalla en el draft.
-//
-// Funcion pura y en su propio archivo, no un bloque dentro de DraftPage, por dos motivos:
-// `react-refresh/only-export-components` prohibe exportar algo que no sea un componente desde
-// un archivo de componente (ver features/leagues/draft-label.ts), y sobre todo porque asi se
-// puede testear sin montar la pantalla entera, que depende del socket, de tres queries y del
-// router.
-//
-// Por que una sola frase y no un aria-live por dato: varias regiones vivas compiten y el
-// lector las encola, asi que un cambio de turno sonaria en tres pedazos desordenados.
-//
-// Deliberadamente SIN los segundos restantes: el contador baja una vez por segundo y meterlo
-// aca haria que el lector hablara sin parar, tapando todo lo demas. El tiempo se comunica en
-// la pantalla, no por voz.
+// Una sola frase y no un aria-live por dato: varias regiones vivas se encolan desordenadas.
+// Sin los segundos restantes a proposito: el lector hablaria sin parar.
 export function draftAnnouncement({
   draftStatus,
   round,

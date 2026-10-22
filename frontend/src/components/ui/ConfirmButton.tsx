@@ -1,17 +1,8 @@
 import { useState } from 'react';
 import { Button } from './Button';
 
-// Boton de dos estados para acciones sin vuelta atras. Primer click: muestra la consecuencia
-// y pide confirmar. Segundo click: ejecuta.
-//
-// Por que no un modal: un <dialog> hay que montarlo, enfocarlo, atrapar el Tab adentro,
-// cerrarlo con Escape y devolver el foco al volver. Dos estados en el mismo lugar no mueven
-// el foco a ninguna parte, asi que no hay nada que devolver, y el texto de la consecuencia
-// queda al lado del boton que la provoca en vez de tapar la pantalla que el usuario estaba
-// mirando para decidir.
-//
-// `consequence` no es un "¿estas seguro?": tiene que decir QUE va a pasar, con los numeros
-// concretos de esta liga. "¿Seguro?" no agrega informacion, solo un click.
+// Dos estados en el lugar y no un modal: no mueve el foco, asi que no hay que atraparlo ni devolverlo.
+// `consequence` dice que va a pasar, con los numeros concretos, no un "¿estas seguro?".
 export function ConfirmButton({
   label,
   ariaLabel,
@@ -22,8 +13,7 @@ export function ConfirmButton({
   onConfirm,
 }: {
   label: string;
-  // Solo hace falta cuando `label` por si solo no distingue de que accion se trata — por
-  // ejemplo una fila por persona en una lista, donde "Echar" repetido no dice a quien.
+  // Cuando `label` no distingue la accion, p. ej. "Echar" repetido en cada fila.
   ariaLabel?: string;
   confirmLabel: string;
   consequence: string;
@@ -48,8 +38,7 @@ export function ConfirmButton({
 
   return (
     <div className="flex flex-col gap-2 rounded-md border border-slate-300 bg-slate-50 p-3 dark:border-ink-border dark:bg-ink-surface">
-      {/* role="alert" y no un <p> suelto: el texto aparece por una accion del usuario y hay
-          que anunciarlo. Sin esto, quien no ve la pantalla aprieta y no se entera de nada. */}
+      {/* role="alert": el texto aparece tras un click y el lector tiene que anunciarlo. */}
       <p role="alert" className="text-sm text-slate-700 dark:text-ink-muted">
         {consequence}
       </p>
