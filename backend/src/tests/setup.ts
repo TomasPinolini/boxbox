@@ -7,23 +7,15 @@ import { assertLocalDatabase } from './db-guard';
 assertLocalDatabase(process.env.DATABASE_URL);
 
 beforeEach(async () => {
-  // Hijos primero, por las foreign keys. Una tabla nueva tiene que sumarse aca.
-  await prisma.$executeRawUnsafe('TRUNCATE TABLE sync_logs CASCADE');
-  await prisma.$executeRawUnsafe('TRUNCATE TABLE league_standings CASCADE');
-  await prisma.$executeRawUnsafe('TRUNCATE TABLE predictions CASCADE');
-  await prisma.$executeRawUnsafe('TRUNCATE TABLE race_results CASCADE');
-  await prisma.$executeRawUnsafe('TRUNCATE TABLE constructor_results CASCADE');
-  await prisma.$executeRawUnsafe('TRUNCATE TABLE draft_picks CASCADE');
-  await prisma.$executeRawUnsafe('TRUNCATE TABLE fantasy_teams CASCADE');
-  await prisma.$executeRawUnsafe('TRUNCATE TABLE league_members CASCADE');
-  await prisma.$executeRawUnsafe('TRUNCATE TABLE leagues CASCADE');
-  await prisma.$executeRawUnsafe('TRUNCATE TABLE driver_seasons CASCADE');
-  await prisma.$executeRawUnsafe('TRUNCATE TABLE races CASCADE');
-  await prisma.$executeRawUnsafe('TRUNCATE TABLE circuits CASCADE');
-  await prisma.$executeRawUnsafe('TRUNCATE TABLE seasons CASCADE');
-  await prisma.$executeRawUnsafe('TRUNCATE TABLE drivers CASCADE');
-  await prisma.$executeRawUnsafe('TRUNCATE TABLE constructors CASCADE');
-  await prisma.$executeRawUnsafe('TRUNCATE TABLE users CASCADE');
+  // Un solo TRUNCATE con todas las tablas: Postgres las vacía juntas y el orden no importa.
+  // Una tabla nueva tiene que sumarse acá.
+  await prisma.$executeRawUnsafe(`
+    TRUNCATE TABLE
+      sync_logs, league_standings, predictions, race_results, constructor_results,
+      draft_picks, fantasy_teams, league_members, leagues, driver_seasons,
+      races, circuits, seasons, drivers, constructors, users
+    CASCADE
+  `);
 });
 
 afterAll(async () => {
