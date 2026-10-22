@@ -64,6 +64,26 @@ describe('GET /api/v1/races', () => {
     const empty = await request(app).get('/api/v1/races?seasonId=9999');
     expect(empty.body.data).toHaveLength(0);
   });
+
+  // Igual que /drivers: un seasonId que no es numero es un pedido mal armado, no un "sin filtro".
+  it('returns 400 for a non-numeric seasonId', async () => {
+    const res = await request(app).get('/api/v1/races?seasonId=abc');
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  it('ignores an invalid status instead of failing', async () => {
+    await request(app)
+      .post('/api/v1/races')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send(validRace());
+
+    for (const status of ['NOEXISTE', 'toString']) {
+      const res = await request(app).get(`/api/v1/races?status=${status}`);
+      expect(res.status).toBe(200);
+      expect(res.body.data).toHaveLength(1);
+    }
+  });
 });
 
 describe('GET /api/v1/races/:id', () => {

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { seasonQuerySchema } from '../../shared/params';
 
 export const createDriverSchema = z.object({
   firstName: z.string().min(1),
@@ -12,12 +13,11 @@ export const createDriverSchema = z.object({
 export const updateDriverSchema = createDriverSchema.partial();
 
 // Sin validar, ?constructorId=abc llega a Prisma como NaN y escala a 500.
-export const listDriversQuerySchema = z.object({
+export const listDriversQuerySchema = seasonQuerySchema.extend({
   constructorId: z.coerce.number().int().positive().optional(),
-  seasonId: z.coerce.number().int().positive().optional(),
 });
 
-export const standingsQuerySchema = listDriversQuerySchema.pick({ seasonId: true });
+export const standingsQuerySchema = seasonQuerySchema;
 
 export type CreateDriverInput = z.infer<typeof createDriverSchema>;
 export type UpdateDriverInput = z.infer<typeof updateDriverSchema>;

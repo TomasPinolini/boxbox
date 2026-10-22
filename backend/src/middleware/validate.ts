@@ -1,16 +1,23 @@
 import { Request, Response, NextFunction } from 'express';
 import { ZodSchema } from 'zod';
 
-// Reemplaza req.body por la version parseada, con los transforms del schema aplicados.
-export function validate(schema: ZodSchema) {
+type Source = 'body' | 'params' | 'query';
+
+const MESSAGES: Record<Source, string> = {
+  body: 'Invalid request body',
+  params: 'Invalid path params',
+  query: 'Invalid query params',
+};
+
+function validateSource(source: Source, schema: ZodSchema) {
   return (req: Request, res: Response, next: NextFunction) => {
-    const result = schema.safeParse(req.body);
+    const result = schema.safeParse(req[source]);
 
     if (!result.success) {
       res.status(400).json({
         error: {
           code: 'VALIDATION_ERROR',
-          message: 'Invalid request body',
+          message: MESSAGES[source],
           status: 400,
           details: result.error.flatten().fieldErrors,
         },
@@ -18,52 +25,19 @@ export function validate(schema: ZodSchema) {
       return;
     }
 
-    req.body = result.data;
+    // req.query no se reemplaza: en Express 5 es un getter sin setter y asignarle tira
+    // TypeError en runtime (tsc no avisa). El resultado va a req.validatedQuery.
+    if (source === 'query') req.validatedQuery = result.data;
+    else if (source === 'params') req.params = result.data as Request['params'];
+    else req.body = result.data;
     next();
   };
 }
+
+// Reemplaza req.body por la version parseada, con los transforms del schema aplicados.
+export const validate = (schema: ZodSchema) => validateSource('body', schema);
 
 // Los params llegan como string: el schema tiene que usar z.coerce.number().
-export function validateParams(schema: ZodSchema) {
-  return (req: Request, res: Response, next: NextFunction) => {
-    const result = schema.safeParse(req.params);
+export const validateParams = (schema: ZodSchema) => validateSource('params', schema);
 
-    if (!result.success) {
-      res.status(400).json({
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: 'Invalid path params',
-          status: 400,
-          details: result.error.flatten().fieldErrors,
-        },
-      });
-      return;
-    }
-
-    req.params = result.data as Request['params'];
-    next();
-  };
-}
-
-// No reemplaza req.query: en Express 5 es un getter sin setter y asignarle tira TypeError en
-// runtime (tsc no avisa). El resultado va a req.validatedQuery.
-export function validateQuery(schema: ZodSchema) {
-  return (req: Request, res: Response, next: NextFunction) => {
-    const result = schema.safeParse(req.query);
-
-    if (!result.success) {
-      res.status(400).json({
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: 'Invalid query params',
-          status: 400,
-          details: result.error.flatten().fieldErrors,
-        },
-      });
-      return;
-    }
-
-    req.validatedQuery = result.data;
-    next();
-  };
-}
+export const validateQuery = (schema: ZodSchema) => validateSource('query', schema);

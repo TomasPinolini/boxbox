@@ -1,17 +1,9 @@
 import { Request, Response } from 'express';
-import { RaceStatus } from '../../generated/prisma/enums';
 import * as racesService from './races.service';
-
-// Un ?status invalido se ignora en vez de dar 400. No usar `raw in RaceStatus`: `in` tambien
-// matchea keys heredadas (?status=toString) y Prisma terminaria en un 500.
-function parseRaceStatusQuery(raw: unknown): RaceStatus | undefined {
-  if (typeof raw !== 'string') return undefined;
-  return (Object.values(RaceStatus) as string[]).includes(raw) ? (raw as RaceStatus) : undefined;
-}
+import type { ListRacesQuery } from './races.schema';
 
 export async function getAll(req: Request, res: Response) {
-  const seasonId = req.query.seasonId ? Number(req.query.seasonId) : undefined;
-  const status = parseRaceStatusQuery(req.query.status);
+  const { seasonId, status } = (req.validatedQuery ?? {}) as ListRacesQuery;
   const races = await racesService.findAll(seasonId, status);
   res.json({ data: races });
 }

@@ -13,9 +13,9 @@ import {
   createLeagueSchema,
   updateLeagueSchema,
   joinLeagueSchema,
-  leagueIdParamSchema,
   memberKickParamSchema,
 } from './leagues.schema';
+import { idParamSchema } from '../../shared/params';
 
 const router = Router();
 
@@ -43,7 +43,7 @@ router.post(
 router.get(
   '/:id',
   requireAuth,
-  validateParams(leagueIdParamSchema),
+  validateParams(idParamSchema),
   requireLeagueMember,
   leaguesController.getById,
 );
@@ -51,7 +51,7 @@ router.get(
 router.patch(
   '/:id',
   requireAuth,
-  validateParams(leagueIdParamSchema),
+  validateParams(idParamSchema),
   requireLeagueMember,
   requireLeagueOwner,
   validate(updateLeagueSchema),
@@ -61,7 +61,7 @@ router.patch(
 router.post(
   '/:id/leave',
   requireAuth,
-  validateParams(leagueIdParamSchema),
+  validateParams(idParamSchema),
   requireLeagueMember,
   leaguesController.leave,
 );
@@ -69,7 +69,7 @@ router.post(
 router.get(
   '/:id/members',
   requireAuth,
-  validateParams(leagueIdParamSchema),
+  validateParams(idParamSchema),
   requireLeagueMember,
   leaguesController.listMembers,
 );
@@ -77,7 +77,7 @@ router.get(
 router.get(
   '/:id/teams/me',
   requireAuth,
-  validateParams(leagueIdParamSchema),
+  validateParams(idParamSchema),
   requireLeagueMember,
   leaguesController.getMyFantasyTeam,
 );
@@ -87,7 +87,7 @@ router.get(
 router.use(
   '/:id/draft',
   requireAuth,
-  validateParams(leagueIdParamSchema),
+  validateParams(idParamSchema),
   requireLeagueMember,
   draftRoutes,
 );
@@ -95,7 +95,7 @@ router.use(
 router.use(
   '/:id/standings',
   requireAuth,
-  validateParams(leagueIdParamSchema),
+  validateParams(idParamSchema),
   requireLeagueMember,
   standingsRoutes,
 );

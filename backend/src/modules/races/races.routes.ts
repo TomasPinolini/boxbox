@@ -1,15 +1,20 @@
 import { Router } from 'express';
 import * as racesController from './races.controller';
 import * as standingsController from '../standings/standings.controller';
-import { validate, validateParams } from '../../middleware/validate';
+import { validate, validateParams, validateQuery } from '../../middleware/validate';
 import { idParamSchema } from '../../shared/params';
 import { requireAuth } from '../../middleware/auth';
 import { requireAdmin } from '../../middleware/admin';
-import { createRaceSchema, updateRaceSchema, loadRaceResultsSchema } from './races.schema';
+import {
+  createRaceSchema,
+  updateRaceSchema,
+  loadRaceResultsSchema,
+  listRacesQuerySchema,
+} from './races.schema';
 
 const router = Router();
 
-router.get('/', racesController.getAll);
+router.get('/', validateQuery(listRacesQuerySchema), racesController.getAll);
 router.get('/:id', validateParams(idParamSchema), racesController.getById);
 router.post('/', requireAuth, requireAdmin, validate(createRaceSchema), racesController.create);
 router.patch(

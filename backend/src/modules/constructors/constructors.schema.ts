@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { seasonQuerySchema } from '../../shared/params';
 
 export const createConstructorSchema = z.object({
   name: z.string().min(1),
@@ -9,10 +10,7 @@ export const createConstructorSchema = z.object({
 
 export const updateConstructorSchema = createConstructorSchema.partial();
 
-// Query de GET /constructors/standings. z.coerce: todo query param llega como string.
-export const standingsQuerySchema = z.object({
-  seasonId: z.coerce.number().int().positive().optional(),
-});
+export const standingsQuerySchema = seasonQuerySchema;
 
 export type CreateConstructorInput = z.infer<typeof createConstructorSchema>;
 export type UpdateConstructorInput = z.infer<typeof updateConstructorSchema>;

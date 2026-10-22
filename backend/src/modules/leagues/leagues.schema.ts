@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { idParamSchema } from '../../shared/params';
 
 const RESERVED_INVITE_CODES = ['admin', 'test', 'me', 'api', 'health'] as const;
 
@@ -35,12 +36,7 @@ export const updateLeagueSchema = z
 export type CreateLeagueInput = z.infer<typeof createLeagueSchema>;
 export type UpdateLeagueInput = z.infer<typeof updateLeagueSchema>;
 
-export const leagueIdParamSchema = z.object({
-  id: z.coerce.number().int().positive(),
-});
-
-export const memberKickParamSchema = z.object({
-  id: z.coerce.number().int().positive(),
+export const memberKickParamSchema = idParamSchema.extend({
   userId: z.coerce.number().int().positive(),
 });
 

@@ -1,4 +1,6 @@
 import { z } from 'zod';
+import { RaceStatus } from '../../generated/prisma/enums';
+import { seasonQuerySchema } from '../../shared/params';
 
 // No usar z.coerce.date(): new Date(null), new Date(true) y new Date(0) no fallan, devuelven
 // 1970-01-01, y un lockDate en 1970 deja la carrera cerrada desde siempre.
@@ -16,6 +18,12 @@ export const createRaceSchema = z.object({
 });
 
 export const updateRaceSchema = createRaceSchema.partial();
+
+// Un ?status invalido se ignora en vez de dar 400. z.enum compara contra los valores propios
+// del enum, asi que ?status=toString tampoco pasa.
+export const listRacesQuerySchema = seasonQuerySchema.extend({
+  status: z.enum(RaceStatus).optional().catch(undefined),
+});
 
 // Sin validacion cruzada status/position: en F1 un DNF puede quedar clasificado con posicion
 // si completo el 90% de la carrera.
@@ -37,3 +45,4 @@ export const loadRaceResultsSchema = z.object({
 export type CreateRaceInput = z.infer<typeof createRaceSchema>;
 export type UpdateRaceInput = z.infer<typeof updateRaceSchema>;
 export type LoadRaceResultsInput = z.infer<typeof loadRaceResultsSchema>;
+export type ListRacesQuery = z.infer<typeof listRacesQuerySchema>;
