@@ -3,6 +3,9 @@ import { z } from 'zod';
 import { env } from '../config/env';
 import { UnauthorizedError } from './errors';
 
+// Una sola fuente para la vida del refresh: la firma del token y el maxAge de la cookie.
+export const REFRESH_TOKEN_TTL_SECONDS = 7 * 24 * 60 * 60;
+
 // Cualquiera puede decodificar un JWT (la firma no lo cifra): nada sensible en el payload.
 export type TokenPayload = {
   userId: number;
@@ -46,9 +49,7 @@ const refreshTokenPayloadSchema = z.object({
 
 export function signRefreshToken(payload: RefreshTokenPayload): string {
   // Secreto propio: si se filtra uno, el otro sigue valiendo.
-  const options: SignOptions = {
-    expiresIn: env.REFRESH_TOKEN_EXPIRES_IN as SignOptions['expiresIn'],
-  };
+  const options: SignOptions = { expiresIn: REFRESH_TOKEN_TTL_SECONDS };
   return jwt.sign(payload, env.REFRESH_TOKEN_SECRET, options);
 }
 

@@ -13,7 +13,6 @@ const envSchema = z.object({
   REFRESH_TOKEN_SECRET: z
     .string()
     .min(32, 'REFRESH_TOKEN_SECRET debe tener >= 32 chars (256 bits de entropia)'),
-  REFRESH_TOKEN_EXPIRES_IN: z.string().default('7d'),
   FRONTEND_URL: z.string().url().default('http://localhost:5173'),
   // Opcionales a proposito: sin DSN no se inicia Sentry, y sin Supabase solo el avatar
   // responde 503. SERVICE_ROLE_KEY saltea RLS; al usuario ya lo valida nuestro JWT.

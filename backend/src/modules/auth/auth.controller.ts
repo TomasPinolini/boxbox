@@ -1,6 +1,7 @@
 import { Request, Response, CookieOptions } from 'express';
 import { env } from '../../config/env';
 import { UnauthorizedError } from '../../shared/errors';
+import { REFRESH_TOKEN_TTL_SECONDS } from '../../shared/jwt';
 import * as authService from './auth.service';
 
 // Una sola config para setear y borrar: con opciones distintas el browser no matchea la cookie.
@@ -13,7 +14,7 @@ const refreshCookieOptions: CookieOptions = {
   sameSite: env.NODE_ENV === 'production' ? 'none' : 'lax',
   secure: env.NODE_ENV === 'production', // solo HTTPS en prod; en dev permitimos HTTP para localhost
   path: '/api/v1/auth', // la cookie solo viaja a endpoints de auth — minimiza superficie
-  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 dias en ms; debe matchear con REFRESH_TOKEN_EXPIRES_IN
+  maxAge: REFRESH_TOKEN_TTL_SECONDS * 1000, // en ms
 };
 
 export async function register(req: Request, res: Response) {
