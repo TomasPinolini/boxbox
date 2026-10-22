@@ -1,6 +1,4 @@
-// TESTS cross-cutting de app.ts — comportamiento que no pertenece a ningun modulo:
-// como responde la API cuando el request esta roto ANTES de llegar a un controller.
-// (A3 / BOX-13). Sin mocks, contra la app real (ADR-0003).
+// Requests rotos antes de llegar a un controller.
 
 import { describe, it, expect } from 'vitest';
 import request from 'supertest';

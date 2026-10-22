@@ -1,23 +1,14 @@
-// JWT HELPERS — envoltorio fino de jsonwebtoken
-// Acá vive el contrato del access token: shape del payload + algoritmo + expiración + verificación.
-// El service de auth importa signAccessToken; el middleware de Slice 1b importa verifyAccessToken.
-
 import jwt, { SignOptions } from 'jsonwebtoken';
 import { z } from 'zod';
 import { env } from '../config/env';
 import { UnauthorizedError } from './errors';
 
-// ─── ACCESS TOKEN ────────────────────────────────────────────
-// Shape del payload que metemos al token.
-// Importante: si agregamos campos acá, también van al frontend (cualquiera puede decodear el JWT — la firma garantiza que no fue tampered, NO que el contenido sea privado).
-// Por eso solo userId + role. NUNCA passwordHash, email, ni datos sensibles.
+// Cualquiera puede decodificar un JWT (la firma no lo cifra): nada sensible en el payload.
 export type TokenPayload = {
   userId: number;
   role: 'USER' | 'ADMIN';
 };
 
-// Schema runtime para validar el payload DECODIFICADO.
-// Defense in depth: aun si la firma matchea, si el shape no es lo que esperamos, rechazamos.
 const tokenPayloadSchema = z.object({
   userId: z.number().int().positive(),
   role: z.enum(['USER', 'ADMIN']),
@@ -29,13 +20,11 @@ export function signAccessToken(payload: TokenPayload): string {
 }
 
 export function verifyAccessToken(token: string): TokenPayload {
-  // `algorithms: ['HS256']` previene CVE historico "alg=none" — allowlist explicito.
+  // Allowlist explicito de algoritmos: evita el ataque "alg=none".
   let decoded: unknown;
   try {
     decoded = jwt.verify(token, env.JWT_SECRET, { algorithms: ['HS256'] });
   } catch {
-    // jsonwebtoken tira TokenExpiredError, JsonWebTokenError, NotBeforeError.
-    // No diferenciamos al cliente — todo es TOKEN_INVALID.
     throw new UnauthorizedError('Invalid or expired token', 'TOKEN_INVALID');
   }
 
@@ -46,13 +35,7 @@ export function verifyAccessToken(token: string): TokenPayload {
   return result.data;
 }
 
-// ─── REFRESH TOKEN ───────────────────────────────────────────
-// El refresh token tiene UN solo proposito: pedir un access token nuevo.
-// Vive 7 dias por default (env.REFRESH_TOKEN_EXPIRES_IN) y se manda al cliente como cookie httpOnly
-// para que JS del browser no lo pueda leer (defense vs XSS).
-// Payload minimo: solo userId. El role se re-lee de DB cuando emitimos el access nuevo,
-// asi reflejamos cambios de role hechos en los ultimos 7 dias.
-
+// Solo userId: el role se relee de la DB al emitir cada access token nuevo.
 export type RefreshTokenPayload = {
   userId: number;
 };
@@ -62,7 +45,7 @@ const refreshTokenPayloadSchema = z.object({
 });
 
 export function signRefreshToken(payload: RefreshTokenPayload): string {
-  // Usa REFRESH_TOKEN_SECRET (distinto al JWT_SECRET) — si uno se compromete, el otro sobrevive.
+  // Secreto propio: si se filtra uno, el otro sigue valiendo.
   const options: SignOptions = {
     expiresIn: env.REFRESH_TOKEN_EXPIRES_IN as SignOptions['expiresIn'],
   };

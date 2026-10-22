@@ -14,9 +14,7 @@ export function errorHandler(err: Error, _req: Request, res: Response, _next: Ne
     return;
   }
 
-  // Body JSON malformado: express.json() (body-parser) tira un SyntaxError con
-  // `type: 'entity.parse.failed'`. No es un AppError nuestro, pero tampoco es un bug del
-  // server — es un 400 del cliente. Sin esta rama caia al 500 generico (A3 / BOX-13).
+  // JSON malformado: express.json() tira un SyntaxError que no es AppError pero es un 400.
   if ((err as { type?: string }).type === 'entity.parse.failed') {
     res.status(400).json({
       error: {
@@ -28,13 +26,8 @@ export function errorHandler(err: Error, _req: Request, res: Response, _next: Ne
     return;
   }
 
-  // Unexpected errors — log them but don't expose details to the client
-  //
-  // Aca y no con Sentry.setupExpressErrorHandler(app): este handler responde y corta, nunca
-  // llama a next(err), asi que un handler de Sentry registrado despues no se enteraria. Y
-  // registrado antes veria tambien los 4xx. Esta rama es el unico lugar que ya sabe distinguir
-  // un bug nuestro de un 400 del cliente, asi que es donde la captura es exacta: no gastamos
-  // cuota en validaciones fallidas ni en 404s.
+  // Se captura aca y no con Sentry.setupExpressErrorHandler: este handler nunca llama a
+  // next(err), y es el unico punto que ya separa un bug nuestro de un 4xx del cliente.
   Sentry.captureException(err);
   console.error('Unexpected error:', err);
   res.status(500).json({

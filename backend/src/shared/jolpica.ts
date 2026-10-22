@@ -1,11 +1,5 @@
-// JOLPICA CLIENT — unico punto de contacto con la API externa de F1 (Slice 12).
-// `fetch` nativo de Node + AbortSignal.timeout: sin dependencias nuevas. No pide credenciales.
-//
-// Todo lo que entra se valida con Zod: es un trust boundary igual que req.body. Si Jolpica
-// cambia el shape preferimos un 502 tipado aca antes que un NaN en la base.
-//
-// Los tests NO pegan a la red: stubean `fetch` global con fixtures recortados de respuestas
-// reales (ver modules/sync/sync.test.ts).
+// Todo lo que entra de Jolpica se valida con Zod: si cambia el shape, preferimos un 502
+// tipado antes que un NaN en la base.
 
 import { z } from 'zod';
 import { AppError } from './errors';
@@ -67,7 +61,6 @@ async function getJson<T>(path: string, schema: z.ZodType<T>): Promise<T> {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     body = await res.json();
   } catch (err) {
-    // Timeout, DNS, 429, 5xx, JSON roto: para nuestro cliente es lo mismo, la fuente no responde.
     const reason = err instanceof Error ? err.message : 'unknown error';
     throw new AppError(502, 'JOLPICA_UNAVAILABLE', `Jolpica request failed: ${reason}`);
   }
@@ -79,8 +72,7 @@ async function getJson<T>(path: string, schema: z.ZodType<T>): Promise<T> {
   return parsed.data;
 }
 
-// limit=100: el default de Jolpica es 30 y trunca en silencio. 23 carreras / 22 resultados
-// entran hoy, pero el margen es demasiado chico para confiarse.
+// limit=100: el default de Jolpica es 30 y trunca en silencio.
 export async function fetchRaces(year: number): Promise<JolpicaRace[]> {
   const data = await getJson(`/${year}/races.json?limit=100`, racesResponseSchema);
   return data.MRData.RaceTable.Races;
