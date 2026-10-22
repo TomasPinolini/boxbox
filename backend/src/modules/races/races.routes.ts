@@ -28,7 +28,6 @@ router.delete(
   racesController.remove,
 );
 
-// Slice 7 — RaceResult
 router.get('/:id/results', validateParams(idParamSchema), racesController.getResults);
 router.post(
   '/:id/results',
@@ -39,9 +38,7 @@ router.post(
   racesController.loadResults,
 );
 
-// Slice 9 — recalcula los LeagueStanding de esta carrera para todas las ligas activas de su
-// temporada. La logica vive en el modulo standings (es scoring, no races), pero la ruta cuelga
-// de aca porque es race-scoped y admin-only, igual que la carga de resultados.
+// La logica es de standings (scoring), pero la ruta es race-scoped y admin-only como la carga.
 router.post(
   '/:id/recalculate',
   requireAuth,

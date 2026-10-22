@@ -1,23 +1,16 @@
-// TEST — el verificador de extremo a extremo
-// Prueba el módulo completo: HTTP → routes → controller → service → Prisma → DB real.
-// No hay mocks — si algo está roto en cualquier capa, el test falla.
-// La DB se trunca antes de cada test (ver src/tests/setup.ts) → cada test empieza limpio.
-
 import { describe, it, expect, beforeEach } from 'vitest';
 import request from 'supertest'; // simula requests HTTP sin levantar un puerto real
 import app from '../../app';
 import { createTestAdmin, createTestUser } from '../../tests/setup';
 import { prisma } from '../../shared/prisma';
 
-// adminToken: el CRUD de catalogo es admin-only (A5 / BOX-15). setup.ts trunca la DB antes de
-// cada test, asi que el admin se recrea por test.
+// Se recrea por test porque setup.ts trunca la DB.
 let adminToken: string;
 
 beforeEach(async () => {
   adminToken = (await createTestAdmin()).accessToken;
 });
 
-// Driver válido reutilizado en múltiples tests
 const validDriver = {
   firstName: 'Max',
   lastName: 'Verstappen',
@@ -35,7 +28,6 @@ describe('GET /api/v1/drivers', () => {
   });
 
   it('returns all non-deleted drivers', async () => {
-    // Cada test crea sus propios datos — no depende de que otro test haya creado algo
     await request(app)
       .post('/api/v1/drivers')
       .set('Authorization', `Bearer ${adminToken}`)
@@ -59,10 +51,8 @@ describe('GET /api/v1/drivers', () => {
   });
 });
 
-// Helpers locales, no compartidos. tests/setup.ts solo exporta createTestUser/createTestAdmin;
-// races.test.ts ya sento el precedente de que cada archivo arme los suyos. Season, Constructor
-// y DriverSeason van directo por Prisma (crearlos por HTTP solo agrega ruido); los drivers van
-// por HTTP para ejercitar el path real.
+// Season, Constructor y DriverSeason van directo por Prisma; los drivers por HTTP, para
+// ejercitar el path real.
 async function seedSeason(year = 2026, isActive = true) {
   const season = await prisma.season.create({ data: { year, isActive, driverCount: 22 } });
   return season.id;
@@ -129,8 +119,6 @@ describe('GET /api/v1/drivers — escuderia en el listado', () => {
     expect(res.body.data[0].constructor).toBeNull();
   });
 
-  // Auditoria de UX 2026-10-09: agrupado por escuderia (alfabetica) y dentro de cada una por
-  // apellido — no por apellido suelto. "Sin equipo" va al final, no al principio del alfabeto.
   it('ordena por escuderia alfabetica y, dentro de cada una, por apellido', async () => {
     const seasonId = await seedSeason();
     const zebra = await seedConstructor('Zebra Racing', 'zebra');
@@ -155,9 +143,8 @@ describe('GET /api/v1/drivers — escuderia en el listado', () => {
     ]);
   });
 
-  // Canario: si alguien reemplaza resolveSeasonId por seasonsService.findActive(), que tira
-  // NotFoundError, este test pasa de 200 a 404. Un endpoint publico de catalogo no puede
-  // depender de que exista una temporada activa.
+  // Canario: con seasonsService.findActive() en vez de resolveSeasonId esto daria 404. Un
+  // catalogo publico no puede depender de que exista una temporada activa.
   it('responde 200, no 404, cuando no hay ninguna temporada activa', async () => {
     await seedDriver();
 
@@ -186,8 +173,6 @@ describe('GET /api/v1/drivers?constructorId=', () => {
     expect(res.body.data[0].lastName).toBe('Leclerc');
   });
 
-  // El filtro se acota a la temporada resuelta: sin eso, un piloto que corrio para Ferrari
-  // en 2025 aparecia al filtrar Ferrari en 2026 mostrando su escuderia actual en la fila.
   it('no devuelve un piloto que corrio para esa escuderia en OTRA temporada', async () => {
     const vieja = await seedSeason(2025, false);
     const activa = await seedSeason(2026, true);
@@ -213,8 +198,6 @@ describe('GET /api/v1/drivers?constructorId=', () => {
     expect(res.body.data).toEqual([]);
   });
 
-  // Mismo bug que A3/BOX-13 pero en query params: sin validateQuery, Number('abc') era NaN,
-  // llegaba a Prisma y escalaba a 500.
   it('rechaza ?constructorId=abc con 400 VALIDATION_ERROR, no 500', async () => {
     const res = await request(app).get('/api/v1/drivers?constructorId=abc');
 
@@ -261,9 +244,7 @@ describe('GET /api/v1/drivers/:id', () => {
   });
 });
 
-// Carrera COMPLETED con sus resultados, directo por Prisma. No usamos POST /races/:id/results
-// porque ese path exige el payload completo de la grilla y valida DriverSeason de todos los
-// pilotos (Slice 8); aca solo necesitamos el historial de UN piloto.
+// Directo por Prisma y no por POST /races/:id/results, que exige DriverSeason de toda la grilla.
 async function seedCompletedRace(
   seasonId: number,
   round: number,
@@ -560,11 +541,9 @@ describe('DELETE /api/v1/drivers/:id', () => {
       .set('Authorization', `Bearer ${adminToken}`);
     expect(deleteRes.status).toBe(204); // 204 No Content — sin body
 
-    // Soft delete: la fila sigue en la DB pero deletedAt != null → no aparece en listados
     const listRes = await request(app).get('/api/v1/drivers');
     expect(listRes.body.data).toHaveLength(0);
 
-    // Tampoco se puede acceder por id
     const getRes = await request(app).get(`/api/v1/drivers/${id}`);
     expect(getRes.status).toBe(404);
   });
@@ -576,11 +555,6 @@ describe('DELETE /api/v1/drivers/:id', () => {
     expect(res.status).toBe(404);
   });
 });
-
-// ─── Solo admin muta el catalogo (A5 / BOX-15) ─────────────────────────
-// Los GET son publicos (el frontend lista pilotos sin login). POST/PATCH/DELETE exigen
-// requireAuth + requireAdmin — requisito de aprobacion de la catedra ("proteger las rutas en
-// base al nivel de acceso requerido").
 
 describe('drivers — solo admin puede mutar', () => {
   it('rechaza POST sin token (401 TOKEN_MISSING)', async () => {
@@ -599,7 +573,7 @@ describe('drivers — solo admin puede mutar', () => {
   });
 });
 
-// A3 / BOX-13: un :id no numerico antes llegaba a Prisma como NaN y explotaba en 500.
+// Sin validateParams, un :id no numerico llega a Prisma como NaN y da 500.
 describe('drivers — :id no numerico', () => {
   it('GET /drivers/abc responde 400 VALIDATION_ERROR, no 500', async () => {
     const res = await request(app).get('/api/v1/drivers/abc');

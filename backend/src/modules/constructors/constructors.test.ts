@@ -4,7 +4,7 @@ import app from '../../app';
 import { createTestAdmin, createTestUser } from '../../tests/setup';
 import { prisma } from '../../shared/prisma';
 
-// adminToken: el CRUD de catalogo es admin-only (A5 / BOX-15); se recrea por test (truncate).
+// Se recrea por test porque setup.ts trunca la DB.
 let adminToken: string;
 
 beforeEach(async () => {
@@ -47,8 +47,6 @@ describe('GET /api/v1/constructors', () => {
   });
 });
 
-// El detalle es la pantalla publica de una escuderia: quienes la corren esta temporada y como
-// viene puntuando. Mismo molde que GET /drivers/:id (Slice 14).
 describe('GET /api/v1/constructors/:id — detalle', () => {
   it('trae los pilotos de la temporada activa y el historial de resultados', async () => {
     const season = await prisma.season.create({ data: { year: 2026, isActive: true } });
@@ -100,7 +98,6 @@ describe('GET /api/v1/constructors/:id — detalle', () => {
         totalPoints: 26,
       },
     });
-    // Los puntos POR PILOTO viven aca: es la unica tabla que los ata a una persona.
     await prisma.raceResult.create({
       data: { raceId: race.id, driverId: albon.id, position: 2, points: 18 },
     });
@@ -113,13 +110,11 @@ describe('GET /api/v1/constructors/:id — detalle', () => {
 
     const { data } = res.body;
     expect(data.name).toBe('Williams');
-    // Solo los suyos: el piloto de la otra escuderia no entra.
     expect(data.drivers.map((d: { code: string }) => d.code).sort()).toEqual(['ALB', 'SAI']);
     expect(data.results).toHaveLength(1);
     expect(data.results[0]).toMatchObject({ raceName: 'GP de Italia', round: 1, totalPoints: 26 });
 
-    // El desglose dice QUE piloto hizo cada punto. ConstructorResult no lo sabe
-    // (driver1Points es solo "el mayor de los dos", BOX-65), asi que sale de RaceResult.
+    // ConstructorResult no sabe que piloto hizo cada punto: el desglose sale de RaceResult.
     expect(data.results[0].pointsByDriverId).toEqual({
       [albon.id]: 18,
       [sainz.id]: 8,
@@ -264,8 +259,6 @@ describe('DELETE /api/v1/constructors/:id', () => {
   });
 });
 
-// ─── Solo admin muta el catalogo (A5 / BOX-15) ─────────────────────────
-
 describe('constructors — solo admin puede mutar', () => {
   it('rechaza POST sin token (401 TOKEN_MISSING)', async () => {
     const res = await request(app).post('/api/v1/constructors').send({});
@@ -283,7 +276,7 @@ describe('constructors — solo admin puede mutar', () => {
   });
 });
 
-// A3 / BOX-13: un :id no numerico antes llegaba a Prisma como NaN y explotaba en 500.
+// Sin validateParams, un :id no numerico llega a Prisma como NaN y da 500.
 describe('constructors — :id no numerico', () => {
   it('GET /constructors/abc responde 400 VALIDATION_ERROR, no 500', async () => {
     const res = await request(app).get('/api/v1/constructors/abc');
@@ -292,9 +285,8 @@ describe('constructors — :id no numerico', () => {
   });
 });
 
-// Fixtures directo por Prisma, mismo criterio que drivers.test.ts: crear la grilla por HTTP
-// solo agrega ruido. ConstructorResult se siembra a mano (no via POST /races/:id/results)
-// porque aca se prueba la suma del campeonato, no la derivacion del Slice 8.
+// ConstructorResult se siembra a mano y no via POST /races/:id/results: aca se prueba la suma
+// del campeonato, no su derivacion.
 async function seedTeam(seasonId: number, name: string, externalId: string) {
   const constructor = await prisma.constructor.create({
     data: { name, color: '#FF0000', externalId },

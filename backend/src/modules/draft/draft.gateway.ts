@@ -1,19 +1,6 @@
-// GATEWAY — namespace `/draft` de Socket.io. Overlay en tiempo real sobre el REST de Slice 5:
-// reusa draft.service.ts tal cual (start/state/available/pick), nunca reimplementa reglas de
-// negocio. Este archivo solo agrega: auth por JWT en el handshake, rooms por liga, broadcasts,
-// y el timer de 60s con auto-pick (setTimeout, no setInterval — el server nunca "tickea" el
-// countdown, solo avisa una vez cuanto dura y dispara una vez cuando expira).
-//
-// REST <-> Socket, en ambas direcciones:
-//   - Un pick que llega por socket dispara los mismos broadcasts que uno que llega por REST.
-//   - Un pick/start/reset que llega por REST (draft.controller.ts, via shared/socket.ts) tambien
-//     notifica a los clientes conectados por socket. Sin esto, Slice 6 seria inconsistente
-//     apenas alguien usara el REST en vez del socket — dejaria de ser un "overlay" real.
-//
-// Auth: el cliente conecta con `auth: { token, leagueId }` en el handshake (no hay evento
-// "join" separado — la liga se decide al conectar). Si el token es invalido o el user no es
-// ACTIVE member de esa liga, la conexion se rechaza en el middleware del namespace (evento
-// `connect_error` del lado del cliente) — nunca llega a `connection`.
+// Las reglas del draft viven en draft.service.ts; aca solo hay auth del handshake, rooms,
+// broadcasts y el timer de auto-pick. El server no tickea el countdown: avisa una vez cuanto
+// dura y dispara una vez al vencer. Los picks por REST emiten los mismos eventos.
 
 import type { Server as HttpServer } from 'http';
 import { Server as SocketIOServer, Socket } from 'socket.io';
@@ -31,13 +18,8 @@ import { draftPickSchema } from './draft.schema';
 
 const DEFAULT_PICK_TIMEOUT_MS = 60_000;
 
-// pickTimeoutMs configurado para ESTA instancia del gateway (seteado una vez por
-// registerDraftGateway). Vive en modulo, no como parametro que cada funcion tiene que recibir
-// y reenviar: draft.controller.ts (REST) llama a broadcastPickResult/announceDraftStarted sin
-// saber nada de timers, y aun asi tiene que respetar el mismo timeout que configuro el gateway
-// — si esto fuera un parametro con default propio en cada funcion exportada, cualquier llamada
-// que no lo pase explicitamente (como las del controller) caeria silenciosamente al default de
-// 60s real aunque el gateway se haya registrado con un override para tests. Ya paso una vez.
+// A nivel de modulo y no como parametro: draft.controller.ts llama a las funciones exportadas
+// sin saber de timers y tiene que respetar el override que registro el gateway (tests).
 let configuredPickTimeoutMs = DEFAULT_PICK_TIMEOUT_MS;
 
 type SocketData = {
@@ -54,9 +36,7 @@ type DraftServer = SocketIOServer<
     'draft:timer': (payload: { secondsRemaining: number }) => void;
     'draft:complete': (payload: { teams: unknown[] }) => void;
     'draft:error': (payload: { code: string; message: string }) => void;
-    // No empieza con draft: porque no es del draft — es la liga entera que dejo de existir
-    // para sus miembros. Llega por este namespace porque es donde estan conectados los que
-    // hay que avisar.
+    // No es un evento del draft, pero los que hay que avisar estan conectados a este namespace.
     'league:archived': (payload: { leagueId: number }) => void;
   },
   Record<string, never>,
@@ -67,9 +47,8 @@ function roomName(leagueId: number): string {
   return `league:${leagueId}`;
 }
 
-// activeTimers — estado en memoria del proceso (no persiste a DB, no sobrevive un restart del
-// server). Es lo estandar para timers de sockets: son efimeros por naturaleza. startedAt sirve
-// para poder decirle a un cliente que se conecta A MITAD del countdown cuanto le queda.
+// En memoria: un restart del server pierde los timers. startedAt permite decirle a un cliente
+// que se conecta a mitad del countdown cuanto le queda.
 const activeTimers = new Map<number, { handle: NodeJS.Timeout; startedAt: number; timeoutMs: number }>();
 
 function clearDraftTimer(leagueId: number): void {
@@ -80,11 +59,8 @@ function clearDraftTimer(leagueId: number): void {
   }
 }
 
-// clearAllDraftTimers — SOLO para tests. activeTimers es estado de proceso, no de DB: el
-// truncate-cascade de tests/setup.ts entre cada test borra las ligas pero no cancela timers ya
-// agendados contra esas ligas. Sin este cleanup, un timer que quedo vivo de un test anterior
-// dispara mas tarde contra una liga que ya no existe (NotFoundError sin catch, unhandled
-// rejection) durante un test completamente distinto.
+// Solo para tests: el truncate entre tests borra las ligas pero no los timers, que si no
+// disparan despues contra una liga inexistente en medio de otro test.
 export function clearAllDraftTimers(): void {
   for (const leagueId of activeTimers.keys()) {
     clearDraftTimer(leagueId);
@@ -95,14 +71,11 @@ function getTimerSnapshot(leagueId: number): { secondsRemaining: number } | null
   const entry = activeTimers.get(leagueId);
   if (!entry) return null;
   const elapsed = Date.now() - entry.startedAt;
-  // Math.ceil, no Math.round: nunca queremos reportar "0 segundos" mientras todavia queda
-  // tiempo real (con timeouts cortos en tests, round(0.3) redondea a 0 y es enganoso).
+  // ceil y no round: nunca reportar "0 segundos" mientras todavia queda tiempo.
   const remaining = Math.max(0, Math.ceil((entry.timeoutMs - elapsed) / 1000));
   return { secondsRemaining: remaining };
 }
 
-// scheduleAutoPick: (re)arranca el timer de la ronda actual. Se llama al arrancar el draft y
-// despues de cada pick (manual o auto) mientras el draft siga LIVE.
 function scheduleAutoPick(io: DraftServer, leagueId: number): void {
   clearDraftTimer(leagueId);
   const timeoutMs = configuredPickTimeoutMs;
@@ -113,8 +86,7 @@ function scheduleAutoPick(io: DraftServer, leagueId: number): void {
 
   const handle = setTimeout(() => {
     activeTimers.delete(leagueId);
-    // .catch obligatorio: nadie espera esta promesa. Si runAutoPick rechaza (ej. la liga ya no
-    // existe cuando dispara el timer) y no hay catch, Node termina el proceso (B1 / BOX-16).
+    // .catch obligatorio: nadie espera esta promesa, y un rechazo sin catch termina el proceso.
     void runAutoPick(io, leagueId).catch((err) =>
       console.error(`[draft] auto-pick fallo (league ${leagueId})`, err),
     );
@@ -123,13 +95,11 @@ function scheduleAutoPick(io: DraftServer, leagueId: number): void {
   activeTimers.set(leagueId, { handle, startedAt: Date.now(), timeoutMs });
 }
 
-// runAutoPick: elige al azar entre los disponibles de la categoria que le toca a la ronda
-// actual (decision de equipo — no hay sistema de ranking en el proyecto, asi que "el mejor
-// disponible" del roadmap se resuelve como random entre los legales para esa ronda).
+// Al azar entre los legales de la ronda: no hay ranking para elegir "el mejor disponible".
 async function runAutoPick(io: DraftServer, leagueId: number): Promise<void> {
   const state = await getDraftState(leagueId);
   if (state.draftStatus !== 'LIVE' || state.round === null || state.currentTurnLeagueMemberId === null) {
-    // El draft se reseteo/completo entre que se agendo este timer y que disparo — nada que hacer.
+    // Se reseteo o completo entre que se agendo el timer y que disparo.
     return;
   }
 
@@ -138,8 +108,7 @@ async function runAutoPick(io: DraftServer, leagueId: number): Promise<void> {
   const pool = category === 'DRIVER' ? available.drivers : available.constructors;
 
   if (pool.length === 0) {
-    // Defense in depth: no deberia pasar en un draft real (siempre hay mas drivers/constructors
-    // que slots a llenar), pero si pasa no reagendamos — mejor un turno colgado que un crash.
+    // No deberia pasar; si pasa no se reagenda: mejor un turno colgado que un crash.
     return;
   }
 
@@ -149,11 +118,8 @@ async function runAutoPick(io: DraftServer, leagueId: number): Promise<void> {
   try {
     await submitPick(leagueId, state.currentTurnLeagueMemberId, input);
   } catch (err) {
-    // Caso esperado: un pick manual gano la carrera contra el timer entre el findFirst de
-    // arriba y este submitPick (el re-check WHERE-null de submitPick lo hace fallar en vez de
-    // pisar el pick manual). El pick manual ya broadcasteo su propio draft:update.
-    // Caso NO esperado: DB caida, driver borrado, etc. Antes este catch estaba vacio y no
-    // dejaba rastro de ninguno de los dos — ahora al menos queda logueado (C3 / BOX-21).
+    // Lo esperado es que un pick manual le gano al timer (submitPick no lo pisa y ese pick ya
+    // broadcasteo); igual se loguea por si es otra cosa, como la DB caida.
     console.warn(`[draft] auto-pick descartado (league ${leagueId})`, err);
     return;
   }
@@ -161,9 +127,7 @@ async function runAutoPick(io: DraftServer, leagueId: number): Promise<void> {
   await broadcastPickResult(io, leagueId);
 }
 
-// broadcastPickResult: la logica compartida despues de CUALQUIER pick exitoso (manual por
-// socket, manual por REST, o auto del timer). Exportada para que draft.controller.ts la llame
-// tras un POST /pick exitoso.
+// Despues de cualquier pick exitoso: por socket, por REST (draft.controller.ts) o del timer.
 export async function broadcastPickResult(io: DraftServer, leagueId: number): Promise<void> {
   const state = await getDraftState(leagueId);
   const available = await getAvailablePicks(leagueId);
@@ -188,8 +152,6 @@ export async function broadcastPickResult(io: DraftServer, leagueId: number): Pr
   scheduleAutoPick(io, leagueId);
 }
 
-// announceDraftStarted / announceDraftReset: llamadas desde draft.controller.ts (REST) para
-// que los clientes ya conectados por socket se enteren de un start/reset disparado por HTTP.
 export async function announceDraftStarted(io: DraftServer, leagueId: number): Promise<void> {
   const state = await getDraftState(leagueId);
   const available = await getAvailablePicks(leagueId);
@@ -208,16 +170,8 @@ export async function announceDraftReset(io: DraftServer, leagueId: number): Pro
     .emit('draft:state', { ...state, available, timer: null });
 }
 
-// El owner puede archivar la liga en cualquier momento, incluso con el draft corriendo
-// (decision del 9/10). Sin este aviso, los demas se quedan mirando un reloj de una liga que
-// ya no existe hasta que intentan pickear y el backend los rechaza.
-//
-// Es la unica funcion de este archivo que NO manda un evento draft:*. El namespace igual es
-// /draft porque es donde estan conectados justamente los que hay que sacar de ahi: la
-// pantalla de la liga no abre socket.
-//
-// Sincrona a diferencia de sus vecinas: no lee estado, solo avisa. Y apaga el timer, que es
-// in-memory y si no quedaria corriendo para una liga muerta.
+// Se puede archivar con el draft corriendo; sin este aviso los demas siguen mirando el reloj
+// de una liga muerta. Va por /draft porque la pantalla de la liga no abre socket.
 export function announceLeagueArchived(io: DraftServer, leagueId: number): void {
   clearDraftTimer(leagueId);
   io.of('/draft').to(roomName(leagueId)).emit('league:archived', { leagueId });
@@ -246,19 +200,13 @@ export type DraftGatewayOptions = {
   pickTimeoutMs?: number;
 };
 
-// registerDraftGateway: crea el Server de Socket.io sobre el httpServer dado y arma el
-// namespace /draft entero. Devuelve el Server para que server.ts lo guarde en shared/socket.ts.
-// pickTimeoutMs es override-able (default 60s) — tests lo bajan a milisegundos para no tener
-// que esperar 60s reales por cada assert del auto-pick.
+// pickTimeoutMs existe para que los tests no esperen 60s reales por cada auto-pick.
 export function registerDraftGateway(
   httpServer: HttpServer,
   options: DraftGatewayOptions = {},
 ): DraftServer {
   configuredPickTimeoutMs = options.pickTimeoutMs ?? DEFAULT_PICK_TIMEOUT_MS;
-  // cors: Socket.io atiende /socket.io/* directo sobre el http.Server, ANTES que Express, asi
-  // que el cors() de app.ts NO aplica al handshake. Sin esta opcion el browser del frontend
-  // (FRONTEND_URL) falla el primer request de polling con `xhr poll error`. Misma lista que
-  // app.ts, leida del mismo lugar (config/env.ts) — nunca una segunda copia de la URL.
+  // Socket.io atiende el handshake antes que Express, asi que el cors() de app.ts no aplica.
   const io: DraftServer = new SocketIOServer(httpServer, {
     cors: { origin: env.FRONTEND_URL, credentials: true },
   });
@@ -277,14 +225,12 @@ export function registerDraftGateway(
         return;
       }
 
-      // Puede tirar UnauthorizedError (TOKEN_INVALID) — lo dejamos caer al catch de abajo.
       const payload = verifyAccessToken(token);
 
       const member = await prisma.leagueMember.findUnique({
         where: { leagueId_userId: { leagueId, userId: payload.userId } },
       });
-      // Mismo criterio P2-1 que requireLeagueMember (HTTP): no distinguimos "liga no existe"
-      // de "no soy member" — ambos casos rechazan la conexion igual.
+      // Como requireLeagueMember: "no existe" y "no sos miembro" responden igual (anti-enumeracion).
       if (!member || member.status !== 'ACTIVE') {
         next(new Error('LEAGUE_NOT_FOUND'));
         return;
@@ -303,9 +249,7 @@ export function registerDraftGateway(
     const { leagueId } = socket.data;
     socket.join(roomName(leagueId));
 
-    // Snapshot inicial — fire and forget desde el handler sync de 'connection' (Socket.io no
-    // espera un return de esta callback). El .catch es obligatorio: sin el, un error aca
-    // (DB caida justo al conectar) seria un unhandled rejection y tiraria el proceso (B1).
+    // .catch obligatorio: nadie espera esta promesa, y un rechazo sin catch tira el proceso.
     void (async () => {
       const state = await getDraftState(leagueId);
       const available = await getAvailablePicks(leagueId);

@@ -1,6 +1,3 @@
-// CONTROLLER — el traductor HTTP
-// Ojo con el origen de los ids: son dos endpoints montados desde DOS padres distintos.
-
 import { Request, Response, NextFunction } from 'express';
 import * as standingsService from './standings.service';
 import type { StandingsQuery } from './standings.schema';
@@ -15,9 +12,7 @@ export async function recalculate(req: Request, res: Response, next: NextFunctio
   }
 }
 
-// GET /leagues/:id/standings — montado como sub-router desde leagues.routes.ts.
-// El leagueId sale de req.leagueMember, que popula requireLeagueMember en el mount, y NO de
-// req.params.id: el sub-router no tiene mergeParams. Mismo criterio que draft.controller.ts.
+// El leagueId sale de req.leagueMember y no de req.params: el sub-router no tiene mergeParams.
 export async function getByLeague(req: Request, res: Response, next: NextFunction) {
   try {
     const { raceId } = (req.validatedQuery ?? {}) as StandingsQuery;

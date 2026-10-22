@@ -1,5 +1,3 @@
-// TEST — módulo completo contra la DB real: HTTP → routes → controller → service → Prisma.
-
 import { describe, it, expect, beforeEach } from 'vitest';
 import request from 'supertest';
 import app from '../../app';
@@ -22,7 +20,6 @@ beforeEach(async () => {
   circuitId = circuit.id;
 });
 
-// Helpers locales — tests/setup.ts solo exporta createTestUser/createTestAdmin.
 async function seedConstructor(name: string) {
   const c = await prisma.constructor.create({
     data: { name, color: '#FF0000', externalId: name.toLowerCase() },
@@ -146,8 +143,7 @@ describe('POST /api/v1/races/:id/recalculate', () => {
     expect(leagueId).toBeDefined();
   });
 
-  // La regla de dominio central: un standing es la foto del campeonato hasta esa fecha,
-  // no los puntos de esa carrera sola (docs/domain-entities.md §LeagueStanding).
+  // Un standing es la foto del campeonato hasta esa fecha, no los puntos de esa carrera sola.
   it('acumula los puntos de todas las carreras anteriores', async () => {
     const ferrari = await seedConstructor('Ferrari');
     const leclerc = await seedDriver('LEC', ferrari);

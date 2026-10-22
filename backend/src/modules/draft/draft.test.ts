@@ -1,17 +1,11 @@
-// TESTS — integracion HTTP → controller → service → Prisma → DB real (sin mocks, ADR-0003).
-//
-// El orden del draft es aleatorio (Fisher-Yates en startDraft), asi que estos tests NO
-// hardcodean quien pickea primero: lo descubren consultando la ronda 1 ordenada por
-// pickNumber despues de /start, y usan ese orden descubierto para el resto de las
-// aserciones (incluida la verificacion de que la ronda 2 es exactamente el orden inverso).
+// El orden del draft es aleatorio: los tests no hardcodean quien pickea primero, lo descubren
+// con discoverOrder despues de /start.
 
 import { describe, it, expect } from 'vitest';
 import request from 'supertest';
 import app from '../../app';
 import { createTestAdmin } from '../../tests/setup';
 import { prisma } from '../../shared/prisma';
-
-// ─── Helpers locales ───────────────────────────────────────────────────
 
 let userCounter = 0;
 async function authedUser() {
@@ -32,7 +26,7 @@ async function seedSeason() {
 let driverCounter = 0;
 async function seedDriver(seasonId?: number) {
   const n = ++driverCounter;
-  // El CRUD de catalogo es admin-only (A5 / BOX-15): cada seed pide su propio admin.
+  // El CRUD de catalogo es admin-only: cada seed pide su propio admin.
   const { accessToken } = await createTestAdmin();
   const res = await request(app)
     .post('/api/v1/drivers')
@@ -47,8 +41,7 @@ async function seedDriver(seasonId?: number) {
   if (res.status !== 201) throw new Error(`seedDriver fallo: ${JSON.stringify(res.body)}`);
   const driverId = res.body.data.id as number;
 
-  // Si se pasa seasonId, crea un DriverSeason (necesario para filtrar disponibles por temporada).
-  // Si no, asume que es un test antiguo que no le importa la temporada.
+  // Sin DriverSeason el piloto no aparece entre los disponibles de la temporada.
   if (seasonId !== undefined) {
     const constructorId = await seedConstructor();
     await prisma.driverSeason.create({
@@ -71,9 +64,7 @@ async function seedConstructor() {
   return res.body.data.id as number;
 }
 
-// setupLeague: crea una liga con `count` members (el primero es el owner) y devuelve, por
-// cada uno, { userId, token, leagueMemberId }. leagueMemberId hace falta para mapear el
-// orden del draft (que trabaja en terminos de LeagueMember, no de User) de vuelta a un token.
+// leagueMemberId hace falta para mapear el orden del draft (en LeagueMember) a un token.
 async function setupLeague(count: number) {
   const season = await seedSeason();
   const users = await Promise.all(Array.from({ length: count }, () => authedUser()));
@@ -124,8 +115,6 @@ async function submitPick(
     .send(body);
 }
 
-// discoverOrder: consulta la ronda 1 ordenada por pickNumber y devuelve los Member en ese
-// orden (mapeando leagueMemberId -> Member). Es el "orden shuffleado" real de este draft.
 async function discoverOrder(leagueId: number, members: Member[]): Promise<Member[]> {
   const round1 = await prisma.draftPick.findMany({
     where: { leagueId, round: 1 },
@@ -137,7 +126,6 @@ async function discoverOrder(leagueId: number, members: Member[]): Promise<Membe
 // ─── POST /leagues/:id/draft/start ─────────────────────────────────────
 
 describe('POST /api/v1/leagues/:id/draft/start', () => {
-  // 3 rondas (ADR-0006): driver1, driver2, constructor. La reserva no existe en el juego.
   it('genera 3 rondas x N miembros picks placeholder y pasa a LIVE', async () => {
     const { leagueId, owner } = await setupLeague(3);
 
@@ -178,7 +166,6 @@ describe('POST /api/v1/leagues/:id/draft/start', () => {
     expect(order1).toHaveLength(members.length);
     expect(order2).toEqual([...order1].reverse());
     expect(order3).toEqual(order1);
-    // pickNumber es global y secuencial 1..9 sin huecos (3 rondas x 3 miembros).
     const allPickNumbers = [...round1, ...round2, ...round3].map((p) => p.pickNumber);
     expect(new Set(allPickNumbers).size).toBe(9); // 3 rondas x 3 miembros, sin duplicados
   });
@@ -190,9 +177,6 @@ describe('POST /api/v1/leagues/:id/draft/start', () => {
     expect(res.body.error.code).toBe('NOT_LEAGUE_OWNER');
   });
 
-  // Red de seguridad (ADR-0006): createLeague ya valida maxMembers contra la temporada, pero una
-  // liga vieja o una temporada que cambio de driverCount podrian tener mas miembros que picks
-  // disponibles. Mejor 409 al arrancar que un draft que nunca termina.
   it('rechaza si hay mas miembros que el tope de la temporada (409 TOO_MANY_MEMBERS_FOR_DRAFT)', async () => {
     const { leagueId, owner } = await setupLeague(3);
     // Achicamos la grilla por abajo: 4 pilotos / 2 = tope 2, y la liga tiene 3.
@@ -312,8 +296,7 @@ describe('GET /api/v1/leagues/:id/draft/available', () => {
       data: { name: 'Alpha Racing', color: '#000', externalId: `alpha-${stamp}` },
     });
 
-    // zebraB se crea primero pero su apellido ("Bravo") va DESPUES de zebraA ("Alfa") — si el
-    // test pasara igual con el orden de creacion, no probaria nada del sort por apellido.
+    // zebraB se crea primero pero va despues por apellido: si no, el test no probaria el sort.
     async function makeDriver(firstName: string, lastName: string, externalId: string) {
       const driver = await prisma.driver.create({
         data: { firstName, lastName, number: Math.floor(Math.random() * 90) + 1, code: 'XXX', externalId },
@@ -420,9 +403,7 @@ describe('POST /api/v1/leagues/:id/draft/pick', () => {
     const order = await discoverOrder(leagueId, members);
     const d1 = await seedDriver();
 
-    // Primer pick (ronda 1) toma d1.
     await submitPick(order[0].token, leagueId, { driverId: d1 });
-    // Segundo pick (ronda 1, el otro miembro) intenta tomar el mismo driver.
     const res = await submitPick(order[1].token, leagueId, { driverId: d1 });
 
     expect(res.status).toBe(409);
@@ -444,9 +425,7 @@ describe('POST /api/v1/leagues/:id/draft/pick', () => {
     await startDraft(owner.token, leagueId);
     const order = await discoverOrder(leagueId, members);
 
-    // 2 rondas de driver x 2 miembros = 4 drivers distintos necesarios.
     const drivers = await Promise.all(Array.from({ length: 4 }, () => seedDriver()));
-    // 1 ronda de constructor x 2 miembros = 2 constructors distintos.
     const constructors = await Promise.all(Array.from({ length: 2 }, () => seedConstructor()));
 
     let driverIdx = 0;
@@ -473,7 +452,7 @@ describe('POST /api/v1/leagues/:id/draft/pick', () => {
       expect(team!.driver1Id).not.toBeNull();
       expect(team!.driver2Id).not.toBeNull();
       expect(team!.constructorId).not.toBeNull();
-      // ADR-0006: la reserva no existe — ni como columna.
+      // ADR-0006: la reserva no existe, ni como columna.
       expect(team).not.toHaveProperty('reserveDriverId');
     }
   });

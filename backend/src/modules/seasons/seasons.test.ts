@@ -4,7 +4,7 @@ import app from '../../app';
 import { createTestAdmin, createTestUser } from '../../tests/setup';
 import { prisma } from '../../shared/prisma';
 
-// adminToken: el CRUD de catalogo es admin-only (A5 / BOX-15); se recrea por test (truncate).
+// Se recrea por test porque setup.ts trunca la DB.
 let adminToken: string;
 
 beforeEach(async () => {
@@ -21,8 +21,6 @@ describe('GET /api/v1/seasons', () => {
   });
 });
 
-// El listado es la pantalla de administracion de temporadas: sin estos numeros no se puede
-// saber si una temporada esta lista para usarse, ni por que no se deja borrar.
 describe('GET /api/v1/seasons — conteos', () => {
   it('cada temporada trae cuantas carreras, ligas y pilotos tiene', async () => {
     const admin = await createTestAdmin();
@@ -143,19 +141,16 @@ describe('PATCH /api/v1/seasons/:id/activate', () => {
       .set('Authorization', `Bearer ${adminToken}`)
       .send({ year: 2026 });
 
-    // Activate 2025 first
     await request(app)
       .patch(`/api/v1/seasons/${s1.body.data.id}/activate`)
       .set('Authorization', `Bearer ${adminToken}`);
 
-    // Now activate 2026 — 2025 should become inactive
     const res = await request(app)
       .patch(`/api/v1/seasons/${s2.body.data.id}/activate`)
       .set('Authorization', `Bearer ${adminToken}`);
     expect(res.status).toBe(200);
     expect(res.body.data.isActive).toBe(true);
 
-    // Verify 2025 is now inactive
     const all = await request(app).get('/api/v1/seasons');
     const season2025 = all.body.data.find((s: { year: number }) => s.year === 2025);
     expect(season2025.isActive).toBe(false);
@@ -180,8 +175,7 @@ describe('DELETE /api/v1/seasons/:id', () => {
     expect((await request(app).get('/api/v1/seasons')).body.data).toHaveLength(0);
   });
 
-  // El guard del service solo miraba ligas, pero `races` y `driver_seasons` tienen FK
-  // ON DELETE RESTRICT: sin este chequeo Prisma falla sola y el error llega como 500.
+  // `races` y `driver_seasons` tienen FK ON DELETE RESTRICT: sin la guarda el error es un 500.
   it('rechaza borrar una temporada que tiene carreras (409, no 500)', async () => {
     const created = await request(app)
       .post('/api/v1/seasons')
@@ -247,8 +241,6 @@ describe('DELETE /api/v1/seasons/:id', () => {
   });
 });
 
-// ─── Solo admin muta el catalogo (A5 / BOX-15) ─────────────────────────
-
 describe('seasons — solo admin puede mutar', () => {
   it('rechaza POST sin token (401 TOKEN_MISSING)', async () => {
     const res = await request(app).post('/api/v1/seasons').send({});
@@ -266,8 +258,7 @@ describe('seasons — solo admin puede mutar', () => {
   });
 });
 
-// A3 / BOX-13: un :id no numerico antes llegaba a Prisma como NaN y explotaba en 500.
-// Seasons no tiene GET /:id — se prueba con DELETE (admin) para que el 400 sea del id, no del auth.
+// Seasons no tiene GET /:id: se prueba con DELETE como admin para que el 400 sea del id, no del auth.
 describe('seasons — :id no numerico', () => {
   it('DELETE /seasons/abc responde 400 VALIDATION_ERROR, no 500', async () => {
     const res = await request(app)

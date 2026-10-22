@@ -1,6 +1,3 @@
-// TESTS — integración HTTP → controller → service → Prisma → DB real.
-// Sin mocks (ADR-0003). Cada test arranca con `users` truncado por src/tests/setup.ts.
-
 import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from 'vitest';
 import request from 'supertest';
 import jwt from 'jsonwebtoken';
@@ -101,7 +98,6 @@ describe('POST /api/v1/auth/register', () => {
 
     const statuses = [a.status, b.status].sort();
     expect(statuses).toEqual([201, 409]);
-    // El que ganó devuelve accessToken; el que perdió devuelve EMAIL_ALREADY_EXISTS
     const winner = a.status === 201 ? a : b;
     const loser = a.status === 201 ? b : a;
     expect(winner.body.data.accessToken).toBeDefined();
@@ -141,7 +137,7 @@ describe('POST /api/v1/auth/login', () => {
 
     expect(res.status).toBe(401);
     expect(res.body.error.code).toBe('INVALID_CREDENTIALS');
-    // Anti-enumeration: mismo mensaje que arriba — no podemos enumerar emails
+    // Mismo mensaje que con password incorrecta: no permite enumerar emails.
     expect(res.body.error.message).toBe('Invalid email or password');
   });
 
@@ -206,7 +202,7 @@ describe('GET /api/v1/auth/me', () => {
   });
 
   it('rechaza token firmado con secret distinto (401 TOKEN_INVALID)', async () => {
-    // Anti alg=none defense — un atacante que no tiene nuestro secret no puede forjar tokens validos.
+    // Sin nuestro secret no se puede forjar un token válido.
     const forgedToken = jwt.sign({ userId: 1, role: 'ADMIN' }, 'secret-del-atacante-de-32-caracteres', {
       expiresIn: '15m',
     });
@@ -223,7 +219,6 @@ describe('GET /api/v1/auth/me', () => {
     const register = await request(app).post('/api/v1/auth/register').send(validRegister);
     const token = register.body.data.accessToken;
 
-    // Borramos el user directamente en DB simulando un caso edge.
     await prisma.user.delete({ where: { id: register.body.data.user.id } });
 
     const res = await request(app).get('/api/v1/auth/me').set('Authorization', `Bearer ${token}`);
@@ -287,14 +282,12 @@ describe('PATCH /api/v1/auth/me', () => {
   });
 });
 
-// Un PNG 1x1 real, no un string cualquiera — el service decodifica el base64 de verdad para
-// medir el tamaño del buffer (ver auth.service.ts, MAX_AVATAR_BYTES).
+// Un PNG real: el service decodifica el base64 para medir el tamaño.
 const ONE_PIXEL_PNG =
   'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
 
 describe('POST /api/v1/auth/me/avatar', () => {
-  // La red no es Jolpica acá, es Supabase Storage — mismo criterio que sync.test.ts: se
-  // stubea `fetch` global con una respuesta fija, supertest no lo toca para nada más.
+  // Stub de `fetch` global en lugar de pegarle a Supabase Storage; supertest no lo usa.
   function stubStorage(ok = true) {
     const fetchMock = vi.fn(async (_url: string) => ({ ok, status: ok ? 200 : 500 }));
     vi.stubGlobal('fetch', fetchMock);
@@ -436,7 +429,6 @@ describe('DELETE /api/v1/auth/me/avatar', () => {
 });
 
 describe('POST /api/v1/auth/refresh + /logout (httpOnly cookies)', () => {
-  // Helper: extrae el value del refresh cookie del Set-Cookie header de un response.
   function getRefreshCookie(setCookieHeader: string[] | undefined): string | undefined {
     if (!setCookieHeader) return undefined;
     const cookie = setCookieHeader.find((c) => c.startsWith('refreshToken='));
@@ -451,7 +443,6 @@ describe('POST /api/v1/auth/refresh + /logout (httpOnly cookies)', () => {
     expect(setCookie).toBeDefined();
     const refreshCookieRaw = setCookie.find((c) => c.startsWith('refreshToken='));
     expect(refreshCookieRaw).toBeDefined();
-    // Flags importantes:
     expect(refreshCookieRaw).toMatch(/HttpOnly/i);
     expect(refreshCookieRaw).toMatch(/SameSite=Lax/i);
     expect(refreshCookieRaw).toMatch(/Path=\/api\/v1\/auth/i);
@@ -481,7 +472,6 @@ describe('POST /api/v1/auth/refresh + /logout (httpOnly cookies)', () => {
     expect(res.status).toBe(200);
     expect(res.body.data.user.email).toBe(validRegister.email);
     expect(res.body.data.accessToken).toBeDefined();
-    // El access nuevo debe ser distinto al original (mismo userId+role pero distinto iat).
     expect(res.body.data.accessToken).not.toBe(register.body.data.accessToken);
   });
 
@@ -534,20 +524,14 @@ describe('POST /api/v1/auth/refresh + /logout (httpOnly cookies)', () => {
     expect(setCookie).toBeDefined();
     const cleared = setCookie.find((c) => c.startsWith('refreshToken='));
     expect(cleared).toBeDefined();
-    // clearCookie setea la cookie con value vacio + Expires en el pasado (1970 / Thu, 01 Jan 1970).
     expect(cleared).toMatch(/refreshToken=;/);
     expect(cleared).toMatch(/Expires=Thu, 01 Jan 1970/);
   });
 });
 
-// ─── Rate limit de /auth (IP-based) ───────────────────────────────────────────────────────
-// Los limiters llevan `skip: isTestEnv` para que el resto de la suite no tope el cap; aca se
-// re-activan apagando las dos envs que isTestEnv mira. Se evalua por request, asi que alcanza
-// con setearlas antes y restaurarlas despues. Mismo patron que leagues.test.ts.
-//
-// El store es in-memory y NO se resetea entre tests (setup.ts trunca la DB, no el contador),
-// asi que cada limiter se ejercita en un solo `it` y el test de login crea su usuario con
-// Prisma directo — el cap de register ya esta agotado cuando le toca.
+// Los limiters se saltean en test (`skip: isTestEnv`); acá se reactivan apagando esas envs.
+// El store en memoria no se resetea entre tests, así que cada limiter se prueba en un solo
+// `it`, y el de login crea su usuario con Prisma porque el cap de register ya está agotado.
 
 describe('rate limit de /api/v1/auth (por IP)', () => {
   const savedEnv = { NODE_ENV: process.env.NODE_ENV, VITEST: process.env.VITEST };
@@ -587,9 +571,8 @@ describe('rate limit de /api/v1/auth (por IP)', () => {
       },
     });
 
-    // Agota el cap de una IP. En produccion Cloudflare escribe este header con la IP real del
-    // cliente; es lo que ipKey usa como key. El bug que esto previene: con trust proxy mal,
-    // req.ip era una IP interna de Render y TODOS los usuarios compartian este contador.
+    // En producción Cloudflare pone la IP real del cliente en este header y ipKey la usa;
+    // req.ip sería una IP interna de Render compartida por todos los usuarios.
     for (let i = 1; i <= 10; i++) {
       const res = await request(app)
         .post('/api/v1/auth/login')

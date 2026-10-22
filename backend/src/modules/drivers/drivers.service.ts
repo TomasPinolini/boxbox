@@ -1,19 +1,10 @@
-// SERVICE — el cerebro del módulo
-// Toda la lógica de negocio y el acceso a la base de datos viven acá.
-// No sabe que existe HTTP: no toca req, res ni next.
-// Comunica errores lanzando excepciones (AppError y subclases) — el controller las atrapa.
-
 import { prisma } from '../../shared/prisma';
 import { NotFoundError, ConflictError } from '../../shared/errors';
 import { CreateDriverInput, UpdateDriverInput } from './drivers.schema';
 import type { RaceResultStatus } from '../../generated/prisma/client';
 
-// Objeto compartido para excluir soft-deleted en todas las queries.
-// Closure de módulo: todas las funciones de este archivo lo "ven" sin recibirlo como parámetro.
 const notDeleted = { deletedAt: null };
 
-// Escuderia tal como la exponemos en la API. No es el modelo entero de Constructor:
-// el listado solo necesita con que pintar el chip de equipo.
 export type ConstructorRef = {
   id: number;
   name: string;
@@ -21,22 +12,15 @@ export type ConstructorRef = {
   logoUrl: string | null;
 };
 
-// Resuelve contra que temporada leer la escuderia: la explicita si vino por query, si no
-// la activa, y si no hay ninguna -> null.
-// Exportada porque constructors.service.ts resuelve la temporada igual (Slice 16).
-//
-// Por que NO importamos seasonsService.findActive(): esa tira NotFoundError, asi que
-// GET /drivers devolveria 404 en una DB sin temporada activa. Eso es exactamente el estado
-// de la DB en cada test (setup.ts trunca seasons antes de cada uno) y el de un clone fresco
-// sin seed. Un endpoint publico de catalogo no puede depender de que exista una temporada.
+// La temporada explícita, si no la activa, si no null.
+// No usa seasonsService.findActive() porque tira 404, y un catálogo público tiene que
+// responder aunque no haya temporada activa (DB recién clonada o truncada por los tests).
 export async function resolveSeasonId(seasonId?: number): Promise<number | null> {
   if (seasonId) return seasonId;
   const active = await prisma.season.findFirst({ where: { isActive: true } });
   return active?.id ?? null;
 }
 
-// Cruza los DriverSeason con los Constructor y devuelve un indice driverId -> escuderia.
-// Funcion pura, sin DB — mismo criterio que buildConstructorResults en races.service.ts.
 function indexConstructorsByDriver(
   links: { driverId: number; constructorId: number }[],
   constructors: ConstructorRef[],
@@ -45,18 +29,14 @@ function indexConstructorsByDriver(
   const byDriver = new Map<number, ConstructorRef>();
   for (const link of links) {
     const constructor = byId.get(link.constructorId);
-    // Si la escuderia esta soft-deleted no entra en `constructors`, y el piloto queda sin
-    // equipo. Decision explicita: lo borrado no existe para las lecturas publicas.
+    // Escudería soft-deleted: el piloto queda sin equipo en las lecturas públicas.
     if (constructor) byDriver.set(link.driverId, constructor);
   }
   return byDriver;
 }
 
-// Orden de /drivers y del picker del draft (BOX, auditoria de UX 2026-10-09): agrupado por
-// escuderia en vez de apellido suelto — con 2 pilotos por equipo y una grilla de 2 columnas,
-// cada fila termina siendo un equipo completo. La escuderia se ordena alfabetica (mismo
-// orden que ya usa GET /constructors), y dentro de cada una, por apellido. Sin equipo
-// (constructor null) va al final, no al principio: alfabetico ordenaria "" antes que "A".
+// Agrupado por escudería para que, con 2 pilotos por equipo y grilla de 2 columnas, cada fila
+// sea un equipo. Los sin equipo van al final (con "" quedarían primeros).
 function sortByConstructorThenName<T extends { constructor: { name: string } | null; lastName: string; firstName: string }>(
   items: T[],
 ): T[] {
@@ -71,22 +51,17 @@ function sortByConstructorThenName<T extends { constructor: { name: string } | n
   });
 }
 
-// GET /drivers — listado publico con la escuderia de cada piloto.
-//
-// Se resuelve en tres queries planas + merge en TS en vez de un include/select sobre la
-// relacion `constructor`. Motivo: el modelo Constructor genera un campo que se llama
-// literalmente `constructor`, que colisiona con la propiedad que todo objeto JS hereda de
-// Object.prototype. Eso rompio tsc en los Slices 4 y 5 (ver roadmap, "Bug de tipos"). El
-// delegate prisma.constructor es seguro; lo que muerde es la relacion dentro de un select.
+// Tres queries planas + merge en TS en vez de include/select sobre la relación `constructor`:
+// ese nombre choca con Object.prototype.constructor y rompe los tipos de Prisma en tsc.
+// El delegate prisma.constructor sí es seguro.
 export async function findAll(constructorId?: number, seasonId?: number) {
   const resolvedSeasonId = await resolveSeasonId(seasonId);
 
   const drivers = await prisma.driver.findMany({
     where: {
       ...notDeleted, // siempre filtra borrados
-      // El filtro por escuderia se acota ademas a la temporada resuelta: sin eso, un piloto
-      // que corrio para Ferrari en 2025 aparecia al filtrar Ferrari en 2026 mostrando en su
-      // fila la escuderia actual — listado y filtro se contradecian.
+      // Acotado a la temporada: si no, quien corrió para ese equipo otro año aparece en el
+      // filtro mostrando su escudería actual.
       ...(constructorId
         ? {
             seasons: {
@@ -103,8 +78,6 @@ export async function findAll(constructorId?: number, seasonId?: number) {
 
   if (drivers.length === 0) return [];
 
-  // Sin temporada resuelta no hay contra que buscar la escuderia: todos van sin equipo, y por
-  // lo tanto el orden por escuderia no distingue a nadie — se mantiene el de apellido.
   if (!resolvedSeasonId) return drivers.map((driver) => ({ ...driver, constructor: null }));
 
   const byDriver = await constructorsForDrivers(
@@ -120,13 +93,11 @@ export async function findAll(constructorId?: number, seasonId?: number) {
   );
 }
 
-// Las dos queries que faltan del merge de arriba. Aparte porque findDetail hace lo mismo
-// para un solo piloto.
 async function constructorsForDrivers(
   driverIds: number[],
   seasonId: number,
 ): Promise<Map<number, ConstructorRef>> {
-  // Fila entera, sin select: ver el comentario de colision de nombres en findAll.
+  // Fila entera, sin select: ver la colisión de nombres en findAll.
   const links = await prisma.driverSeason.findMany({
     where: { seasonId, driverId: { in: driverIds } },
   });
@@ -143,16 +114,12 @@ async function constructorsForDrivers(
   );
 }
 
-// Version flaca: solo valida existencia. NO se exporta a proposito — update() y
-// softDelete() la usan para el 404 y no tienen por que pagar los joins del detalle.
-// El endpoint publico usa findDetail(). Sin el export, knip no la reporta como muerta y
-// queda auto-documentado cual es cual.
+// Solo valida existencia, para que update/softDelete no paguen los joins de findDetail.
 async function findById(id: number) {
   const driver = await prisma.driver.findFirst({
     where: { id, ...notDeleted }, // findFirst porque filtramos deletedAt (no es solo PK)
   });
 
-  // Si no existe (o fue soft-deleted), lanza NotFoundError → controller → errorHandler → 404
   if (!driver) throw new NotFoundError('Driver');
   return driver;
 }
@@ -166,10 +133,7 @@ export type DriverStats = {
   dnfs: number;
 };
 
-// Agregacion en memoria sobre filas planas, no con groupBy/aggregate de Prisma: es el patron
-// del proyecto (ver buildConstructorResults en races.service.ts). Ventajas concretas: una sola
-// query en vez de tres, y la funcion se testea sin DB porque es pura.
-// No exportada — nadie fuera de este modulo la necesita.
+// En memoria en vez de groupBy: una query en lugar de tres, y es pura (se testea sin DB).
 function buildDriverStats(
   results: { position: number | null; points: number; status: RaceResultStatus }[],
 ): DriverStats {
@@ -186,17 +150,12 @@ function buildDriverStats(
   };
 }
 
-// GET /drivers/:id — el piloto con su escuderia, sus estadisticas y su historial de carreras,
-// todo acotado a la temporada resuelta (la activa salvo que se pase ?seasonId=).
-//
-// Reusa findById para el 404 antes de traer nada mas, igual que getResults en races.service.ts.
 export async function findDetail(id: number, seasonId?: number) {
   const driver = await findById(id);
   const resolvedSeasonId = await resolveSeasonId(seasonId);
 
-  // Sin temporada no hay contra que leer: escuderia vacia, stats en cero, historial vacio.
-  // No caemos a "toda la carrera del piloto" porque mezclaria temporadas y `round` dejaria
-  // de ser un orden total.
+  // Sin temporada no se cae a "toda la carrera del piloto": mezclaría temporadas y `round`
+  // dejaría de ser un orden total.
   if (!resolvedSeasonId) {
     return {
       ...driver,
@@ -209,11 +168,7 @@ export async function findDetail(id: number, seasonId?: number) {
 
   const byDriver = await constructorsForDrivers([driver.id], resolvedSeasonId);
 
-  // include: { race: true } es seguro — el problema de nombres es con la relacion
-  // `constructor`, que no aparece por ningun lado en esta query.
-  //
-  // Orden por `round`, no por el `position asc nulls last` canonico de races.service.ts: ese
-  // ordena los resultados DE una carrera; el historial DE un piloto se lee cronologicamente.
+  // include de `race` es seguro: la colisión de nombres es solo con `constructor`.
   const raceResults = await prisma.raceResult.findMany({
     where: { driverId: driver.id, race: { seasonId: resolvedSeasonId } },
     include: { race: true },
@@ -225,7 +180,6 @@ export async function findDetail(id: number, seasonId?: number) {
     constructor: byDriver.get(driver.id) ?? null,
     seasonId: resolvedSeasonId,
     stats: buildDriverStats(raceResults),
-    // Aplanado a proposito: la tabla del frontend no tiene que navegar dos niveles.
     results: raceResults.map((r) => ({
       raceId: r.raceId,
       raceName: r.race.name,
@@ -240,12 +194,8 @@ export async function findDetail(id: number, seasonId?: number) {
   };
 }
 
-// GET /drivers/standings — campeonato de pilotos de la temporada resuelta (Slice 16).
-//
-// Entran todos los pilotos con DriverSeason en la temporada, tambien los que tienen 0 puntos:
-// una temporada sin carreras completadas devuelve la grilla entera en cero.
-// Aca si se usa groupBy (a diferencia de buildDriverStats): es la grilla entera por todas las
-// carreras, y no hace falta traer ~500 filas para sumar una columna.
+// Entran todos los pilotos de la temporada, también con 0 puntos. Acá sí groupBy: es la
+// grilla entera y no hace falta traer ~500 filas para sumar una columna.
 export async function findStandings(seasonId?: number) {
   const resolvedSeasonId = await resolveSeasonId(seasonId);
   if (!resolvedSeasonId) return [];
@@ -286,8 +236,7 @@ export async function findStandings(seasonId?: number) {
           constructor: byDriver.get(d.id) ?? null,
         },
       }))
-      // Puntos, despues victorias (el desempate real de la F1), despues apellido y nombre para
-      // que el orden sea deterministico aun con toda la grilla en cero.
+      // Victorias es el desempate real de la F1; el nombre hace el orden determinístico en cero.
       .sort(
         (a, b) =>
           b.points - a.points ||
@@ -300,8 +249,7 @@ export async function findStandings(seasonId?: number) {
 }
 
 export async function create(data: CreateDriverInput) {
-  // externalId es el ID del piloto en Jolpica-F1. Debe ser único.
-  // Usamos findUnique (sin filtro deletedAt) para detectar conflictos aunque estén borrados.
+  // Sin filtro deletedAt: un piloto borrado sigue reservando su externalId.
   const existing = await prisma.driver.findUnique({
     where: { externalId: data.externalId },
   });
@@ -324,7 +272,6 @@ export async function update(id: number, data: UpdateDriverInput) {
 export async function softDelete(id: number) {
   await findById(id); // valida existencia antes de intentar borrar
 
-  // No podemos borrar un piloto que está en uso en algún FantasyTeam activo
   const activeDependencies = await prisma.fantasyTeam.count({
     where: {
       OR: [{ driver1Id: id }, { driver2Id: id }],
@@ -338,8 +285,7 @@ export async function softDelete(id: number) {
     );
   }
 
-  // Soft delete: no borramos la fila, seteamos deletedAt.
-  // Los RaceResult históricos siguen apuntando a este piloto — si lo borráramos físicamente, romperíamos esas referencias.
+  // Soft delete: los RaceResult históricos siguen apuntando a este piloto.
   return prisma.driver.update({
     where: { id },
     data: { deletedAt: new Date() },

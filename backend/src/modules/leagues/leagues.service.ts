@@ -1,30 +1,11 @@
-// SERVICE — toda la logica de leagues vive aca.
-// No sabe que existe HTTP: nunca toca req/res/next. Recibe datos parsed (post Zod) y userId
-// extraido del JWT por el controller. Comunica errores tirando AppError subclasses; el
-// controller los pasa al errorHandler.
-//
-// Slice 3 cambios principales:
-//   - createLeague ahora hace nested write atomico: crea League + LeagueMember(isOwner=true)
-//     en una sola transaccion implicita. Si la creacion del member falla, la liga tampoco se crea.
-//   - listLeagues filtra por membership ACTIVE en lugar de createdById. Como el creator es
-//     ahora auto-member, las leagues que cree TAMBIEN aparecen aca.
-//   - getLeagueById/updateLeague YA NO hacen ownership check inline. Eso vive en
-//     middleware requireLeagueMember/requireLeagueOwner (P2-1 unification 404 vs 403).
-//   - Nuevas funciones: joinLeague, leaveLeague, listMembers, kickMember.
-//
-// Slice 4 cambios:
-//   - createLeague y joinLeague ahora crean el FantasyTeam del member atomicamente (nested
-//     write dentro del create del LeagueMember). Todos los slots arrancan null.
-//   - Rejoin (branch `update` del upsert en joinLeague) NO recrea el FantasyTeam — el que
-//     ya existe de la membership original se mantiene (preserva picks si el draft ya corrio).
-//   - Nueva funcion: getMyFantasyTeam.
+// La autorizacion (miembro / owner) la resuelven los middlewares de leagueMembership.ts;
+// este service asume que el caller ya paso por ellos.
 
 import { prisma } from '../../shared/prisma';
 import { Prisma } from '../../generated/prisma/client';
 import { NotFoundError, ConflictError } from '../../shared/errors';
 import type { CreateLeagueInput, UpdateLeagueInput } from './leagues.schema';
 
-// leagueSelect — campos que devolvemos al cliente.
 const leagueSelect = {
   id: true,
   name: true,
@@ -38,28 +19,17 @@ const leagueSelect = {
   updatedAt: true,
 } as const;
 
-// memberSelect — shape de LeagueMember en responses publicas (GET /:id/members).
-// user.name: la tabla de miembros del frontend (Slice 13a) muestra nombres, no ids.
 const memberSelect = {
   id: true,
   userId: true,
   isOwner: true,
   status: true,
   joinedAt: true,
-  // motto: lo que RivalTeamModal muestra como cita arriba del equipo (frontend).
-  // avatarUrl: la foto de perfil en la tabla de miembros (frontend, Slice 17).
   user: { select: { name: true, motto: true, avatarUrl: true } },
 } as const;
 
-// fantasyTeamSelect — shape de FantasyTeam en responses publicas (GET /:id/teams/me).
-// `as Prisma.FantasyTeamSelect` (type assertion, NO `: Prisma.FantasyTeamSelect` anotacion ni
-// `as const`): FantasyTeam tiene una relacion llamada literalmente `constructor` (FK a
-// Constructor), que colisiona con la propiedad `constructor` que TODO objeto JS hereda de
-// Object.prototype. Tanto `as const` como una anotacion directa (`: Prisma.FantasyTeamSelect`)
-// hacen que TS compare estructuralmente el literal contra el select type y arrastre un
-// `constructor: Function` heredado que no es real (a runtime esto siempre funciono bien) —
-// tira TS2322. Una type ASSERTION (`as`, no `satisfies`) es el unico approach que evita el
-// falso positivo (confirmado empiricamente contra este mismo generated client).
+// `as Prisma.FantasyTeamSelect` y no `as const` ni anotacion: la relacion `constructor`
+// choca con Object.prototype.constructor y cualquier otra forma tira un TS2322 falso.
 const fantasyTeamSelect = {
   id: true,
   leagueMemberId: true,
@@ -69,19 +39,15 @@ const fantasyTeamSelect = {
   createdAt: true,
 } as Prisma.FantasyTeamSelect;
 
-// maxMembersForSeason: cuantos miembros entran en una liga de esta temporada. Cada miembro
-// draftea 2 pilotos y los picks son exclusivos por liga (ADR-0006), asi que el tope es
-// floor(pilotos / 2): 11 para una grilla de 22. Unica fuente de la formula — draft.service.ts
-// la importa para el guard de startDraft.
+// Cada miembro draftea 2 pilotos exclusivos por liga (ADR-0006): el tope es floor(pilotos / 2).
+// Unica fuente de la formula; draft.service.ts la reusa en startDraft.
 export function maxMembersForSeason(driverCount: number): number {
   return Math.floor(driverCount / 2);
 }
 
-// assertRosterOpen: el roster de una liga solo cambia mientras el draft no arranco. startDraft
-// materializa el orden de picks para los miembros de ESE momento; un join posterior deja a
-// alguien sin picks ni turno, un leave/kick deja turnos que nadie puede jugar (B2 / BOX-17).
-// COMPLETED tambien bloquea: un miembro nuevo jugaria la temporada con el equipo vacio.
-// POST /draft/reset vuelve a PENDING y desbloquea.
+// startDraft materializa el orden de picks para los miembros de ese momento: un join posterior
+// queda sin turno y un leave/kick deja turnos huerfanos. COMPLETED tambien bloquea (equipo
+// vacio toda la temporada). POST /draft/reset vuelve a PENDING y desbloquea.
 function assertRosterOpen(draftStatus: string): void {
   if (draftStatus !== 'PENDING') {
     throw new ConflictError(
@@ -104,9 +70,8 @@ export async function createLeague(data: CreateLeagueInput, userId: number) {
     );
   }
 
-  // Nested write atomico: Prisma crea League + LeagueMember en una sola transaccion.
-  // Si la insert del member falla (raro — userId viene del JWT validado), la liga tampoco
-  // se crea. Eso preserva la invariante de dominio "toda liga tiene exactamente 1 owner".
+  // Nested write: League + owner + FantasyTeam en una sola transaccion, para que nunca
+  // exista una liga sin owner.
   try {
     const league = await prisma.league.create({
       data: {
@@ -116,9 +81,6 @@ export async function createLeague(data: CreateLeagueInput, userId: number) {
         maxMembers: data.maxMembers ?? cap,
         createdById: userId,
         members: {
-          // Slice 4: nested create de dos niveles — League → LeagueMember → FantasyTeam,
-          // todo en la misma transaccion implicita de Prisma. Si algo falla en el medio,
-          // nada se crea.
           create: {
             userId,
             isOwner: true,
@@ -147,28 +109,17 @@ export async function createLeague(data: CreateLeagueInput, userId: number) {
 }
 
 export async function listLeagues(userId: number) {
-  // Slice 3 cambio: filtra por membership ACTIVE en vez de createdById.
-  // El creator ahora aparece auto-como member (Step 8a), asi que las ligas creadas por mi
-  // siguen apareciendo. Pero ahora TAMBIEN aparecen las que junte por inviteCode.
   const leagues = await prisma.league.findMany({
     where: {
-      // Dos status distintos que se escriben igual y no son lo mismo: el de la MEMBRESIA
-      // (sigo adentro) y el de la LIGA (sigue abierta).
+      // Dos status distintos: el de la membresia (sigo adentro) y el de la liga (sigue abierta).
       members: { some: { userId, status: 'ACTIVE' } },
-      // Archivar es como el owner cierra una liga (ADR-0009), y lo que el owner quiere es
-      // justamente dejar de verla. Sin este filtro la liga archivada seguia en el listado y
-      // archivar no servia para nada visible. Mismo criterio que joinLeague, que exige
-      // status ACTIVE: la liga tiene que estar abierta, no "no archivada".
+      // Archivar es como el owner cierra una liga (ADR-0009): deja de aparecer en el listado.
       status: 'ACTIVE',
     },
     select: {
       ...leagueSelect,
-      // El equipo del que pide, para que la tarjeta de /leagues pueda mostrarlo sin pedir una
-      // request por liga. Se filtra por userId aca mismo: `members` trae como mucho una fila.
-      //
-      // Reusa fantasyTeamSelect y no un literal propio: ese select carga el workaround de la
-      // colision de `constructor` con Object.prototype (ver su comentario, 100 lineas arriba).
-      // Escribir el literal aca de nuevo vuelve a romper tsc, comprobado.
+      // El equipo del que pide, para que /leagues no haga una request por liga. Reusa
+      // fantasyTeamSelect por la colision de `constructor`: un literal propio rompe tsc.
       members: {
         where: { userId, status: 'ACTIVE' as const },
         select: { fantasyTeam: { select: fantasyTeamSelect } },
@@ -177,29 +128,21 @@ export async function listLeagues(userId: number) {
     orderBy: { createdAt: 'desc' },
   });
 
-  // Se aplana antes de salir: el cliente no tiene por que saber que el equipo cuelga de la
-  // membresia, y `members: [{ fantasyTeam }]` con un solo elemento es una forma incomoda.
   return leagues.map(({ members, ...league }) => ({
     ...league,
     myTeam: members[0]?.fantasyTeam ?? null,
   }));
 }
 
-// getLeagueById: ya NO chequea ownership. requireLeagueMember (middleware) ya garantizo
-// que el caller es ACTIVE member. El service solo fetchea y devuelve.
 export async function getLeagueById(id: number) {
   const league = await prisma.league.findUnique({ where: { id }, select: leagueSelect });
   if (!league) {
-    // Defense in depth: si middleware fallo o se omitio en una ruta nueva, esto sigue protegiendo.
-    // En la practica requireLeagueMember nunca deja llegar aca con id invalido.
     throw new NotFoundError('League');
   }
   return league;
 }
 
-// updateLeague: ya NO chequea ownership. requireLeagueOwner (middleware) ya garantizo isOwner.
 export async function updateLeague(id: number, data: UpdateLeagueInput) {
-  // Mismo tope que en createLeague: maxMembers nunca puede superar lo que la temporada permite.
   if (data.maxMembers !== undefined) {
     const league = await prisma.league.findUnique({ where: { id }, include: { season: true } });
     if (!league) {
@@ -227,27 +170,17 @@ export async function updateLeague(id: number, data: UpdateLeagueInput) {
   }
 }
 
-// ─── Slice 3: nuevas funciones ────────────────────────────────────────
-
-// joinLeague: lookup por inviteCode lowercase. Lleva 3 checks antes de mutar:
-//   1. League existe + status ACTIVE (no archived/cancelled).
-//   2. Hay cupo (count(ACTIVE) < maxMembers).
-//   3. Yo no soy ya ACTIVE member.
-// Rejoin (LEFT/KICKED → ACTIVE) usa upsert: si hay row, update; si no, create.
-// Decision consciente: tanto LEFT como KICKED pueden rejoinear. KICKED queda como audit trail.
+// Decision consciente: tanto LEFT como KICKED pueden volver a unirse.
 export async function joinLeague(inviteCode: string, userId: number) {
   const league = await prisma.league.findUnique({ where: { inviteCode } });
   if (!league || league.status !== 'ACTIVE') {
-    // Unificamos archived + nonexistent en el mismo error: el cliente externo no debe
-    // poder distinguir "esta liga existe pero archived" vs "este codigo no existe".
-    // Resource con underscore para que NotFoundError genere 'INVITE_CODE_NOT_FOUND' limpio
-// (sin underscore producia 'INVITE CODE_NOT_FOUND' con espacio).
+    // Archivada e inexistente dan el mismo error: no revelar que el codigo existe.
+    // Con underscore para que el codigo salga 'INVITE_CODE_NOT_FOUND' y no con espacio.
 throw new NotFoundError('Invite_code');
   }
 
   assertRosterOpen(league.draftStatus);
 
-  // Capacity check ANTES de upsert. Si maxMembers=11 y ya hay 11 ACTIVE, rechazar.
   const activeCount = await prisma.leagueMember.count({
     where: { leagueId: league.id, status: 'ACTIVE' },
   });
@@ -255,7 +188,6 @@ throw new NotFoundError('Invite_code');
     throw new ConflictError('League is at capacity', 'LEAGUE_FULL');
   }
 
-  // Existing row check: si ya soy ACTIVE, 409 limpio (no no-op silencioso).
   const existing = await prisma.leagueMember.findUnique({
     where: { leagueId_userId: { leagueId: league.id, userId } },
   });
@@ -263,15 +195,8 @@ throw new NotFoundError('Invite_code');
     throw new ConflictError('You are already a member of this league', 'ALREADY_MEMBER');
   }
 
-  // Upsert: rejoin (update LEFT/KICKED → ACTIVE) o new member.
-  // El @@unique(leagueId, userId) hace este upsert atomico — si una race condition mete
-  // un insert al mismo tiempo, uno de los dos pierde con P2002 (que Prisma maneja
-  // internamente en upsert haciendo update).
-  //
-  // Slice 4: el branch `create` arma el FantasyTeam nested (mismo shape que createLeague).
-  // El branch `update` (rejoin) deliberadamente NO toca fantasyTeam — ya existe desde el
-  // join original y @@unique([leagueMemberId]) no permite un segundo. Si el draft ya corrio
-  // antes de que este member se fuera, el rejoin conserva sus picks.
+  // El branch `update` (rejoin) no toca fantasyTeam a proposito: ya existe desde el join
+  // original (@@unique([leagueMemberId]) no admite otro) y asi conserva sus picks.
   const member = await prisma.leagueMember.upsert({
     where: { leagueId_userId: { leagueId: league.id, userId } },
     update: { status: 'ACTIVE', joinedAt: new Date() },
@@ -287,8 +212,7 @@ throw new NotFoundError('Invite_code');
   return member;
 }
 
-// leaveLeague: soft transition a LEFT. Owner no puede leave (per roadmap: debe transferir
-// ownership antes — fuera de scope de Slice 3).
+// El owner no puede irse: transferir ownership no esta implementado.
 export async function leaveLeague(leagueId: number, userId: number, isOwner: boolean) {
   if (isOwner) {
     throw new ConflictError(
@@ -305,7 +229,6 @@ export async function leaveLeague(leagueId: number, userId: number, isOwner: boo
   }
   assertRosterOpen(league.draftStatus);
 
-  // Update directo. requireLeagueMember ya garantizo que el row existe y esta ACTIVE.
   return prisma.leagueMember.update({
     where: { leagueId_userId: { leagueId, userId } },
     data: { status: 'LEFT' },
@@ -313,9 +236,7 @@ export async function leaveLeague(leagueId: number, userId: number, isOwner: boo
   });
 }
 
-// listMembers: solo ACTIVE. LEFT/KICKED se mantienen en DB para audit pero no aparecen
-// en el roster actual de la liga. orderBy: joinedAt asc para que el owner aparezca primero
-// (creado en el mismo timestamp que la liga, antes que cualquier join).
+// joinedAt asc deja al owner primero: entra en el mismo momento en que se crea la liga.
 export async function listMembers(leagueId: number) {
   return prisma.leagueMember.findMany({
     where: { leagueId, status: 'ACTIVE' },
@@ -324,9 +245,6 @@ export async function listMembers(leagueId: number) {
   });
 }
 
-// kickMember: solo owner llama esto (enforced en middleware). Soft transition a KICKED.
-// Owner no puede kickearse a si mismo — usaria leave (que tambien le falla con OWNER_CANNOT_LEAVE).
-// Si el target no es ACTIVE member (ya LEFT/KICKED o nunca fue), 404.
 export async function kickMember(leagueId: number, kickedUserId: number, ownerUserId: number) {
   if (kickedUserId === ownerUserId) {
     throw new ConflictError(
@@ -358,13 +276,6 @@ export async function kickMember(leagueId: number, kickedUserId: number, ownerUs
   });
 }
 
-// ─── Slice 4: FantasyTeam ─────────────────────────────────────────────
-
-// getMyFantasyTeam: requireLeagueMember ya corrio y dejo el LeagueMember en req.leagueMember,
-// asi que el controller nos pasa directo su id — sin query extra a LeagueMember aca.
-// El FantasyTeam se crea atomicamente junto al LeagueMember (createLeague / joinLeague), asi
-// que en la practica este lookup siempre resuelve. El NotFoundError es defense in depth,
-// mismo criterio que getLeagueById.
 export async function getMyFantasyTeam(leagueMemberId: number) {
   const team = await prisma.fantasyTeam.findUnique({
     where: { leagueMemberId },

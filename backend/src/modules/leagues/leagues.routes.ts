@@ -1,24 +1,5 @@
-// ROUTES — wiring entre URL paths y handlers.
-//
-// Orden de middlewares por ruta (Slice 3):
-//   rateLimit (donde aplica) → requireAuth → validateParams → requireLeagueMember
-//                              → requireLeagueOwner (si aplica) → validate(body) → controller
-//
-// Decisiones clave:
-//   - rateLimit antes que requireAuth: corre primero para que un atacante sin token igual
-//     no pueda golpear el endpoint masivamente. La key del limiter usa req.user si existe;
-//     si no, IP. Defense in depth.
-//   - validateParams ANTES de requireLeagueMember: el middleware necesita Number(req.params.id),
-//     y validateParams coerciona + rechaza con 400 si :id no es int positive.
-//   - validate(body) DESPUES de requireLeagueOwner en PATCH: queremos que un no-owner reciba
-//     403 sin necesidad de mandar body valido. Si validate corriera antes, un no-owner con
-//     body malo recibiria 400 (info leak menor).
-//
-// No hay DELETE /leagues/:id (decision Slice 2 — archivar via PATCH status='ARCHIVED').
-//
-// Slice 4: GET /:id/teams/me reusa exactamente la misma chain que GET /:id/members
-// (requireAuth → validateParams → requireLeagueMember) — cualquier ACTIVE member puede leer
-// su propio FantasyTeam.
+// validate(body) va despues de requireLeagueOwner: un no-owner recibe 403 aunque mande un
+// body invalido. No hay DELETE /leagues/:id: se archiva con PATCH status='ARCHIVED'.
 
 import { Router } from 'express';
 import * as leaguesController from './leagues.controller';
@@ -38,11 +19,8 @@ import {
 
 const router = Router();
 
-// ─── Rutas Slice 2 (actualizadas con middleware chain de Slice 3) ────
-
-// requireAuth ANTES del limiter: el keyGenerator de rateLimit.ts lee req.user.userId, que
-// solo existe despues de requireAuth. Al reves, la key caia siempre al fallback por IP y dos
-// users en la misma red compartian contador (B3 / PER-18).
+// requireAuth antes del limiter: su key es req.user.userId; sin eso cae a la IP y dos
+// usuarios en la misma red comparten contador.
 router.post(
   '/',
   requireAuth,
@@ -53,10 +31,7 @@ router.post(
 
 router.get('/', requireAuth, leaguesController.list);
 
-// ─── Ruta Slice 3 nueva: POST /leagues/join ──────────────────────────
-// Atencion al ORDEN: /join va ANTES de /:id, porque Express matchea por orden.
-// Si /:id fuera antes, "join" seria capturado como id="join" y validateParams lo rechazaria.
-
+// /join va antes de /:id: si no, Express lo toma como id="join" y validateParams da 400.
 router.post(
   '/join',
   requireAuth,
@@ -64,8 +39,6 @@ router.post(
   validate(joinLeagueSchema),
   leaguesController.join,
 );
-
-// ─── Rutas /:id (Slice 2 con membership check + Slice 3 nuevas) ─────
 
 router.get(
   '/:id',
@@ -101,8 +74,6 @@ router.get(
   leaguesController.listMembers,
 );
 
-// ─── Ruta Slice 4 nueva: GET /leagues/:id/teams/me ───────────────────
-
 router.get(
   '/:id/teams/me',
   requireAuth,
@@ -111,10 +82,8 @@ router.get(
   leaguesController.getMyFantasyTeam,
 );
 
-// ─── Sub-router Slice 5 nuevo: /leagues/:id/draft/* ──────────────────
-// La chain comun (requireAuth + validateParams + requireLeagueMember) se aplica UNA vez
-// aca; draft.routes.ts asume que ya corrio y solo agrega requireLeagueOwner donde hace falta.
-
+// La cadena comun corre una sola vez aca; draft.routes.ts y standings.routes.ts asumen
+// req.leagueMember poblado.
 router.use(
   '/:id/draft',
   requireAuth,
@@ -123,9 +92,6 @@ router.use(
   draftRoutes,
 );
 
-// ─── Sub-router Slice 9: /leagues/:id/standings ───────────────────────
-// Mismo encadenado que draft: requireAuth + validateParams + requireLeagueMember corren aca,
-// asi que standings.routes.ts ya recibe req.leagueMember poblado.
 router.use(
   '/:id/standings',
   requireAuth,

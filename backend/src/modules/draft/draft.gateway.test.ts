@@ -1,10 +1,5 @@
-// TESTS — el namespace /draft de socket.io contra un http.Server real (sin mocks, ADR-0003).
-// A diferencia de draft.test.ts (que le pega a `app` via supertest sin bindear puerto), acá
-// hace falta un puerto real: los sockets necesitan un servidor escuchando de verdad.
-//
-// pickTimeoutMs se baja a 300ms para este archivo (registerDraftGateway({ pickTimeoutMs })) —
-// nada que ver con los 60s reales de produccion, es solo para no tener que esperar 60s por
-// cada test del auto-pick.
+// A diferencia de draft.test.ts, aca hace falta un puerto real: los sockets necesitan un
+// servidor escuchando. pickTimeoutMs baja a 300ms para no esperar 60s por cada auto-pick.
 
 import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from 'vitest';
 import { createServer } from 'http';
@@ -34,24 +29,18 @@ beforeAll(async () => {
   port = typeof address === 'object' && address !== null ? address.port : 0;
 });
 
-// activeTimers es un Map en memoria del modulo — el truncate-cascade de tests/setup.ts entre
-// cada test borra las ligas de la DB pero no cancela timers de auto-pick ya agendados contra
-// esas ligas. Sin este afterEach, un timer que un test dejo corriendo (arranco el draft pero
-// nunca espero a que el timer disparara) explota mas tarde contra una liga ya truncada.
+// El truncate entre tests borra las ligas pero no los timers en memoria, que si no explotan
+// despues contra una liga ya truncada.
 afterEach(() => {
   clearAllDraftTimers();
 });
 
 afterAll(async () => {
   setIo(null);
-  // io.close() (no httpServer.close() a secas): cierra el engine.io/transporte de socket.io Y
-  // el httpServer subyacente, y desconecta cualquier cliente que haya quedado sin disconnect()
-  // explicito. Cerrar solo el httpServer se cuelga esperando conexiones que socket.io mantiene
-  // vivas por su cuenta (keep-alive), y el hook de vitest terminaba en timeout.
+  // io.close() y no httpServer.close(): este ultimo se cuelga esperando las conexiones
+  // keep-alive de socket.io y el hook termina en timeout.
   await new Promise<void>((resolve) => io.close(() => resolve()));
 });
-
-// ─── Helpers locales (no van a shared/ — mismo criterio que draft.test.ts) ─────────────
 
 let userCounter = 0;
 async function authedUser() {
@@ -70,7 +59,7 @@ async function seedSeason() {
 let driverCounter = 0;
 async function seedDriver(seasonId?: number) {
   const n = ++driverCounter;
-  // El CRUD de catalogo es admin-only (A5 / BOX-15): cada seed pide su propio admin.
+  // El CRUD de catalogo es admin-only: cada seed pide su propio admin.
   const { accessToken } = await createTestAdmin();
   const res = await request(app)
     .post('/api/v1/drivers')
@@ -79,9 +68,7 @@ async function seedDriver(seasonId?: number) {
   if (res.status !== 201) throw new Error(`seedDriver fallo: ${JSON.stringify(res.body)}`);
   const driverId = res.body.data.id as number;
 
-  // BOX-39 filtra los disponibles por temporada (draft.service.ts: seasons.some.seasonId).
   // Sin DriverSeason el piloto no entra al pool y el auto-pick se queda sin candidatos.
-  // Mismo patron que draft.test.ts, que BOX-39 si actualizo.
   if (seasonId !== undefined) {
     const constructorId = await seedConstructor();
     await prisma.driverSeason.create({ data: { driverId, constructorId, seasonId } });
@@ -163,12 +150,8 @@ function waitForConnect(socket: ClientSocket): Promise<void> {
   });
 }
 
-// connectMember: conecta y devuelve el socket YA con el draft:state inicial consumido.
-// Importante el ORDEN: registra el listener de 'draft:state' (waitForEvent ejecuta su
-// `socket.once(...)` de forma sincronica, antes de que este `await` ceda el control) ANTES de
-// esperar el 'connect'. Si esperaramos el connect primero y recién despues llamaramos a
-// waitForEvent, el servidor podria emitir draft:state en la microtask inmediatamente posterior
-// a 'connection' y perderse — .once() no bufferea eventos emitidos antes de que exista.
+// El listener de draft:state se registra antes de esperar 'connect': .once() no bufferea, y el
+// server puede emitir el estado apenas conecta.
 async function connectMember(token: string, leagueId: number) {
   const socket = connectSocket(token, leagueId);
   const statePromise = waitForEvent<{ draftStatus: string; picks: unknown[] }>(socket, 'draft:state');
@@ -276,9 +259,6 @@ describe('draft namespace — draft:pick', () => {
     socket.disconnect();
   });
 
-  // El owner puede archivar con el draft corriendo (decision del 9/10). Los demas tienen la
-  // pantalla del draft abierta y ningun motivo para enterarse: la liga se archiva por REST,
-  // en otra pestaña. Sin este aviso se quedan con un reloj corriendo sobre una liga muerta.
   it('archivar la liga por REST avisa a los sockets conectados al draft', async () => {
     const { leagueId, owner, members } = await setupLeague(2);
     await request(app)
@@ -345,7 +325,6 @@ describe('draft namespace — timer y auto-pick', () => {
 
   it('emite draft:complete cuando el ultimo pick termina el draft', async () => {
     const { leagueId, owner } = await setupLeague(1);
-    // 3 rondas (ADR-0006): 2 drivers + 1 constructor por miembro.
     const drivers = await Promise.all(Array.from({ length: 2 }, () => seedDriver()));
     const constructorId = await seedConstructor();
 
@@ -373,14 +352,9 @@ describe('draft namespace — timer y auto-pick', () => {
   });
 });
 
-// ─── CORS del handshake (A1 / PER-11) ─────────────────────────────────────────────────
-// Socket.io atiende /socket.io/* directo sobre el http.Server, ANTES que Express — el cors()
-// de app.ts nunca corre para el handshake. Por eso estos tests pegan a `httpServer`, no a `app`:
-// contra `app` pasarian siempre (Express si tiene cors) y no probarian nada.
-//
-// Reproducen el PRIMER request que hace un browser real: GET polling con header Origin. Los
-// demas tests de este archivo usan transports: ['websocket'] desde Node, que es justamente la
-// combinacion que esconde el bug (Node no aplica same-origin; el upgrade a WS no pasa por CORS).
+// Pegan a httpServer y no a `app`: el cors() de Express no corre en el handshake de
+// Socket.io, asi que contra `app` pasarian siempre. Reproducen el polling inicial del browser,
+// que los tests con transports: ['websocket'] no ejercitan.
 describe('draft namespace — CORS del handshake', () => {
   const HANDSHAKE_PATH = '/socket.io/?EIO=4&transport=polling';
 
@@ -390,11 +364,8 @@ describe('draft namespace — CORS del handshake', () => {
     expect(res.headers['access-control-allow-origin']).toBe(env.FRONTEND_URL);
   });
 
-  // El paquete `cors` (que usa Socket.io por abajo, igual que app.ts) con `origin: string` NO
-  // refleja el Origin del request ni omite el header: siempre responde el origin configurado.
-  // El browser compara ese valor con su propio origin y bloquea si no coincide. Lo que este
-  // test protege es que nadie "arregle" el cors con `origin: '*'` o `origin: true` (reflejar
-  // cualquiera) — ambos harian que evil.test pase.
+  // Protege que nadie "arregle" el cors con `origin: '*'` o `origin: true`: ambos dejarian
+  // pasar a evil.test.
   it('para un origin ajeno sigue respondiendo FRONTEND_URL (no refleja, no es *)', async () => {
     const res = await request(httpServer).get(HANDSHAKE_PATH).set('Origin', 'http://evil.test');
 
@@ -402,12 +373,7 @@ describe('draft namespace — CORS del handshake', () => {
   });
 });
 
-// ─── Errores en segundo plano (B1 / BOX-16) ───────────────────────────────────────────
-// El timer de auto-pick corre "fire and forget" (void runAutoPick(...)): nadie espera su
-// promesa. Si falla — ej. la liga ya no existe cuando dispara, que es exactamente lo que pasa
-// cuando el truncate de tests/setup.ts corre con un timer vivo — la promesa rechaza sin nadie
-// que la atrape, y Node termina el proceso. Este test reproduce ese caso a proposito y exige
-// que el error quede logueado y el server siga respondiendo.
+// Una promesa del timer que rechaza sin catch termina el proceso de Node.
 describe('draft namespace — errores en segundo plano no tiran el proceso', () => {
   it('si el timer dispara contra una liga borrada, loguea el error y el server sigue vivo', async () => {
     const { leagueId, owner } = await setupLeague(1);
@@ -419,7 +385,7 @@ describe('draft namespace — errores en segundo plano no tiran el proceso', () 
         .post(`/api/v1/leagues/${leagueId}/draft/start`)
         .set('Authorization', `Bearer ${owner.token}`);
 
-      // Timer armado (300ms). Borramos la liga por abajo, igual que hace el truncate entre tests.
+      // Con el timer armado, se borra la liga por abajo como hace el truncate entre tests.
       await prisma.$executeRawUnsafe('TRUNCATE TABLE leagues CASCADE');
       await new Promise((resolve) => setTimeout(resolve, PICK_TIMEOUT_MS + 300));
 

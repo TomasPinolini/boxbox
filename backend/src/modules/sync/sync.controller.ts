@@ -1,10 +1,7 @@
-// CONTROLLER — el traductor HTTP
-
 import { Request, Response, NextFunction } from 'express';
 import * as syncService from './sync.service';
 import type { SyncRacesQuery, SyncResultsQuery } from './sync.schema';
 
-// POST /admin/sync/races?year=2026
 export async function syncRaces(req: Request, res: Response, next: NextFunction) {
   try {
     const { year } = req.validatedQuery as SyncRacesQuery;
@@ -15,7 +12,6 @@ export async function syncRaces(req: Request, res: Response, next: NextFunction)
   }
 }
 
-// POST /admin/sync/races/:id/results[?dryRun=true]
 export async function syncResults(req: Request, res: Response, next: NextFunction) {
   try {
     const { dryRun } = req.validatedQuery as SyncResultsQuery;

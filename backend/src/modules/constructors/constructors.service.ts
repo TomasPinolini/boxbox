@@ -6,10 +6,8 @@ import { resolveSeasonId, type ConstructorRef } from '../drivers/drivers.service
 
 const notDeleted = { deletedAt: null };
 
-// Estos dos `select` van con `as Prisma.XSelect` (type assertion, NO anotacion con `:`): sus
-// modelos tienen una relacion llamada `constructor`, que colisiona con Object.prototype y hace
-// que tsc rechace cualquier select o include sobre ellos. Mismo workaround que Slices 4, 5, 9
-// y 14. No lo ve ningun test: la suite pasa en verde y el build no compila.
+// `as Prisma.XSelect` y no anotacion con `:`: la relacion `constructor` colisiona con
+// Object.prototype y tsc rechaza el select. Los tests no lo detectan, solo el build.
 const driverSeasonDriverIdSelect = { driverId: true } as Prisma.DriverSeasonSelect;
 
 const constructorResultDetailSelect = {
@@ -26,15 +24,12 @@ export async function findAll() {
   });
 }
 
-// GET /constructors/standings — campeonato de escuderias de la temporada resuelta (Slice 16).
-// Misma resolucion de temporada que GET /drivers (explicita -> activa -> ninguna = []).
 // Entran todas las escuderias con DriverSeason en la temporada, tambien las de 0 puntos.
 export async function findStandings(seasonId?: number) {
   const resolvedSeasonId = await resolveSeasonId(seasonId);
   if (!resolvedSeasonId) return [];
 
-  // Fila entera, sin select/include: la relacion `constructor` colisiona con
-  // Object.prototype (ver drivers.service.ts, findAll).
+  // Fila entera, sin select/include, por la colision de `constructor`.
   const links = await prisma.driverSeason.findMany({ where: { seasonId: resolvedSeasonId } });
   const constructors = await prisma.constructor.findMany({
     where: { id: { in: links.map((l) => l.constructorId) }, ...notDeleted },
@@ -47,11 +42,8 @@ export async function findStandings(seasonId?: number) {
   });
   const points = new Map(pointRows.map((r) => [r.constructorId, r._sum.totalPoints ?? 0]));
 
-  // Se pasa por ConstructorRef ANTES de ordenar. El tipo de fila que genera Prisma para este
-  // modelo queda intersectado con Function (el delegate se llama `constructor`, igual que
-  // Object.prototype.constructor), y ahi `name` choca con Function.name y tipa como `never`:
-  // `c.name.localeCompare` no compila. Asignarlo a un campo `string` si (never es asignable
-  // a todo) — es la misma razon por la que drivers.service.ts mapea a ConstructorRef.
+  // Se mapea a ConstructorRef antes de ordenar: en el tipo de fila de Prisma `name` choca con
+  // Function.name y tipa como `never`, asi que `c.name.localeCompare` no compila.
   const refs: ConstructorRef[] = constructors.map((c) => ({
     id: c.id,
     name: c.name,
@@ -78,19 +70,12 @@ export async function findById(id: number) {
   return constructor;
 }
 
-// GET /constructors/:id — el detalle publico de una escuderia: quienes la corren esta
-// temporada y como viene puntuando. Mismo molde que findDetail de drivers (Slice 14):
 // findById queda para los chequeos de existencia y no paga estos joins.
-//
-// Ninguna de estas queries incluye la relacion `constructor`: ese nombre colisiona con
-// Object.prototype y rompe tsc (Slices 4, 5, 9 y 14). Se piden las tablas de al lado y se
-// arma el objeto en TS.
 export async function findDetail(id: number) {
   const constructor = await findById(id);
   const resolvedSeasonId = await resolveSeasonId();
 
-  // Sin temporada no hay contra que leer. No caemos a "toda la historia de la escuderia"
-  // porque mezclaria temporadas y `round` dejaria de ser un orden total.
+  // No se cae a toda la historia: mezclaria temporadas y `round` dejaria de ser un orden total.
   if (!resolvedSeasonId) {
     return {
       ...constructor,
@@ -101,11 +86,8 @@ export async function findDetail(id: number) {
     };
   }
 
-  // Queries planas y merge en TS, nunca `include`. `DriverSeason` y `ConstructorResult` tienen
-  // una relacion llamada `constructor`, y ese nombre colisiona con Object.prototype: el tipo
-  // Include generado lo hereda como Function y tsc rechaza hasta `include: { race: true }`.
-  // Es la misma trampa de las Slices 4, 5, 9 y 14, y no la ve ningun test: la suite pasa en
-  // verde y el build no compila.
+  // Queries planas y merge en TS, nunca `include`: con la relacion `constructor` tsc rechaza
+  // hasta `include: { race: true }`.
   const driverSeasons = (await prisma.driverSeason.findMany({
     where: { constructorId: id, seasonId: resolvedSeasonId },
     select: driverSeasonDriverIdSelect,
@@ -133,12 +115,8 @@ export async function findDetail(id: number) {
   });
   const raceById = new Map(races.map((race) => [race.id, race]));
 
-  // Los puntos POR PILOTO. ConstructorResult no sabe de quien es cada numero: driver1Points es
-  // solo "el mayor de los dos" y se reordena carrera a carrera (BOX-65). RaceResult es la unica
-  // tabla que ata un puntaje a una persona, asi que el desglose sale de aca.
-  //
-  // `select` plano sin cast: RaceResult no tiene relacion `constructor`, asi que no sufre la
-  // colision con Object.prototype que si afecta a DriverSeason y ConstructorResult.
+  // El desglose por piloto sale de RaceResult: en ConstructorResult driver1Points es solo
+  // "el mayor de los dos" y cambia de piloto carrera a carrera.
   const perDriver = await prisma.raceResult.findMany({
     where: { driverId: { in: drivers.map((d) => d.id) }, raceId: { in: results.map((r) => r.raceId) } },
     select: { raceId: true, driverId: true, points: true },
@@ -158,9 +136,7 @@ export async function findDetail(id: number) {
       races: results.length,
       points: results.reduce((total, r) => total + r.totalPoints, 0),
     },
-    // Aplanado a proposito: la tabla del frontend no tiene que navegar dos niveles. El orden
-    // por `round` se hace aca y no en la query porque ordenar por la relacion exigiria tocar
-    // `race`, que es lo que no se puede.
+    // Se ordena por `round` aca: en la query exigiria tocar la relacion `race`, que no se puede.
     results: results
       .map((r) => {
         const race = raceById.get(r.raceId);
@@ -169,8 +145,8 @@ export async function findDetail(id: number) {
           raceName: race?.name ?? '',
           round: race?.round ?? 0,
           raceDate: race?.date ?? null,
-          // Se conservan por compatibilidad, pero NO son pilotos: ver BOX-65. Lo que la
-          // pantalla muestra es pointsByDriverId.
+          // Se conservan por compatibilidad pero no identifican pilotos: la pantalla usa
+          // pointsByDriverId.
           driver1Points: r.driver1Points,
           driver2Points: r.driver2Points,
           totalPoints: r.totalPoints,

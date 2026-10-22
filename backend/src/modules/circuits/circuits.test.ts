@@ -3,7 +3,7 @@ import request from 'supertest';
 import app from '../../app';
 import { createTestAdmin, createTestUser } from '../../tests/setup';
 
-// adminToken: el CRUD de catalogo es admin-only (A5 / BOX-15); se recrea por test (truncate).
+// Se recrea por test porque setup.ts trunca la DB.
 let adminToken: string;
 
 beforeEach(async () => {
@@ -160,8 +160,6 @@ describe('DELETE /api/v1/circuits/:id', () => {
   });
 });
 
-// ─── Solo admin muta el catalogo (A5 / BOX-15) ─────────────────────────
-
 describe('circuits — solo admin puede mutar', () => {
   it('rechaza POST sin token (401 TOKEN_MISSING)', async () => {
     const res = await request(app).post('/api/v1/circuits').send({});
@@ -179,7 +177,7 @@ describe('circuits — solo admin puede mutar', () => {
   });
 });
 
-// A3 / BOX-13: un :id no numerico antes llegaba a Prisma como NaN y explotaba en 500.
+// Sin validateParams, un :id no numerico llega a Prisma como NaN y da 500.
 describe('circuits — :id no numerico', () => {
   it('GET /circuits/abc responde 400 VALIDATION_ERROR, no 500', async () => {
     const res = await request(app).get('/api/v1/circuits/abc');

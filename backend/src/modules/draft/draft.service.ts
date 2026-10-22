@@ -1,21 +1,8 @@
-// SERVICE — toda la logica del snake draft vive aca. No sabe que existe HTTP.
+// Sin piloto reserva: con picks exclusivos por liga, 2 pilotos por miembro permiten ligas de
+// hasta 11 sobre 22. Ver docs/adr/ADR-0006 antes de reintroducirla.
 //
-// Diseno de rondas (ADR-0006 — reemplaza la decision original de Slice 5):
-// FantasyTeam tiene 3 slots (driver1, driver2, constructor), asi que el draft son 3 rondas
-// fijas — una por slot, en este orden:
-//   Ronda 1 -> driver1Id     (categoria DRIVER)
-//   Ronda 2 -> driver2Id     (categoria DRIVER)
-//   Ronda 3 -> constructorId (categoria CONSTRUCTOR)
-// No hay piloto reserva: con picks exclusivos por liga y 22 pilotos en la grilla, 2 por miembro
-// permite ligas de hasta 11 (22 / 2); con reserva el tope caia a 7 y el default de 11 no cerraba.
-// La reserva (y DriverSwap) se sacaron del juego — ver docs/adr/ADR-0006 antes de reintroducirla.
-//
-// Orden de picks: snake entre rondas (1->N, N->1, 1->N, N->1) sobre un orden base shuffleado
-// una sola vez en startDraft. En vez de guardar un "draftOrder" separado en LeagueMember,
-// el orden completo del draft se materializa como filas DraftPick placeholder (driverId Y
-// constructorId null) creadas todas de una en startDraft, con pickNumber ya asignado segun
-// snake order. "El pick actual" es siempre la fila con menor pickNumber que sigue sin llenar
-// — no hace falta ningun otro estado derivado.
+// El orden snake completo se materializa en startDraft como filas DraftPick vacias; el pick
+// actual es la de menor pickNumber sin llenar, sin otro estado derivado.
 
 import { prisma } from '../../shared/prisma';
 import { Prisma } from '../../generated/prisma/client';
@@ -27,8 +14,6 @@ const TOTAL_ROUNDS = 3;
 
 export type PickCategory = 'DRIVER' | 'CONSTRUCTOR';
 
-// Exportada — Slice 6 (draft.gateway.ts) la reusa para el auto-pick del timer: necesita saber
-// que categoria le toca a la ronda actual sin duplicar esta regla en dos lugares.
 export function categoryForRound(round: number): PickCategory {
   return round < TOTAL_ROUNDS ? 'DRIVER' : 'CONSTRUCTOR';
 }
@@ -39,15 +24,8 @@ const SLOT_BY_ROUND: Record<number, 'driver1Id' | 'driver2Id' | 'constructorId'>
   3: 'constructorId',
 };
 
-// `as Prisma.<Model>Select` (type assertion, NO anotacion `: Prisma.<Model>Select` ni
-// `as const`): DraftPick tiene una relacion llamada literalmente `constructor` (FK a
-// Constructor), y el modelo Constructor en si tiene el mismo choque via `prisma.constructor`
-// (el nombre del delegate). Ambos colisionan con la propiedad `constructor` que TODO objeto
-// JS hereda de Object.prototype — `as const` o una anotacion directa hacen que TS compare
-// estructuralmente el literal contra el select type y arrastre un `constructor: Function`
-// heredado que no es real (a runtime esto funciona bien), tirando TS2322. Una type ASSERTION
-// (`as`, no `satisfies`) es el unico approach que evita el falso positivo (mismo fix que
-// leagues.service.ts:fantasyTeamSelect, confirmado empiricamente).
+// `as Prisma.XSelect` y no una anotacion ni `as const`: la relacion `constructor` choca con
+// Object.prototype.constructor y TS tira un TS2322 falso. Solo la assertion lo evita.
 const pickSelect = {
   id: true,
   leagueMemberId: true,
@@ -58,9 +36,6 @@ const pickSelect = {
   pickedAt: true,
 } as Prisma.DraftPickSelect;
 
-// headshotUrl/logoUrl: el picker del frontend (DraftPage) dibuja foto y logo en vez de un
-// nombre pelado — mismos campos que ya expone GET /drivers (Slice 14), para que un piloto se
-// vea igual eligiendolo en el draft que mirandolo en /drivers.
 const driverAvailableSelect = {
   id: true,
   firstName: true,
@@ -77,8 +52,6 @@ const constructorAvailableSelect = {
   logoUrl: true,
 } as Prisma.ConstructorSelect;
 
-// startDraft: genera el calendario completo de picks (M miembros x 4 rondas) de una sola vez
-// y transiciona League.draftStatus a LIVE. Owner-only (enforced en middleware).
 export async function startDraft(leagueId: number) {
   const league = await prisma.league.findUnique({
     where: { id: leagueId },
@@ -96,9 +69,8 @@ export async function startDraft(leagueId: number) {
     orderBy: { id: 'asc' },
   });
 
-  // Red de seguridad (ADR-0006): createLeague ya valida maxMembers contra la temporada, pero
-  // una liga vieja o una temporada que cambio de driverCount podrian tener mas miembros que
-  // picks de piloto disponibles. Mejor 409 aca que un draft que nunca termina.
+  // createLeague ya valida el tope, pero una temporada que cambio de driverCount puede dejar
+  // mas miembros que pilotos. Mejor 409 aca que un draft que nunca termina.
   const cap = maxMembersForSeason(league.season.driverCount);
   if (members.length > cap) {
     throw new ConflictError(
@@ -107,7 +79,6 @@ export async function startDraft(leagueId: number) {
     );
   }
 
-  // Fisher-Yates — orden aleatorio (docs/api-endpoints.md: "Genera draft order aleatorio").
   const shuffled = [...members];
   for (let i = shuffled.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -117,7 +88,6 @@ export async function startDraft(leagueId: number) {
   const picks: Prisma.DraftPickCreateManyInput[] = [];
   let pickNumber = 1;
   for (let round = 1; round <= TOTAL_ROUNDS; round++) {
-    // Snake: rondas impares en el orden shuffleado, pares invertido.
     const order = round % 2 === 1 ? shuffled : [...shuffled].reverse();
     for (const member of order) {
       picks.push({
@@ -139,8 +109,6 @@ export async function startDraft(leagueId: number) {
   return { draftStatus: 'LIVE' as const, totalPicks: picks.length };
 }
 
-// getDraftState: el pick "actual" es siempre la fila abierta (driverId Y constructorId null)
-// de menor pickNumber. Si no hay ninguna, el draft esta COMPLETED (o todavia no arranco).
 export async function getDraftState(leagueId: number) {
   const league = await prisma.league.findUnique({
     where: { id: leagueId },
@@ -168,12 +136,8 @@ export async function getDraftState(leagueId: number) {
   };
 }
 
-// getAvailablePicks: drivers/constructors sin drafted en ESTA liga (otras ligas no cuentan —
-// el mismo Driver puede estar tomado en la liga A y libre en la liga B), Y que corren en la
-// temporada de la liga (via DriverSeason). La relacion draftsAsPick solo matchea filas donde
-// driverId/constructorId ya esta seteado (una fila placeholder con driverId null no referencia
-// a ningun Driver via la relacion), asi que `none: { leagueId }` alcanza sin filtrar
-// explicitamente por driverId/constructorId not null.
+// Las filas placeholder (ids null) no aparecen en la relacion draftsAsPick, asi que
+// `none: { leagueId }` alcanza sin filtrar por not null.
 export async function getAvailablePicks(leagueId: number) {
   const league = await prisma.league.findUnique({
     where: { id: leagueId },
@@ -204,15 +168,12 @@ export async function getAvailablePicks(leagueId: number) {
     }),
     prisma.driverSeason.findMany({
       where: { seasonId: league.seasonId },
-      // as Prisma.DriverSeasonSelect, no un literal inline: mismo choque de `constructor`
-      // con Object.prototype que en Slice 8.
+      // Mismo choque de `constructor` con Object.prototype que en pickSelect.
       select: { driverId: true, constructorId: true } as Prisma.DriverSeasonSelect,
     }),
   ]);
 
-  // Escuderia de cada piloto disponible, para que el picker del draft pinte el mismo chip de
-  // color que /drivers (Slice 14) — tres queries + merge en TS, mismo motivo y mismo patron
-  // que drivers.service.ts.findAll (la relacion `constructor` colisiona con Object.prototype).
+  // Merge en TS en vez de include: la relacion `constructor` choca con Object.prototype.
   const constructorById = new Map(constructors.map((c) => [c.id, c]));
   const constructorByDriver = new Map(
     links.flatMap((l) => {
@@ -221,8 +182,7 @@ export async function getAvailablePicks(leagueId: number) {
     }),
   );
 
-  // Mismo orden que /drivers (auditoria de UX 2026-10-09): agrupado por escuderia, alfabetica,
-  // y dentro de cada una por apellido — con 2 columnas en el picker, cada fila es un equipo.
+  // Mismo orden que /drivers, por escuderia y apellido: con 2 columnas, cada fila es un equipo.
   const availableDrivers = drivers.map((d) => ({
     ...d,
     constructor: constructorByDriver.get(d.id) ?? null,
@@ -236,10 +196,6 @@ export async function getAvailablePicks(leagueId: number) {
   return { drivers: availableDrivers, constructors };
 }
 
-// submitPick: valida turno + categoria + disponibilidad, aplica el pick, llena el slot del
-// FantasyTeam correspondiente, y si era el ultimo pick pendiente transiciona League a
-// COMPLETED — todo en una sola transaccion interactiva (el conteo de remaining depende del
-// update anterior, necesita $transaction(async (tx) => ...) en vez del array-form).
 export async function submitPick(
   leagueId: number,
   leagueMemberId: number,
@@ -260,8 +216,6 @@ export async function submitPick(
     where: { leagueId, driverId: null, constructorId: null },
     orderBy: { pickNumber: 'asc' },
   });
-  // Defense in depth: no deberia pasar con draftStatus LIVE (ambos se actualizan en la misma
-  // tx en el ultimo pick), pero si pasa tratamos "no hay pick abierto" como draft no-live.
   if (!currentPick) {
     throw new ConflictError('Draft is not live', 'DRAFT_NOT_LIVE');
   }
@@ -314,12 +268,8 @@ export async function submitPick(
   const pickedId = category === 'DRIVER' ? input.driverId! : input.constructorId!;
 
   return prisma.$transaction(async (tx) => {
-    // updateMany + WHERE ...null (no un update simple por id): Slice 6 agrega el timer de
-    // auto-pick, que es la primera fuente de escrituras REALMENTE concurrentes sobre el mismo
-    // pick (un pick manual y el auto-pick del timer pueden dispararse casi al mismo tiempo).
-    // Sin este re-check en la escritura, el que llega segundo pisaria en silencio el pick del
-    // que llego primero — count===0 significa que alguien mas ya lo lleno entre el findFirst
-    // de arriba y este punto.
+    // updateMany con WHERE null y no update por id: un pick manual y el auto-pick del timer
+    // pueden llegar juntos, y el segundo pisaria al primero. count 0 = alguien lo lleno antes.
     const result = await tx.draftPick.updateMany({
       where: { id: currentPick.id, driverId: null, constructorId: null },
       data:
@@ -352,9 +302,6 @@ export async function submitPick(
   });
 }
 
-// resetDraft: borra todos los picks, vacia los FantasyTeams de la liga y vuelve draftStatus
-// a PENDING. Owner-only (enforced en middleware). Funciona sin importar el estado actual
-// (LIVE o COMPLETED) — reset desde PENDING es un no-op inofensivo.
 export async function resetDraft(leagueId: number) {
   const league = await prisma.league.findUnique({ where: { id: leagueId } });
   if (!league) {
