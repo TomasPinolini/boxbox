@@ -1,4 +1,4 @@
-export type MemberStatus = 'ACTIVE' | 'LEFT' | 'KICKED';
+type MemberStatus = 'ACTIVE' | 'LEFT' | 'KICKED';
 
 export interface LeagueMember {
   id: number;

@@ -3,8 +3,6 @@
 
 import type { ConstructorRef, Driver } from './driver';
 
-export type DraftRoundCategory = 'DRIVER' | 'CONSTRUCTOR';
-
 export interface DraftPick {
   id: number;
   leagueMemberId: number;

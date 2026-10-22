@@ -3,13 +3,13 @@ import raw from '../../../../CHANGELOG.md?raw';
 // /novedades y el popover "Beta" leen el mismo CHANGELOG.md, para que la app no se desincronice.
 // Vitest necesita el archivo en server.fs.allow (vite.config.ts) o falla con "Denied ID".
 
-export type ChangelogSection = { heading: string; items: string[] };
+type ChangelogSection = { heading: string; items: string[] };
 export type ChangelogVersion = { version: string; date: string; sections: ChangelogSection[] };
 
 // Lo que el renderer no sabe dibujar; el test falla si aparece dentro de una version.
 export const CONSTRUCCIONES_NO_SOPORTADAS = /\*\*|`|\[[^\]]+\]\([^)]+\)|^\s*\d+\.\s|^>|^\|/;
 
-export function parseChangelog(md: string): ChangelogVersion[] {
+function parseChangelog(md: string): ChangelogVersion[] {
   const versions: ChangelogVersion[] = [];
   let version: ChangelogVersion | null = null;
   let section: ChangelogSection | null = null;

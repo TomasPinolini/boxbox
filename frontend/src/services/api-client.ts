@@ -14,7 +14,7 @@ interface AuthPayload {
 
 // Un 401 fuera de /auth/* dispara un refresh y reintenta; si el refresh falla, cierra la sesion.
 // Todo error sale como ApiError: los componentes nunca ven un AxiosError.
-export class ApiClient {
+class ApiClient {
   private readonly http: AxiosInstance;
   private refreshing: Promise<string> | null = null;
 

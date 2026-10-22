@@ -14,7 +14,7 @@ export interface ConstructorDetail {
   results: ConstructorRaceResult[];
 }
 
-export interface ConstructorRaceResult {
+interface ConstructorRaceResult {
   raceId: number;
   raceName: string;
   round: number;

@@ -49,7 +49,7 @@ export const leagueJoinLimiter = rateLimit({
 // Para /auth, donde todavia no hay req.user. CF-Connecting-IP lo sobreescribe Cloudflare (no se
 // puede falsificar) y no depende del conteo de saltos de `trust proxy`, que si falla mete a todos
 // los usuarios en un mismo contador. req.ip queda para local y tests.
-export const ipKey = (req: Request) => {
+const ipKey = (req: Request) => {
   const cf = req.headers['cf-connecting-ip'];
   const clientIp = typeof cf === 'string' && cf.length > 0 ? cf : req.ip;
   return ipKeyGenerator(clientIp ?? 'anon');

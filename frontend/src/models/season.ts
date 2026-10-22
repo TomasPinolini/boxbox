@@ -8,7 +8,7 @@ export interface Season {
   counts?: SeasonCounts;
 }
 
-export interface SeasonCounts {
+interface SeasonCounts {
   races: number;
   leagues: number;
   drivers: number;

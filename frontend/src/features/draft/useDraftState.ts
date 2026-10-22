@@ -4,8 +4,8 @@ import type { DraftAvailable, DraftPick, DraftState } from '../../models/draft';
 import { useAuthStore } from '../../store/auth.store';
 import { connectDraftSocket } from './draft-socket';
 
-export type DraftConnectionStatus = 'connecting' | 'connected' | 'error';
-export type DraftPickInput = { driverId: number } | { constructorId: number };
+type DraftConnectionStatus = 'connecting' | 'connected' | 'error';
+type DraftPickInput = { driverId: number } | { constructorId: number };
 
 interface DraftUpdatePayload {
   pick: DraftPick | null;

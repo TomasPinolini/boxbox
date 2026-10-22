@@ -61,7 +61,7 @@ export async function findStandings(seasonId?: number) {
     }));
 }
 
-export async function findById(id: number) {
+async function findById(id: number) {
   const constructor = await prisma.constructor.findFirst({
     where: { id, ...notDeleted },
   });
