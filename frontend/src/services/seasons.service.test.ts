@@ -6,9 +6,8 @@ vi.mock('./api-client');
 
 describe('seasonsService.list', () => {
   it('deja los conteos sin definir cuando el backend no los manda', async () => {
-    // Un backend anterior a este cambio no devuelve `counts`. Pasa de verdad: el deploy de
-    // Render puede ir una version atras del frontend. No se rellena con ceros: una temporada
-    // con ligas diria que no tiene ninguna.
+    // El deploy del backend puede ir una version atras y no devolver `counts`. No se rellena
+    // con ceros: una temporada con ligas diria que no tiene ninguna.
     vi.mocked(apiClient.get).mockResolvedValue([
       { id: 1, year: 2026, isActive: true, driverCount: 22 },
     ]);

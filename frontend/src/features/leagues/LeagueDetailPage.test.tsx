@@ -11,9 +11,7 @@ import { useAuthStore } from '../../store/auth.store';
 import { renderWithQuery } from '../../test/render-with-query';
 import { LeagueDetailPage } from './LeagueDetailPage';
 
-// Se mockean los servicios, no axios: el contrato que le importa a la pantalla es el del
-// servicio. Los tres hacen falta — si falta uno, su query queda colgada y el test falla por
-// timeout en vez de por la aserción.
+// Hacen falta todos: si falta uno, su query queda colgada y el test falla por timeout.
 vi.mock('../../services/leagues.service');
 vi.mock('../../services/drivers.service');
 vi.mock('react-router-dom', async (original) => ({
@@ -46,7 +44,6 @@ const yo: User = {
   role: 'USER',
 };
 
-// Liga con el draft terminado: es la forma de la pantalla que este archivo defiende.
 const ligaCompletada: League = {
   id: 1,
   name: 'Liga de los pibes',
@@ -78,12 +75,10 @@ const membresiaRival = {
   user: { id: 200, name: 'Rivero', motto: 'Campeón hace 3 años', avatarUrl: null },
 };
 
-// Tres picks: los dos pilotos y la escudería que el draft dejó armados.
 const misPicks = [
   { id: 1, leagueMemberId: 500, pickNumber: 1, round: 1, driverId: 1, constructorId: null, pickedAt: '2026-03-01T00:00:00.000Z' },
   { id: 2, leagueMemberId: 500, pickNumber: 2, round: 2, driverId: 2, constructorId: null, pickedAt: '2026-03-01T00:01:00.000Z' },
   { id: 3, leagueMemberId: 500, pickNumber: 3, round: 3, driverId: null, constructorId: 11, pickedAt: '2026-03-01T00:02:00.000Z' },
-  // Y los del rival: cada piloto se reparte una sola vez, por eso son otros.
   { id: 4, leagueMemberId: 501, pickNumber: 4, round: 1, driverId: 3, constructorId: null, pickedAt: '2026-03-01T00:03:00.000Z' },
   { id: 5, leagueMemberId: 501, pickNumber: 5, round: 2, driverId: 4, constructorId: null, pickedAt: '2026-03-01T00:04:00.000Z' },
   { id: 6, leagueMemberId: 501, pickNumber: 6, round: 3, driverId: null, constructorId: 10, pickedAt: '2026-03-01T00:05:00.000Z' },
@@ -112,10 +107,7 @@ describe('LeagueDetailPage, con el draft terminado', () => {
     // (a) El equipo armado es lo primero, no una tabla de posiciones vacía.
     const tituloEquipo = await screen.findByRole('heading', { name: /Tu equipo/i });
     expect(tituloEquipo).toBeInTheDocument();
-    // Acotado a la tarjeta y no suelto por toda la pantalla: desde que la tabla de la liga
-    // lleva el nombre completo en un sr-only (para que el lector no escuche solo "NOR"), el
-    // apellido aparece en DOS lugares legitimos. Buscar dentro de la tarjeta es lo que el
-    // test siempre quiso decir — que el equipo propio se muestra ACA, no en cualquier lado.
+    // Acotado a la tarjeta: el apellido tambien aparece en un sr-only de la tabla de la liga.
     const tarjetaEquipo = within(tituloEquipo.parentElement!);
     expect(tarjetaEquipo.getByText(/Norris/)).toBeInTheDocument();
     expect(tarjetaEquipo.getByText(/Russell/)).toBeInTheDocument();
@@ -135,8 +127,6 @@ describe('LeagueDetailPage, con el draft terminado', () => {
 
     renderWithQuery(<LeagueDetailPage />, { route: '/leagues/1' });
 
-    // Sin esto la pantalla queda sin equipo y sin explicación: el usuario ve una liga vacía
-    // y no tiene forma de saber que algo falló.
     expect(await screen.findByRole('alert')).toHaveTextContent(/Algo salió mal/i);
   });
 
@@ -147,19 +137,14 @@ describe('LeagueDetailPage, con el draft terminado', () => {
 
     await user.click(screen.getByRole('button', { name: 'Rivero' }));
 
-    // El equipo del rival aparece en un dialogo — "Tu equipo" ya no desaparece atras, que es
-    // el cambio que pidio el usuario respecto de la version anterior (reemplazaba la tarjeta).
     const dialogo = await screen.findByRole('dialog', { name: /Equipo de Rivero/i });
     expect(dialogo).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /Tu equipo/i })).toBeInTheDocument();
-    // Dentro del dialogo, no sueltos: los apellidos del rival tambien viven en la tabla de la
-    // liga (en un sr-only). Lo que este test afirma es que estan EN el popup.
+    // Dentro del dialogo: los apellidos tambien estan en un sr-only de la tabla.
     expect(within(dialogo).getByText(/Leclerc/)).toBeInTheDocument();
     expect(within(dialogo).getByText(/Piastri/)).toBeInTheDocument();
-    // El lema que puso en "Editar perfil" se ve como cita, pedido del usuario 2026-10-15.
     expect(within(dialogo).getByText('“Campeón hace 3 años”')).toBeInTheDocument();
 
-    // Y se puede cerrar con la X.
     await user.click(screen.getByRole('button', { name: 'Cerrar' }));
     expect(screen.queryByRole('dialog', { name: /Equipo de Rivero/i })).not.toBeInTheDocument();
   });

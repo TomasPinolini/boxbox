@@ -1,8 +1,7 @@
 import { PageShell } from '../../components/ui';
 import { changelog } from './changelog';
 
-// Todo lo que se ve aca sale de CHANGELOG.md, en la raiz del repo. No hay texto escrito a mano en
-// esta pantalla a proposito: es el mismo archivo que lee el popover del rotulo "Beta".
+// Sin texto a mano a proposito: todo sale de CHANGELOG.md, igual que el popover "Beta".
 export function NovedadesPage() {
   return (
     <PageShell title="Novedades">

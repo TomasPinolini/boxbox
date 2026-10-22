@@ -1,5 +1,3 @@
-// Espeja el model Season de backend/prisma/schema.prisma. `createdAt` existe en la base pero
-// ninguna pantalla lo muestra, asi que no viaja a este tipo: lo que no se usa no se declara.
 export interface Season {
   id: number;
   year: number;
@@ -10,8 +8,6 @@ export interface Season {
   counts?: SeasonCounts;
 }
 
-// Lo que cuelga de la temporada. El backend los devuelve en el listado porque son los tres
-// numeros que dicen si una temporada esta lista para usarse, y por que no se deja borrar.
 export interface SeasonCounts {
   races: number;
   leagues: number;

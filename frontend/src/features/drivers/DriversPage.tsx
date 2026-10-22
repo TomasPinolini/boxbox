@@ -7,9 +7,8 @@ import { groupByConstructor } from './group-by-constructor';
 
 export function DriversPage() {
   const navigate = useNavigate();
-  // El filtro vive en la URL y no en useState: sobrevive al "atras" del browser desde el
-  // detalle, se puede compartir el link ya filtrado, y el e2e tiene algo determinístico
-  // contra que assertar.
+  // El filtro vive en la URL y no en useState: sobrevive al "atras" desde el detalle y se
+  // puede compartir el link filtrado.
   const [searchParams, setSearchParams] = useSearchParams();
   const raw = searchParams.get('constructorId');
   const constructorId = raw ? Number(raw) : null;
@@ -37,9 +36,8 @@ export function DriversPage() {
           <p className="text-slate-500 dark:text-ink-muted">No hay pilotos para esa escudería.</p>
         )}
 
-        {/* Una grilla de 2 columnas POR escuderia, no una sola grilla continua con los 22 —
-            si un piloto no corre la temporada (o filtra el conteo real a un numero impar), su
-            companero no se tiene que reacomodar al lado de alguien de otro equipo. */}
+        {/* Una grilla por escuderia: con un conteo impar, un piloto no queda al lado de
+            alguien de otro equipo. */}
         <div className="flex flex-col gap-4">
           {groupByConstructor(drivers.data ?? []).map((group) => (
             <div key={group.key} className="grid grid-cols-2 gap-4">

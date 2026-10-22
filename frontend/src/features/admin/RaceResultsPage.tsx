@@ -15,11 +15,8 @@ const STATUSES: RaceResultStatus[] = ['CLASSIFIED', 'DNF', 'DSQ', 'DNS'];
 
 const EMPTY: Entry = { position: '', status: 'CLASSIFIED' };
 
-// Pantalla admin: cargar los resultados de una carrera y recalcular los standings de todas
-// las ligas. useState y no react-hook-form: es una grilla de N filas iguales sin validacion
-// por campo — toda la regla vive en buildResultsPayload, que es pura y tiene su test.
-// "Importar de Jolpica" solo LLENA la grilla (vista previa, no escribe nada): el admin revisa,
-// edita si hace falta y confirma con el mismo boton de la carga manual.
+// useState y no react-hook-form: es una grilla de filas iguales y la regla vive en
+// buildResultsPayload. "Importar de Jolpica" solo llena la grilla, no escribe nada.
 export function RaceResultsPage() {
   const races = useActiveSeasonRaces();
   const drivers = useDrivers();
@@ -62,8 +59,8 @@ export function RaceResultsPage() {
           const d = grid.find((g) => g.id === id);
           return d ? `${d.firstName} ${d.lastName}` : `piloto ${id}`;
         };
-        // Un titular que Jolpica no trae no corrio esa fecha (lo reemplazo un suplente). Sin
-        // esto su fila queda vacia = CLASSIFIED sin posicion, y la validacion frena la carga.
+        // Un titular que Jolpica no trae no corrio (lo reemplazo un suplente): sin esto su fila
+        // queda CLASSIFIED sin posicion y la validacion frena la carga.
         const absent = grid.filter((d) => !(d.id in imported));
         for (const d of absent) imported[d.id] = { position: '', status: 'DNS' };
         setEntries(imported);

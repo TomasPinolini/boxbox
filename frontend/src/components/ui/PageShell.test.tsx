@@ -4,13 +4,8 @@ import { HelpPopover } from './HelpPopover';
 import { PageShell } from './PageShell';
 
 describe('PageShell', () => {
-  // La razón de ser de titleHelp: el "?" tiene que quedar AL LADO del <h1>, nunca adentro.
-  // HelpPopover tiene un <div> en la raíz, y un <div> dentro de un <h1> es HTML inválido —
-  // el <h1> sólo admite contenido de frase.
-  //
-  // La aserción mira la ESTRUCTURA y no el nombre accesible a propósito: el nombre accesible
-  // del encabezado resultó NO verse afectado (medido), así que una aserción sobre el nombre
-  // pasaba igual con el "?" adentro y no probaba nada.
+  // Mira la estructura y no el nombre accesible: el nombre del <h1> no cambia con el "?"
+  // adentro, asi que esa asercion pasaria igual.
   it('el titleHelp queda al lado del <h1>, no adentro', () => {
     render(
       <PageShell
@@ -23,7 +18,6 @@ describe('PageShell', () => {
 
     const h1 = screen.getByRole('heading', { level: 1, name: 'Mis ligas' });
     expect(h1.querySelector('button')).toBeNull();
-    // Y sigue existiendo, al lado: no es que se perdió por el camino.
     expect(screen.getByRole('button', { name: '¿Qué es una liga?' })).toBeInTheDocument();
   });
 

@@ -13,27 +13,16 @@ function renderAs(role: UserRole) {
   return renderWithQuery(<AppLayout />);
 }
 
-// Esta navegacion ya se perdio una vez resolviendo un conflicto de merge (PR #33 vs #34) y
-// ningun test lo noto. Los links conviven en el mismo bloque: se testean juntos.
-//
-// El test vivia en features/leagues/LeaguesPage.test.tsx, porque hasta el 2026-10-07 cada
-// pagina armaba sus propios links. Se mudo junto con la navegacion a AppLayout; las
-// aserciones son las mismas.
 describe('AppLayout — navegacion', () => {
   beforeEach(() => {
     useAuthStore.getState().clear();
   });
 
-  // Los links de carga (Resultados/Temporadas/Circuitos) viven agrupados bajo "Carga" — en
-  // escritorio adentro del menu de cuenta, no sueltos en la barra. Pedido del usuario
-  // 2026-10-15: son una capacidad del rol, no navegacion de catalogo como Pilotos/Campeonato.
   it('un ADMIN ve los links de carga agrupados en el menu de cuenta', async () => {
     renderAs('ADMIN');
     await userEvent.click(screen.getByRole('button', { name: 'Cuenta de Ana' }));
 
-    // menuitem, no link: AdminLinksGroup pone role="menuitem" en estos <a> adentro de
-    // UserMenu (asMenuItems), siguiendo el patron ARIA de menu — un role explicito pisa el
-    // implicito del elemento.
+    // menuitem, no link: el role explicito de AdminLinksGroup pisa el implicito del <a>.
     const menu = screen.getByRole('menu', { name: 'Opciones de la cuenta' });
     expect(menu).toHaveTextContent('Carga');
     expect(screen.getByRole('menuitem', { name: 'Resultados' })).toHaveAttribute(
@@ -61,8 +50,6 @@ describe('AppLayout — navegacion', () => {
     expect(screen.getByRole('link', { name: 'Campeonato' })).toBeInTheDocument();
   });
 
-  // Mismos tres links, pero en el drawer mobile no se movieron de la lista de navegacion —
-  // pedido explicito del usuario: ahi se quedan, solo agrupados con su propio label "Carga".
   it('un ADMIN ve el grupo de carga en el drawer mobile', async () => {
     renderAs('ADMIN');
     await userEvent.click(screen.getByRole('button', { name: 'Abrir menú' }));
@@ -75,9 +62,6 @@ describe('AppLayout — navegacion', () => {
     );
   });
 
-  // El lapiz de "Editar perfil" solo vivia adentro de UserMenu (escritorio) — en el drawer la
-  // fila de arriba mostraba foto y nombre pero no tenia forma de abrir el modal. Bug reportado
-  // por el usuario 2026-10-16: no se podia cambiar la foto ni el lema desde mobile.
   it('desde el drawer mobile se puede abrir Editar perfil', async () => {
     renderAs('USER');
     await userEvent.click(screen.getByRole('button', { name: 'Abrir menú' }));
@@ -95,9 +79,6 @@ describe('AppLayout — navegacion', () => {
     expect(screen.queryByRole('link', { name: 'Mis ligas' })).not.toBeInTheDocument();
   });
 
-  // Reemplaza nombre + "Salir" sueltos en la barra: con sesion aparece un boton de cuenta
-  // (el avatar) que al clickear despliega el nombre y "Cerrar sesion" — pedido del usuario
-  // 2026-10-15, mismo patron que Gmail/GitHub/Slack.
   it('con sesion el menu de cuenta muestra el nombre y cerrar sesion', async () => {
     renderAs('USER');
     const trigger = screen.getByRole('button', { name: 'Cuenta de Ana' });

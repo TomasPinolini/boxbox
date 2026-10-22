@@ -4,8 +4,7 @@ import type { RaceResultInput } from '../../services/races.service';
 // Puntos de F1 por posicion final (top 10). Desde 2025 no hay punto por vuelta rapida.
 const POINTS = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1];
 
-// Una fila de la grilla. `imported` viaja tal cual al payload: son datos de Jolpica que la
-// grilla no muestra ni edita (grilla de largada, vueltas, vuelta rapida).
+// `imported` viaja tal cual al payload: datos de Jolpica que la grilla no muestra ni edita.
 export interface Entry {
   position: string; // crudo del <input>; '' = sin posicion
   status: RaceResultStatus;
@@ -17,9 +16,8 @@ export interface ResultRow extends Entry {
   label: string; // para los mensajes de error
 }
 
-// Vista previa de Jolpica -> estado de la grilla. Devuelve tambien los pilotos cuyos puntos
-// de Jolpica NO coinciden con la tabla (medios puntos por bandera roja, sanciones): la grilla
-// siempre calcula con pointsFor, asi que el admin tiene que enterarse antes de confirmar.
+// Tambien devuelve los pilotos cuyos puntos de Jolpica no coinciden con la tabla (medios puntos,
+// sanciones): la grilla siempre calcula con pointsFor y el admin tiene que enterarse.
 export function entriesFromPreview(results: RaceResultInput[]): {
   entries: Record<number, Entry>;
   pointsMismatch: { driverId: number; jolpica: number; table: number }[];
@@ -39,7 +37,6 @@ export function pointsFor(position: number | undefined, status: RaceResultStatus
   return POINTS[position - 1] ?? 0;
 }
 
-// Pura a proposito: es toda la logica de la pantalla y se testea sin render.
 export function buildResultsPayload(
   rows: ResultRow[],
 ): { ok: true; results: RaceResultInput[] } | { ok: false; errors: string[] } {

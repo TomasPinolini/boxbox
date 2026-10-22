@@ -1,17 +1,10 @@
-// Los textos del tour de bienvenida, en su propio archivo y no al lado del componente:
-// react-refresh/only-export-components prohíbe exportar una constante junto a un componente, y
-// el test del tour los necesita importados. Mismo motivo que features/leagues/draft-label.ts.
-
-// PITCH es la frase con la que la app se describe a sí misma. Vive acá y no duplicada porque
-// AboutBoxBox (el "¿Qué es BoxBox?" de login y register) dice exactamente lo mismo: si alguien
-// la edita en un solo lado, la app pasa a contestar dos cosas distintas a la misma pregunta.
+// En su propio archivo: react-refresh/only-export-components prohíbe exportar constantes junto a
+// un componente. PITCH lo comparten el tour y AboutBoxBox.
 export const PITCH =
   'Una fantasy league de Fórmula 1: armás tu equipo (2 pilotos + 1 escudería) en un draft en vivo contra tus amigos, y sumás puntos con los resultados reales de cada carrera de la temporada.';
 
 export type TourStep = { title: string; body: string };
 
-// Cuatro pasos, en el orden en que el usuario nuevo se va a chocar con las cosas: qué es esto,
-// cómo entro a una liga, qué va a pasar en el draft, de dónde salen los puntos.
 export const TOUR_STEPS: TourStep[] = [
   {
     title: 'Bienvenido a BoxBox',

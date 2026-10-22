@@ -10,8 +10,6 @@ export interface CreateLeagueInput {
   seasonId: number;
 }
 
-// El "servicio" de ligas (rubrica): todo lo que habla con /leagues. Sin React, sin URLs en
-// los componentes.
 export const leaguesService = {
   list: () => apiClient.get<LeagueListItem[]>('/leagues'),
   create: (input: CreateLeagueInput) => apiClient.post<League>('/leagues', input),
@@ -20,10 +18,8 @@ export const leaguesService = {
   members: (id: number) => apiClient.get<LeagueMember[]>(`/leagues/${id}/members`),
   // Sin ?raceId: el backend devuelve la ultima carrera con standings de esta liga.
   standings: (id: number) => apiClient.get<LeagueStandings>(`/leagues/${id}/standings`),
-  // Los equipos armados de TODOS los miembros. No hay endpoint propio: /teams/me devuelve
-  // solo el mio, y los picks del draft ya son los equipos. Mismo middleware de membresia.
-  // Límite conocido: reusa el estado del draft; si algun dia hace falta mas que los picks, ahi si
-  // vale un GET /leagues/:id/teams.
+  // Los equipos de todos los miembros salen de los picks del draft: no hay GET /leagues/:id/teams
+  // (/teams/me devuelve solo el mio). Si hace falta mas que los picks, ahi vale ese endpoint.
   draftState: (id: number) => apiClient.get<DraftState>(`/leagues/${id}/draft/state`),
   leave: (id: number) => apiClient.post<LeagueMember>(`/leagues/${id}/leave`),
   rename: (id: number, name: string) => apiClient.patch<League>(`/leagues/${id}`, { name }),
@@ -31,6 +27,5 @@ export const leaguesService = {
   kick: (id: number, userId: number) => apiClient.delete(`/leagues/${id}/members/${userId}`),
   startDraft: (id: number) =>
     apiClient.post<{ draftStatus: DraftStatus; totalPicks: number }>(`/leagues/${id}/draft/start`),
-  // /seasons/active es publico; vive aca porque el unico que lo usa es "crear liga".
   activeSeasonId: () => apiClient.get<{ id: number }>('/seasons/active').then((s) => s.id),
 };

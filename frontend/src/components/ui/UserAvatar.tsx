@@ -1,12 +1,7 @@
 import { useState } from 'react';
 import type { User } from '../../models/user';
 
-// Foto del usuario + iniciales de respaldo, mismo patron que DriverAvatar (features/drivers/):
-// avatarUrl es un recurso remoto que puede fallar, y bastantes usuarios ni lo van a tener.
-//
-// Vive en components/ui/ y no en app/AppLayout.tsx (donde nació, Slice de drawer mobile)
-// porque EditProfileModal.tsx (features/profile/) también lo necesita — un componente sin
-// lógica de dominio usado desde dos lugares es exactamente lo que esta carpeta es para.
+// Iniciales de respaldo: avatarUrl es remoto, puede fallar o no existir.
 export function UserAvatar({ user, size = 44 }: { user: Pick<User, 'name' | 'avatarUrl'>; size?: number }) {
   const [failed, setFailed] = useState(false);
   const initials = user.name

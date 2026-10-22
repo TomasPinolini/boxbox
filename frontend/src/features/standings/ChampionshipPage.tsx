@@ -11,7 +11,6 @@ import { useConstructorStandings, useDriverStandings } from './standings.queries
 const TH = 'py-2 pr-3 font-medium';
 const TD = 'py-2 pr-3';
 
-// Las dos tablas comparten carga / error / vacio; lo unico que cambia son las filas.
 function StandingsCard<T>({
   title,
   query,
@@ -53,10 +52,8 @@ function DriversTable({ rows }: { rows: DriverStanding[] }) {
       <tbody>
         {rows.map(({ position, points, wins, driver }) => (
           <tr key={driver.id} className="border-b border-slate-100 dark:border-ink-border">
-            {/* La franja va como box-shadow interior y NO como border-left: el preflight de
-                Tailwind pone border-collapse: collapse, y con eso los bordes de celdas
-                vecinas se fusionan y el resultado varia entre navegadores. El box-shadow no
-                participa de ese colapso ni ocupa lugar en el layout. */}
+            {/* box-shadow y no border-left: con el border-collapse del preflight, los bordes de
+                celdas vecinas se fusionan distinto en cada navegador. */}
             <td
               className={`${TD} pl-2`}
               style={{ boxShadow: `inset 4px 0 0 ${driver.constructor?.color ?? '#e2e8f0'}` }}
@@ -73,8 +70,7 @@ function DriversTable({ rows }: { rows: DriverStanding[] }) {
               </Link>
             </td>
             <td className={`${TD} hidden sm:table-cell`}>
-              {/* El badge lleva a la escuderia. Esta en su propio <td>, fuera del Link que
-                  lleva al piloto: dos destinos distintos, nunca uno adentro del otro. */}
+              {/* En su propio <td>, fuera del Link al piloto: nunca un link dentro de otro. */}
               {driver.constructor ? (
                 <Link to={`/constructors/${driver.constructor.id}`} className="hover:underline">
                   <TeamBadge constructor={driver.constructor} />
@@ -108,13 +104,8 @@ function ConstructorsTable({ rows }: { rows: ConstructorStanding[] }) {
             <td className={TD}>
               <Position value={position} />
             </td>
-            {/* El logo va aca y no dentro de TeamBadge: el badge tambien vive en la tarjeta
-                de piloto, donde a 320px ya comparte linea con el dorsal y el codigo. Esta era
-                ademas la unica tabla sin ninguna imagen, mientras la de pilotos tiene las
-                fotos — esa asimetria es lo que la hacia ver mas pobre. */}
+            {/* El logo va aca y no dentro de TeamBadge: en la tarjeta de piloto no entra a 320px. */}
             <td className={TD}>
-              {/* Antes esta fila no llevaba a ningun lado y era el unico listado de la app sin
-                  detalle. Mismo gesto que la tabla de pilotos de arriba. */}
               <Link
                 to={`/constructors/${constructor.id}`}
                 className="flex items-center gap-2 hover:underline"
@@ -137,9 +128,7 @@ export function ChampionshipPage() {
 
   return (
     <PageShell title="Campeonato">
-      {/* 3 columnas y no 2: la tabla de pilotos tiene 5 columnas y 22 filas, la de escuderias
-          3 y 11. Partiendo la pantalla por la mitad, 7 de las 22 filas de pilotos envolvian el
-          nombre o la escuderia en dos lineas. Con 2/3 del ancho entran en una. */}
+      {/* 3 columnas y no 2: a medio ancho las filas de pilotos envuelven en dos lineas. */}
       <div className="grid gap-6 lg:grid-cols-3 lg:items-start">
         <div className="lg:col-span-2">
           <StandingsCard title="Pilotos" query={drivers}>

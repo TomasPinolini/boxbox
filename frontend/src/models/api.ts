@@ -1,4 +1,3 @@
-// Envelope de la API: exito { data }, error { error: { code, message, status } }.
 export interface ApiEnvelope<T> {
   data: T;
 }

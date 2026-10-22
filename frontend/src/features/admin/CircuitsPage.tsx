@@ -14,8 +14,7 @@ import {
 import type { Circuit } from '../../models/circuit';
 import { useCircuits, useCreateCircuit, useRemoveCircuit, useUpdateCircuit } from './circuits.queries';
 
-// Mismas reglas que createCircuitSchema del backend. La longitud es el unico campo opcional:
-// un string vacio se convierte en undefined para que no viaje como NaN ni como null.
+// La longitud vacia sale como undefined para que no viaje como NaN ni como null.
 const circuitSchema = z.object({
   name: z.string().min(1, 'Obligatorio'),
   country: z.string().min(1, 'Obligatorio'),
@@ -38,7 +37,7 @@ export function CircuitsPage() {
   const createCircuit = useCreateCircuit();
   const updateCircuit = useUpdateCircuit();
   const removeCircuit = useRemoveCircuit();
-  // Un solo formulario en dos modos, igual que temporadas: con `editing` en null da de alta.
+  // Con `editing` en null el formulario da de alta.
   const [editing, setEditing] = useState<Circuit | null>(null);
 
   const form = useForm<CircuitForm, unknown, z.output<typeof circuitSchema>>({
@@ -93,9 +92,8 @@ export function CircuitsPage() {
           <Field label="Longitud (km)" error={form.formState.errors.circuitLength?.message}>
             <input type="number" step="0.001" className={inputClass} {...form.register('circuitLength')} />
           </Field>
-          {/* externalId es el unico campo que el admin no puede deducir mirando el circuito, y
-              cargarlo mal falla en silencio: el circuito se crea igual y el sync no lo reconoce
-              semanas despues. De ahi la ayuda, asociada por aria-describedby y no suelta al lado. */}
+          {/* Un externalId mal cargado falla en silencio: el sync no reconoce el circuito
+              semanas despues. De ahi la ayuda. */}
           <div>
             <Field label="ID externo" error={form.formState.errors.externalId?.message}>
               <input
@@ -162,8 +160,7 @@ export function CircuitsPage() {
                     <td className="py-2 font-mono text-xs text-slate-600 dark:text-ink-muted">{circuit.externalId}</td>
                     <td className="py-2">
                       <div className="flex flex-wrap justify-end gap-2">
-                        {/* El nombre accesible lleva el circuito: con varias filas, "Editar" a
-                            secas es ambiguo para quien navega por lista de botones. */}
+                        {/* Con el nombre: "Editar" a secas es ambiguo en la lista de botones. */}
                         <Button
                           variant="secondary"
                           aria-label={`Editar ${circuit.name}`}
@@ -174,8 +171,6 @@ export function CircuitsPage() {
                         <ConfirmButton
                           label="Dar de baja"
                           confirmLabel="Confirmar baja"
-                          // A diferencia de temporadas, esta baja SI es logica: el backend
-                          // marca deletedAt y el circuito deja de listarse.
                           consequence={`${circuit.name} va a dejar de aparecer en los listados. Las carreras ya corridas lo conservan.`}
                           variant="danger"
                           disabled={removeCircuit.isPending}

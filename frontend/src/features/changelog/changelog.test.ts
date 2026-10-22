@@ -6,9 +6,8 @@ import {
   limitacionesConocidas,
 } from './changelog';
 
-// Estos tests corren contra el CHANGELOG.md de verdad, no contra un fixture. Es la gracia: lo que
-// tienen que detectar es que el archivo se escriba de una forma que el parser no cubre, y un
-// fixture inventado nunca se desincroniza con el archivo real.
+// Contra el CHANGELOG.md real y no un fixture: lo que se busca es que el archivo deje de
+// encajar con el parser.
 describe('changelog', () => {
   it('parsea al menos una version, con numero y fecha', () => {
     expect(changelog.length).toBeGreaterThan(0);
@@ -40,8 +39,7 @@ describe('changelog', () => {
       for (const section of version.sections) {
         expect(section.heading).not.toMatch(CONSTRUCCIONES_NO_SOPORTADAS);
         for (const item of section.items) {
-          // Si esto falla: o se agranda el parser, o se reescribe la linea del CHANGELOG.md.
-          // Lo que NO puede pasar es que el usuario vea `**texto**` crudo en pantalla.
+          // Si falla: se agranda el parser o se reescribe la linea del CHANGELOG.md.
           expect(item, `en "${section.heading}"`).not.toMatch(CONSTRUCCIONES_NO_SOPORTADAS);
         }
       }

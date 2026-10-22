@@ -1,9 +1,7 @@
 import axios from 'axios';
 import type { ApiErrorBody } from '../models/api';
 
-// ApiError: el error tipado que ve el resto de la app. `code` es el SCREAMING_SNAKE del backend
-// (docs/error-codes.md); `status` el HTTP. Clase (no interface) para que `instanceof` funcione
-// en catch y para cumplir "modelos con clases" de la rubrica.
+// Clase y no interface para que `instanceof` funcione en un catch.
 export class ApiError extends Error {
   readonly code: string;
   readonly status: number;
@@ -20,7 +18,6 @@ function isApiErrorBody(body: unknown): body is ApiErrorBody {
   return typeof body === 'object' && body !== null && 'error' in body;
 }
 
-// toApiError: normaliza cualquier cosa que tire axios a un ApiError.
 export function toApiError(err: unknown): ApiError {
   if (err instanceof ApiError) return err;
   if (axios.isAxiosError(err)) {

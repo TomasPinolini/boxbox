@@ -6,10 +6,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { ConstructorRef, Driver } from '../../models/driver';
 import { DraftPicker } from './DraftPicker';
 
-// DraftPicker ahora dibuja DriverCard/ConstructorStrip de verdad (Slice 17), no una tarjeta
-// propia — y las dos tienen una franja que es un <Link> real a /constructors/:id. Necesita
-// Router alrededor aunque el picker no navegue por su cuenta, mismo criterio que
-// DriverCard.test.tsx.
+// Necesita Router: DriverCard y ConstructorStrip dibujan un <Link> a /constructors/:id.
 function renderPicker(ui: ReactElement) {
   return render(<MemoryRouter>{ui}</MemoryRouter>);
 }
@@ -52,8 +49,7 @@ describe('DraftPicker', () => {
     );
 
     expect(screen.getByRole('button', { name: /Max Verstappen/ })).toBeInTheDocument();
-    // DriverCard dibuja el dorsal pelado, sin "#" — es la misma card que /drivers, sin
-    // aproximaciones propias del picker (el Tile anterior sí le agregaba el "#").
+    // DriverCard dibuja el dorsal sin "#".
     expect(screen.getByText('1')).toBeInTheDocument();
     expect(screen.getByText('Red Bull Racing')).toBeInTheDocument();
   });
@@ -115,9 +111,8 @@ describe('DraftPicker', () => {
     expect(screen.queryByText('Max Verstappen')).not.toBeInTheDocument();
   });
 
-  // El bug que reporto el usuario: un piloto ya elegido desaparecia del array y su companero
-  // se reacomodaba al lado de otro equipo. Ahora el roster completo sigue entero — el elegido
-  // se apaga, no se va.
+  // El elegido se apaga y no se va: si desapareciera, su companero se reacomodaria al lado de
+  // otro equipo.
   describe('pilotos ya elegidos (takenIds)', () => {
     it('siguen en la lista, pero deshabilitados y sin aria-pressed', () => {
       renderPicker(

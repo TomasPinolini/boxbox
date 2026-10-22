@@ -5,15 +5,9 @@ export interface ConstructorGroup<T> {
   items: T[];
 }
 
-// Agrupa una lista YA ORDENADA por escudería (ver drivers.service.ts / draft.service.ts) en
-// tandas consecutivas del mismo equipo. Una grilla de 2 columnas por tanda, no una grilla
-// continua con todos los items: si un piloto desaparece (lo pickean en el draft, o
-// simplemente no corre esta temporada), el compañero que queda NO tiene que reacomodarse al
-// lado de alguien de otro equipo — cada tanda es su propia fila, aunque le falte un piloto.
-//
-// No reordena nada: si el input no viene agrupado (dos tandas separadas del mismo id), las
-// deja separadas en vez de fusionarlas — mejor dos filas sueltas que una fusión incorrecta
-// si algún día el orden de entrada cambia sin que nadie actualice este archivo.
+// Agrupa una lista YA ORDENADA por escuderia en tandas consecutivas: cada equipo es su propia
+// fila, asi el compañero que queda cuando falta un piloto no se reacomoda al lado de otro equipo.
+// No reordena: si el input viene desordenado, deja tandas separadas antes que fusionar mal.
 export function groupByConstructor<T extends { constructor: ConstructorRef | null }>(
   items: T[],
 ): ConstructorGroup<T>[] {

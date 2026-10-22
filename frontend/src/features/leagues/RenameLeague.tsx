@@ -1,16 +1,8 @@
 import { useState } from 'react';
 import { Button } from '../../components/ui';
 
-// Renombrar una liga: un lapiz al lado del nombre que se convierte en un input, en el mismo
-// lugar — dentro del <h1> de la pantalla (ver PageShell), no un boton de texto aparte al pie
-// de la pagina como era antes. Pedido del usuario 2026-10-14: "un boceto de un lapiz muy
-// sencillo, como para entender que eso es para editar".
-//
-// Sin <form>: esto vive adentro de un <h1>, y el modelo de contenido de h1 es "phrasing
-// content" — <form> es flow content, asi que anidarlo seria HTML invalido. Enter/Escape se
-// manejan a mano en el input.
-//
-// `currentName` entra, `onRename` sale: el componente no sabe nada de HTTP ni de React Query.
+// Sin <form>: esto vive adentro del <h1> y un <form> ahi es HTML invalido (h1 solo admite
+// phrasing content). Enter/Escape se manejan a mano en el input.
 const ERROR_ID = 'rename-league-error';
 
 export function RenameLeague({
@@ -27,8 +19,7 @@ export function RenameLeague({
   const [error, setError] = useState<string | null>(null);
 
   function open() {
-    // Se recarga desde la prop y no se confia en el estado viejo: entre dos aperturas el
-    // nombre pudo cambiar en el servidor.
+    // Desde la prop: entre dos aperturas el nombre pudo cambiar en el servidor.
     setName(currentName);
     setError(null);
     setEditing(true);
@@ -55,7 +46,6 @@ export function RenameLeague({
           onClick={open}
           className="flex h-11 w-11 shrink-0 items-center justify-center rounded text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-red-950"
         >
-          {/* Lapiz, trazo simple — dos paths, nada de relleno. */}
           <svg
             width="18"
             height="18"
@@ -100,8 +90,7 @@ export function RenameLeague({
       <Button variant="secondary" onClick={() => setEditing(false)} className="text-sm">
         Cancelar
       </Button>
-      {/* Altura reservada: el bloque ocupa lo mismo con y sin error, asi la fila no salta
-          cuando el mensaje aparece. */}
+      {/* Altura reservada para que la fila no salte cuando aparece el error. */}
       <span id={ERROR_ID} role="alert" className="block w-full min-h-5 text-sm font-normal text-red-600">
         {error}
       </span>

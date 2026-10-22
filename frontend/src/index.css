@@ -1,47 +1,15 @@
 @import 'tailwindcss';
 
-/* Tipografia general: Montserrat.
-   Tailwind v4 es CSS-first: un token se declara en @theme y Tailwind genera la utilidad
-   sola. `--font-sans` es el que Tailwind usa como tipografia POR DEFECTO de toda la app
-   (preflight.css define `--default-font-family: --theme(--font-sans)` y lo aplica al
-   <html>) — no hace falta ninguna clase en ningun componente, se hereda sola.
-
-   Historia: nacio en las driver cards el 2026-10-14 ("la card tiene que destacar de la
-   general"), con su propio token `--font-card` separado. Un dia despues, mismo usuario, pidio
-   lo contrario: generalizarla a todo el programa. Con las dos iguales, mantener `--font-card`
-   aparte era duplicar un valor sin ninguna diferencia — se saco, y DriverCard/TeamLineup ya
-   no necesitan la clase, la heredan del body.
-
-   Pesos 400/500/600/700/800 (ver index.html): los cinco que usa el proyecto, de font-normal a
-   font-extrabold. Con menos, un peso sin archivo propio cae al bold sintetico del navegador.
-
-   Tipografia de marca aparte, SOLO para numeros: la oficial de F1 (Formula1 Display) es
-   propietaria y no puede viajar en un repo publico, Saira Condensed es la alternativa libre
-   mas cercana al tono de un timing screen.
-
-   La regla de reparto:
-   - NUMEROS (posiciones, puntos, victorias, dorsales, rondas) -> font-display tabular-nums
-   - CODIGOS (el inviteCode de una liga) -> siguen en font-mono. Un codigo se lee y se tipea
-     caracter por caracter; una condensada junta los trazos y lo empeora.
-   - Todo lo demas -> hereda --font-sans, no hace falta pedirlo. */
+/* --font-sans es la tipografia por defecto de Tailwind v4: se hereda sin clases.
+   index.html carga los pesos 400-800; sin archivo propio un peso cae al bold sintetico.
+   font-display (Saira, la libre mas cercana a la de F1, que es propietaria) solo para numeros;
+   los codigos de invitacion siguen en font-mono, una condensada junta los trazos. */
 @theme {
   --font-sans: 'Montserrat', ui-sans-serif, system-ui, sans-serif;
   --font-display: 'Saira Condensed', ui-sans-serif, system-ui, sans-serif;
 
-  /* Paleta del modo oscuro — pedido del usuario 2026-10-14, arranca por /drivers para
-     definir el patron antes de replicarlo al resto. Se sigue el sistema operativo
-     (prefers-color-scheme), sin toggle manual: Tailwind v4 genera el variant `dark:` a
-     partir de esa media query por default, no hizo falta configurar nada mas.
-
-     NO es la escala `slate` que ya usa el modo claro en toda la app (bg-slate-50,
-     text-slate-900, etc.): probada en wireframe, se veia claramente azulada. En su lugar,
-     arranca cerca del NEGRO REAL de la marca — `#111113`, el mismo fill que usa
-     public/logo.svg — un paso mas clara (`#1a1a1c`): el negro exacto de marca, probado en
-     /drivers contra el build real, se sentia demasiado oscuro para una pantalla completa
-     (pedido del usuario 2026-10-14). Los cuatro pasos de abajo son esa base + 3
-     variaciones de brillo para superficie/borde/texto secundario, mismo rol que cumple
-     `slate` en el modo claro (50/200/500/900 ahi vs. ink/ink-surface/ink-border/
-     ink-muted/ink-text aca). */
+  /* Modo oscuro (sigue a prefers-color-scheme). No usa `slate` porque se ve azulada: parte
+     un paso mas claro que el negro de marca de public/logo.svg. */
   --color-ink: #1a1a1c;
   --color-ink-surface: #27272a;
   --color-ink-border: #434346;
@@ -49,52 +17,26 @@
   --color-ink-text: #f4f4f5;
 }
 
-/* Token de movimiento. Una sola curva para todo el proyecto: sin un token compartido,
-   cada animacion inventa la suya y en tres cambios ya no se parecen entre si. */
+/* Una sola curva de movimiento para todo el proyecto. */
 :root {
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
 }
 
-/* Bandera a cuadros, 4px, bajo la barra de navegacion.
-   repeating-conic-gradient y no una imagen: son dos declaraciones, escala a cualquier ancho
-   sin pixelarse y no agrega un request de red. El gradiente conico dibuja un tablero 2x2 en
-   cada celda de 8px, o sea cuadros de 4px. La franja mide 8px y no 4: con una sola fila de
-   cuadros el ojo lee una linea punteada, no un tablero. Hacen falta dos filas para que se
-   lea como la bandera. Verificado mirando la captura, no el CSS.
-   Es el unico guino decorativo de la app y esta puesto una sola vez: la regla de frecuencia
-   vale igual para la decoracion que para el movimiento. */
+/* Bandera a cuadros de 4px. La franja mide 8px (dos filas): con una sola se lee como punteado. */
 .checkered {
   background-image: repeating-conic-gradient(#0f172a 0% 25%, #fff 0% 50%);
   background-size: 8px 8px;
 }
 
-/* Indicador de foco, global.
-   Va aca y no en cada componente porque :focus-visible alcanza a todo lo enfocable:
-   botones, inputs, selects y los <Link> repartidos por las paginas. Una regla en vez de
-   una edicion por archivo.
-
-   :focus-visible y NO :focus. La diferencia importa: :focus tambien dispara al hacer click
-   con el mouse, asi que aparecia un anillo cada vez que apretas un boton — ruido visual que
-   nadie quiere. :focus-visible lo muestra solo cuando el navegador juzga que hace falta un
-   indicador, que en la practica es al navegar con teclado.
-
-   outline y no box-shadow/ring: el outline no participa del layout, asi que no corre nada
-   de lugar. El offset lo despega 2px del borde para que se lea incluso sobre el rojo de
-   la variante primaria del boton. */
+/* :focus-visible y no :focus, que tambien dispara con el click del mouse. outline y no ring:
+   no participa del layout; el offset lo hace legible sobre el boton rojo. */
 :focus-visible {
   outline: 2px solid var(--color-red-600);
   outline-offset: 2px;
 }
 
-/* Capa de plataforma tactil.
-   NO hace falta tocar -webkit-tap-highlight-color ni -webkit-text-size-adjust: el preflight
-   de Tailwind v4 ya los pone en `html,:host`. Verificado en el bundle el 2026-10-07.
-
-   touch-action: manipulation le dice al navegador que estos elementos nunca hacen zoom por
-   doble tap, asi que puede disparar el click de inmediato en vez de esperar ~300ms para ver
-   si viene un segundo toque.
-   user-select: none solo en controles. NUNCA en body: el texto de contenido —un codigo de
-   invitacion, un mensaje de error— tiene que poder copiarse. */
+/* touch-action: manipulation evita la espera de ~300ms del doble tap. user-select: none solo
+   en controles, nunca en body: el contenido (un codigo de invitacion) tiene que poder copiarse. */
 button,
 a,
 [role='button'] {
@@ -104,10 +46,8 @@ a,
   -webkit-touch-callout: none;
 }
 
-/* iOS Safari hace zoom cuando el foco cae en un input con tipografia menor a 16px, y NO
-   vuelve atras al salir. La tentacion es poner maximum-scale=1, que rompe el pinch-zoom y
-   es una falla de accesibilidad. Esto arregla la causa en vez del sintoma.
-   Solo en punteros gruesos: en desktop la tipografia del input sigue la del diseno. */
+/* iOS Safari hace zoom en inputs de menos de 16px. maximum-scale=1 lo evitaria pero rompe el
+   pinch-zoom (accesibilidad). */
 @media (pointer: coarse) {
   input,
   textarea,
@@ -116,24 +56,15 @@ a,
   }
 }
 
-/* Feedback de presion.
-   Antes era una clase `.press` aplicada a mano en Button, pero la necesidad es universal:
-   al matar el tap-highlight de arriba le quitamos a TODO lo tocable su unica senal de
-   respuesta. Los links que funcionan como accion principal —"Ver liga", "Ver piloto",
-   "Echar"— quedarian muertos al tacto. Una regla global los alcanza a todos.
-
-   Deliberadamente NO redefine `transition`: la clase `transition` de Tailwind que Button
-   ya tiene cubre transform, y pisarla aca romperia el transicionado del color en hover. */
+/* Feedback de presion global: sin tap-highlight es la unica senal al tocar. No redefine
+   `transition`: pisaria la de Tailwind en Button y romperia el hover. */
 button:active:not(:disabled),
 a:active,
 [role='button']:active:not([aria-disabled='true']) {
   transform: scale(0.97);
 }
 
-/* Entradas de elementos que recien aparecen en el DOM.
-   @starting-style define el estado DEL QUE PARTE un elemento recien insertado, sin
-   keyframes y sin JS. Si el navegador no lo soporta, el elemento aparece de golpe — que
-   es exactamente el comportamiento que habia antes, asi que degrada solo. */
+/* Entradas con @starting-style: sin soporte, el elemento aparece de golpe. */
 .enter-top,
 .enter-bottom,
 .enter-left {
@@ -142,23 +73,19 @@ a:active,
     transform 180ms var(--ease-out);
 }
 
-/* El scrim de un dialogo: solo fade, nunca se mueve — es el fondo, no el contenido. */
+/* El scrim de un dialogo: solo fade, nunca se mueve. */
 .enter-fade {
   transition: opacity 180ms var(--ease-out);
 }
 
-/* El cartel de "¿Qué es BoxBox?" en mobile: un bottom sheet de verdad, no un ajuste — entra
-   desde abajo del todo, por eso lleva mas desplazamiento que enter-bottom (que es para items
-   de lista, no paneles). */
+/* Bottom sheet mobile: entra desde abajo del todo, no con el nudge de enter-bottom. */
 .enter-sheet {
   transition:
     opacity 220ms var(--ease-out),
     transform 220ms var(--ease-out);
 }
 
-/* El panel de turno se ve 3 veces por draft, no decenas por dia. La regla de frecuencia
-   dice que ahi vive el presupuesto de movimiento, asi que lleva mas escala y mas duracion
-   que las entradas frecuentes: es el instante en que el sistema te dice "ahora vos". */
+/* Mas lenta que las demas: es infrecuente (el panel de turno, 3 veces por draft). */
 .enter-scale {
   transition:
     opacity 280ms var(--ease-out),
@@ -166,22 +93,19 @@ a:active,
 }
 
 @starting-style {
-  /* Mensajes de error: bajan desde arriba del contenido */
   .enter-top {
     opacity: 0;
     transform: translateY(-4px);
   }
-  /* Paneles que crecen en su lugar. Nunca desde scale(0): nada aparece de la nada */
+  /* Nunca desde scale(0): nada aparece de la nada. */
   .enter-scale {
     opacity: 0;
     transform: scale(0.95);
   }
-  /* Items que se agregan al final de una lista: suben desde abajo */
   .enter-bottom {
     opacity: 0;
     transform: translateY(6px);
   }
-  /* El drawer del menú: entra deslizando desde el lado por el que aparece */
   .enter-left {
     opacity: 0;
     transform: translateX(-12px);
@@ -189,16 +113,13 @@ a:active,
   .enter-fade {
     opacity: 0;
   }
-  /* Arranca totalmente afuera de la pantalla, no con un nudge — es la diferencia entre un
-     bottom sheet y un simple fade-in. */
   .enter-sheet {
     opacity: 0;
     transform: translateY(100%);
   }
 }
 
-/* Movimiento reducido. Se conserva el fade y se descarta el desplazamiento: mas suave,
-   no cero. Quitar todo tambien quita la pista de que algo cambio en la pantalla. */
+/* Movimiento reducido: se conserva el fade, que sigue avisando que algo cambio. */
 @media (prefers-reduced-motion: reduce) {
   button:active:not(:disabled),
   a:active,

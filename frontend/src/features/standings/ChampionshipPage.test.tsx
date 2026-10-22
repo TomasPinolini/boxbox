@@ -6,7 +6,6 @@ import { driversService } from '../../services/drivers.service';
 import { renderWithQuery } from '../../test/render-with-query';
 import { ChampionshipPage } from './ChampionshipPage';
 
-// Se mockea el servicio, no axios — mismo criterio que DriversPage.test.tsx.
 vi.mock('../../services/drivers.service');
 
 const mclaren: ConstructorRef = { id: 1, name: 'McLaren', color: '#FF8000', logoUrl: null };

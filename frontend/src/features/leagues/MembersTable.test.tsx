@@ -14,8 +14,6 @@ const member = (over: Partial<LeagueMember> = {}): LeagueMember => ({
 });
 
 describe('MembersTable', () => {
-  // Esta prueba existe por una razon concreta: "Echar" era un link de texto de 20px de alto,
-  // el elemento con MENOS peso visual de la pantalla siendo la unica accion destructiva.
   it('expone Echar como boton, con un nombre accesible que dice a quien se echa', () => {
     render(<MembersTable members={[member()]} canKick onKick={() => {}} />);
     const boton = screen.getByRole('button', { name: 'Echar a Tomás Rivero de la liga' });
@@ -32,8 +30,7 @@ describe('MembersTable', () => {
     expect(screen.queryByRole('button', { name: /^Echar/ })).not.toBeInTheDocument();
   });
 
-  // Echar es irreversible desde la UI (sin reinvitarla, no vuelve a entrar) — dos clicks,
-  // como "Archivar liga" y "Salir de la liga" en la misma pantalla.
+  // Echar es irreversible desde la UI: dos clicks.
   it('pide confirmar antes de llamar onKick, y recien ahi manda el userId', async () => {
     const onKick = vi.fn();
     render(<MembersTable members={[member({ id: 1, userId: 99 })]} canKick onKick={onKick} />);

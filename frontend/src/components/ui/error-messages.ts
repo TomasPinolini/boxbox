@@ -1,6 +1,4 @@
-// Mapa codigo del backend -> mensaje para el usuario (docs/error-codes.md). Un codigo que no
-// esta aca muestra el `message` del backend. Vive en su propio archivo (no en Alert.tsx) porque
-// Fast Refresh de Vite exige que un archivo .tsx exporte solo componentes.
+// Un codigo que no esta aca muestra el `message` del backend (docs/error-codes.md).
 const MESSAGES: Record<string, string> = {
   INVALID_CREDENTIALS: 'Email o contraseña incorrectos',
   EMAIL_ALREADY_EXISTS: 'Ya hay una cuenta con ese email',

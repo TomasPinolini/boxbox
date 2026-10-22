@@ -2,7 +2,6 @@ import { Badge, Position } from '../../components/ui';
 import type { DriverRaceResult } from '../../models/driver';
 import { RESULT_STATUS_LABEL } from './result-status-label';
 
-// Tabla del historial. En mobile la cabecera se esconde y cada fila se lee sola.
 export function DriverResultsTable({ results }: { results: DriverRaceResult[] }) {
   if (results.length === 0) {
     return (

@@ -12,8 +12,7 @@ export function useSeasons() {
 export function useCreateSeason() {
   const qc = useQueryClient();
   return useMutation<Season, ApiError, SeasonInput>({
-    // Envuelta y no `seasonsService.create` a secas: React Query le pasa su contexto como
-    // segundo argumento, y entonces el servicio recibe un parametro que no espera.
+    // Envuelta: React Query pasa su contexto como segundo argumento y el servicio no lo espera.
     mutationFn: (input) => seasonsService.create(input),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.all }),
   });

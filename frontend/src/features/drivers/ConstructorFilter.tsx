@@ -1,8 +1,6 @@
 import { Field, selectClass } from '../../components/ui';
 import type { ConstructorRef } from '../../models/driver';
 
-// ConstructorFilter: entrada = las escuderias y el valor actual; salida = onChange. No pide
-// datos ni sabe de la URL — de eso se encarga la pagina.
 export function ConstructorFilter({
   constructors,
   value,

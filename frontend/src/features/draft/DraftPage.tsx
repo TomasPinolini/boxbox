@@ -19,8 +19,6 @@ const CONNECTION_LABEL: Record<string, string> = {
   error: 'Sin conexión',
 };
 
-// El titulo sigue al estado en vez de estar escrito a mano: con "Draft en vivo" fijo, la
-// pagina seguia anunciando un draft en curso despues de que terminara.
 const PAGE_TITLE: Record<DraftState['draftStatus'], string> = {
   PENDING: 'Draft',
   LIVE: 'Draft en vivo',
@@ -45,8 +43,7 @@ export function DraftPage() {
   const drivers = useDrivers();
   const constructors = useConstructors();
   const [selected, setSelected] = useState<number | null>(null);
-  // Limpiar la seleccion cuando cambia de turno o de ronda (ajuste de estado durante el
-  // render, no un efecto — sin esto quedaria marcado un piloto que ya no es valido). Ver
+  // Limpia la seleccion al cambiar de turno o ronda, durante el render y no en un efecto. Ver
   // https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes
   const turnKey = `${state?.currentTurnLeagueMemberId}:${state?.round}`;
   const [lastTurnKey, setLastTurnKey] = useState(turnKey);
@@ -65,10 +62,7 @@ export function DraftPage() {
   const memberName = (leagueMemberId: number) =>
     members.data?.find((m) => m.id === leagueMemberId)?.user.name ?? `miembro ${leagueMemberId}`;
 
-  // Los equipos armados. Se calculan siempre y se usan solo en COMPLETED: es agrupar un
-  // arreglo de seis elementos, no justifica una rama.
   const teams = state ? buildDraftTeams(state.picks, myLeagueMemberId) : null;
-  // buildDraftTeams devuelve ids a proposito; los lookups viven aca, donde estan las queries.
   const driversOf = (team: DraftTeam) =>
     team.driverIds
       .map((driverId) => drivers.data?.find((d) => d.id === driverId))
@@ -76,10 +70,7 @@ export function DraftPage() {
   const constructorOf = (team: DraftTeam) =>
     constructors.data?.find((c) => c.id === team.constructorId) ?? null;
 
-  // El picker recibe el roster COMPLETO (no `state.available`) y apaga los ya elegidos — ver
-  // el comentario grande en DraftPicker.tsx sobre por que. `state.picks` es acumulado de TODA
-  // la liga (todas las rondas, todos los miembros), no solo lo mio: incluye los driverId de
-  // las rondas 1 y 2 ya jugadas aunque ahora sea la ronda 3 de constructor.
+  // `state.picks` acumula toda la liga y todas las rondas, no solo los picks propios.
   const takenDriverIds = new Set(
     state?.picks.filter((p) => p.driverId !== null).map((p) => p.driverId!) ?? [],
   );
@@ -96,10 +87,7 @@ export function DraftPage() {
     return constructor?.name ?? `escudería ${pick.constructorId}`;
   };
 
-  // Anuncio para lectores de pantalla. El draft es la unica pantalla donde el contenido
-  // cambia SOLO porque llego un mensaje de websocket: nadie navego ni apreto nada. Sin esto,
-  // un cambio de turno o el pick de otro jugador no existen para quien no ve la pantalla.
-  // El porque de cada decision esta en draft-announcement.ts.
+  // Anuncio para lectores de pantalla: el contenido cambia por websocket, sin que nadie navegue.
   const lastPick = state?.picks.at(-1);
   const announcement = state
     ? draftAnnouncement({
@@ -121,9 +109,6 @@ export function DraftPage() {
     submitPick(category === 'DRIVER' ? { driverId: selected } : { constructorId: selected });
   }
 
-  // Para la barra fija de confirmar: el nombre de lo elegido, sin tener que volver a mirar la
-  // lista. Mismo lookup que pickLabel, pero contra `selected` (en curso) en vez de un pick ya
-  // mandado.
   const selectedLabel =
     selected === null
       ? null
@@ -146,18 +131,12 @@ export function DraftPage() {
         </Link>
       }
     >
-      {/* aria-live="polite" y no "assertive": polite espera a que el lector termine lo que
-          esta diciendo, assertive lo interrumpe. Un cambio de turno no justifica cortarle la
-          palabra a alguien que esta leyendo la lista de picks.
-          sr-only lo saca de la pantalla sin sacarlo del arbol de accesibilidad (display:none
-          lo ocultaria tambien al lector, que es justo lo contrario de lo que queremos). */}
+      {/* "polite" y no "assertive": un cambio de turno no justifica interrumpir al lector. */}
       <p aria-live="polite" aria-atomic="true" className="sr-only">
         {announcement}
       </p>
 
-      {/* El owner archivo la liga mientras esta pantalla estaba abierta. Reemplaza todo y no
-          se suma arriba: lo que haya abajo —el reloj, el picker, los picks— ya no se puede
-          usar, y dejarlo a la vista invita a intentarlo. */}
+      {/* Liga archivada con el draft abierto: reemplaza todo, lo de abajo ya no se puede usar. */}
       {leagueArchived ? (
         <Card>
           <h2 className="mb-2 text-lg font-semibold">Esta liga se archivó</h2>
@@ -181,9 +160,6 @@ export function DraftPage() {
             <p className="text-slate-500 dark:text-ink-muted">{CONNECTION_LABEL[status]}</p>
           ) : (
             <div className="flex flex-col gap-4">
-              {/* Toda la tarjeta de estado es de antes y durante: badge, conexion, ronda y el
-              selector de turno. Terminado el draft el badge repetiria el <h1> y el indicador
-              de conexion dejo de querer decir algo, asi que no se dibuja. */}
               {state.draftStatus !== 'COMPLETED' && (
                 <Card>
                   <div className="flex flex-wrap items-center justify-between gap-2">
@@ -192,11 +168,8 @@ export function DraftPage() {
                     </Badge>
                     <span className="text-xs text-slate-400 dark:text-ink-muted">{CONNECTION_LABEL[status]}</span>
                   </div>
-                  {/* Fila flex y no un solo <p> como era antes: HelpPopover tiene un <div> en
-                  la raiz (necesita envolver el panel posicionado), y un <div> adentro de un <p>
-                  es HTML invalido — el parser cierra el <p> solo antes del div y la linea se
-                  parte en dos. El contador tambien salio del <p> por eso, y perdio su ml-2
-                  porque ahora el gap de la fila hace ese trabajo. */}
+                  {/* Fila flex y no un <p>: HelpPopover tiene un <div> en la raiz, y un <div>
+                  dentro de un <p> es HTML invalido. */}
                   {state.draftStatus === 'LIVE' && state.round !== null && (
                     <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1">
                       <p className="text-sm text-slate-600 dark:text-ink-muted">
@@ -213,9 +186,6 @@ export function DraftPage() {
                         elegir en una ronda es el primero en la siguiente, así nadie queda siempre
                         último.
                       </HelpPopover>
-                      {/* El contador tiene que poder leerse de un vistazo (no un detalle gris
-                      entre parentesis) y avisar cuando se acaba el tiempo, no solo cuando
-                      llega a cero — por eso cambia de color antes, no en el ultimo instante. */}
                       {secondsRemaining !== null && (
                         <>
                           <span
@@ -237,19 +207,13 @@ export function DraftPage() {
 
                   {isMyTurn && (
                     <div className="enter-scale mt-4 border-t border-slate-200 pt-4 dark:border-ink-border">
-                      {/* "Te toca a vos" es la unica razon por la que esta tarjeta tiene accion
-                      ahora mismo — tiene que pesar mas que cualquier otro titulo de la
-                      pantalla (incluido "Picks", mas abajo), no 14px perdido entre textos
-                      secundarios. */}
                       <p className="mb-3 text-xl font-bold text-red-600">¡Te toca a vos!</p>
                       {pickError && (
                         <div className="mb-3">
                           <Alert code={pickError.code} message={pickError.message} />
                         </div>
                       )}
-                      {/* pb-20: deja lugar para la barra fija de confirmar (mas abajo en el
-                      arbol, pero fixed) — sin esto el ultimo piloto/escuderia de la lista
-                      queda tapado. */}
+                      {/* pb-20: lugar para la barra fija de confirmar, que si no tapa el ultimo item. */}
                       <div className="pb-20">
                         <DraftPicker
                           category={category}
@@ -265,9 +229,6 @@ export function DraftPage() {
                 </Card>
               )}
 
-              {/* Terminado el draft, los equipos armados REEMPLAZAN la lista cruda de picks: son
-              el mismo dato, agrupado por quien lo eligio en vez de por cuando se eligio. La
-              lista plana sirve mientras el draft corre, no despues. */}
               {state.draftStatus === 'COMPLETED' && teams && (
                 <>
                   {teams.mine && (
@@ -329,11 +290,6 @@ export function DraftPage() {
             </div>
           )}
 
-          {/* Barra fija de confirmar: pedido del usuario 2026-10-15 — con 22 pilotos agrupados
-          por escuderia la lista es larga, y el boton de confirmar al final obligaba a bajar
-          hasta el fondo cada vez. Fija abajo, siempre a la vista mientras es tu turno, sin
-          importar cuanto hayas scrolleado. El nombre de lo elegido va al lado del boton para
-          no tener que volver a mirar la lista antes de confirmar. */}
           {isMyTurn && (
             <div className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 p-3 backdrop-blur dark:border-ink-border dark:bg-ink/95">
               <div className="mx-auto flex max-w-3xl items-center justify-between gap-3">

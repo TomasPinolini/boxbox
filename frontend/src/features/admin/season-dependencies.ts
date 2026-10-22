@@ -1,10 +1,6 @@
 import type { Season } from '../../models/season';
 
-// Una temporada con carreras, ligas o pilotos asignados no se puede borrar: el backend lo
-// rechaza con SEASON_HAS_DEPENDENCIES. Mostrar el motivo ANTES de que el usuario apriete es
-// mas barato que explicarle despues por que falló.
-//
-// Devuelve el motivo listo para mostrar, o null cuando la temporada se puede borrar.
+// Anticipa el SEASON_HAS_DEPENDENCIES del backend. Devuelve el motivo, o null si se puede borrar.
 export function deletionBlockedBy(season: Season): string | null {
   if (!season.counts) return null;
 
@@ -18,9 +14,7 @@ export function deletionBlockedBy(season: Season): string | null {
   return `No se puede borrar: tiene ${enumerar(parts)}.`;
 }
 
-// El cupo de pilotos define cuantos miembros entran en una liga: maxMembersForSeason es
-// floor(driverCount / 2), porque cada equipo se lleva dos pilotos. Con menos de 4 pilotos no
-// entran ni dos personas, y una liga de un solo miembro no es una liga.
+// maxMembersForSeason es floor(driverCount / 2): con menos de 4 pilotos no entran ni dos personas.
 export function cupoInsuficiente(driverCount: number): boolean {
   return Math.floor(driverCount / 2) < 2;
 }

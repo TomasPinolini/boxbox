@@ -32,17 +32,13 @@ import {
   useStartDraft,
 } from './leagues.queries';
 
-// La pantalla de la liga tiene TRES formas, no una con partes que se encienden y apagan.
-// Antes y despues del draft el usuario viene a preguntar cosas distintas —"¿quiénes somos y
-// cuántos faltan?" contra "¿cómo voy contra ellos?"— y una sola composicion que intenta las
-// dos termina mala para las dos. Es tambien de donde salia el defecto mas visible de la
-// pantalla vieja: "Posiciones" primera y vacia, arriba de todo, durante semanas.
+// Tres composiciones distintas (antes, durante y despues del draft): el usuario viene a
+// preguntar cosas distintas en cada momento y una sola pantalla no sirve para todas.
 
 export function LeagueDetailPage() {
   const id = Number(useParams().id);
   const navigate = useNavigate();
-  // El equipo que se esta mirando vive en la URL, como el filtro de /drivers: se puede
-  // compartir el link y el boton Atras del navegador funciona.
+  // El equipo que se mira vive en la URL: el link se comparte y Atras funciona.
   const [searchParams, setSearchParams] = useSearchParams();
   const equipoElegido = Number(searchParams.get('equipo')) || null;
   const me = useAuthStore((s) => s.user);
@@ -57,18 +53,13 @@ export function LeagueDetailPage() {
   const [copied, setCopied] = useState(false);
 
   const draftStatus = league.data?.draftStatus;
-  // Los equipos solo existen con el draft terminado; antes no hay nada que pedir.
   const teams = useLeagueTeams(id, draftStatus === 'COMPLETED');
   const drivers = useDrivers();
   const constructors = useConstructors();
 
-  // Arrancado el draft, la pantalla te lleva sola: al que lo arranco porque su mutacion
-  // invalida la liga, y a los que estaban esperando porque useLeague sondea mientras esta
-  // PENDING. Dispara en la TRANSICION PENDING -> LIVE y no en "esta LIVE": con la condicion
-  // simple, el "Volver a la liga" de la pantalla del draft rebotaria para siempre.
-  //
-  // El ref guarda la liga junto al estado porque /leagues/:id es UNA ruta: pasar de la liga
-  // A a la B cambia el parametro sin remontar el componente.
+  // Redirige al draft en la TRANSICION PENDING -> LIVE, no en "esta LIVE": si no, el
+  // "Volver a la liga" del draft rebotaria para siempre. El ref guarda tambien la liga
+  // porque pasar de /leagues/A a /leagues/B no remonta el componente.
   const lastSeen = useRef<{ leagueId: number; status?: DraftStatus }>({
     leagueId: id,
     status: draftStatus,
@@ -89,8 +80,7 @@ export function LeagueDetailPage() {
     );
   }
   if (!league.data) {
-    // Adentro de PageShell y no suelto: si no, el texto aparece pegado al borde mientras el
-    // contenido real va mucho mas adentro, y la pagina salta al llegar los datos.
+    // Dentro de PageShell para que la pagina no salte al llegar los datos.
     return (
       <PageShell title="Liga">
         <p className="text-slate-500 dark:text-ink-muted">Cargando…</p>
@@ -99,9 +89,7 @@ export function LeagueDetailPage() {
   }
 
   const l = league.data;
-  // isOwner sale de la MEMBRESIA, no de createdById. El backend decide con LeagueMember.isOwner
-  // (requireLeagueOwner), y el frontend miraba otra cosa: hoy coinciden, pero eran dos fuentes
-  // de verdad para el mismo dato y la pantalla habria mostrado botones que el backend rechaza.
+  // isOwner sale de la membresia, no de createdById: es lo que mira requireLeagueOwner.
   const myMember = members.data?.find((m) => m.userId === me?.id) ?? null;
   const isOwner = myMember?.isOwner ?? false;
   const rosterOpen = l.draftStatus === 'PENDING';
@@ -114,8 +102,6 @@ export function LeagueDetailPage() {
     leave.error ??
     kick.error ??
     members.error ??
-    // Los equipos y las posiciones tambien: si /draft/state falla con el draft terminado, la
-    // pantalla lideraba con nada y no decia nada. Un error mudo es peor que uno feo.
     teams.error ??
     standings.error;
   const cantidad = members.data?.length ?? 0;
@@ -130,8 +116,7 @@ export function LeagueDetailPage() {
     }
   }
 
-  // El owner no sale de su liga: la cierra (409 OWNER_CANNOT_LEAVE en el backend). Son dos
-  // acciones distintas para dos roles distintos, no la misma con otro nombre. ADR-0009.
+  // El owner no puede salir de su liga (409 OWNER_CANNOT_LEAVE): la archiva.
   const cerrarOSalir = isOwner ? (
     <ConfirmButton
       variant="danger"
@@ -156,12 +141,8 @@ export function LeagueDetailPage() {
     />
   );
 
-  // Las acciones que viven al pie de la liga, en las tres formas de la pantalla. Renombrar ya
-  // no esta aca — se mudo al titulo, al lado del nombre (ver PageShell mas abajo).
   const acciones = <div className="flex flex-wrap items-end gap-2">{cerrarOSalir}</div>;
 
-  // Navegar a un piloto es lo mismo desde cualquier TeamLineup de esta pantalla (el propio o
-  // el de un rival) — vive aca y no en cada composicion para no repetirlo.
   const onOpenDriver = (driverId: number) => navigate(`/drivers/${driverId}`);
 
   const error = actionError && (
@@ -173,7 +154,6 @@ export function LeagueDetailPage() {
   return (
     <PageShell
       title={
-        // Editar el nombre es solo del dueño — para el resto, el titulo es un string normal.
         isOwner ? (
           <RenameLeague currentName={l.name} disabled={busy} onRename={(name) => rename.mutate(name)} />
         ) : (
@@ -248,8 +228,6 @@ export function LeagueDetailPage() {
   );
 }
 
-// ─── Las tres composiciones ─────────────────────────────────────────
-
 function AntesDelDraft({
   code,
   copied,
@@ -279,8 +257,6 @@ function AntesDelDraft({
 }) {
   return (
     <div className="flex flex-col gap-4">
-      {/* Manda el codigo: en este momento lo que falta es gente, y es la unica palanca que
-          hay para conseguirla. La lista de dos nombres no dice nada que el usuario no sepa. */}
       <Card>
         <div className="mb-1 flex items-center gap-2">
           <h2 className="text-lg font-semibold">Invitá a tus amigos</h2>
@@ -305,9 +281,8 @@ function AntesDelDraft({
           <h2 className="text-lg font-semibold">
             Ya están ({cantidad}/{maxMembers})
           </h2>
-          {/* El texto NO dice "hay 22 pilotos": el tope es floor(driverCount / 2) de la
-              temporada, y de maxMembers no se puede volver a driverCount (23 pilotos también
-              dan 11). Se explica la regla, que es lo que no cambia, y no el número. */}
+          {/* No dice "hay 22 pilotos": de maxMembers = floor(driverCount / 2) no se puede
+              volver a driverCount (23 pilotos tambien dan 11). */}
           <HelpPopover title={`¿Por qué el tope es ${maxMembers}?`}>
             Porque cada equipo se lleva 2 pilotos de la grilla y nadie puede repetir el de otro.
             El tope sale de cuántos pilotos tiene la temporada: con más gente no alcanzarían para
@@ -321,8 +296,6 @@ function AntesDelDraft({
       <Card>
         <div className="mb-2 flex items-center gap-2">
           <h2 className="text-lg font-semibold">Arrancar el draft</h2>
-          {/* Este "?" responde la decisión de ESTA pantalla (¿aprieto el botón ya?). La mecánica
-              de las rondas la explica el "?" de la pantalla del draft, donde sirve. */}
           <HelpPopover title="¿Qué es el draft?">
             Es el reparto de la grilla: eligen por turnos hasta que todos tengan 2 pilotos y 1
             escudería. Arrancalo cuando estén todos los que esperás, porque después la liga queda
@@ -334,8 +307,6 @@ function AntesDelDraft({
             <p className="mb-3 text-sm text-slate-600 dark:text-ink-muted">
               Una vez que arranca, no entra ni sale nadie.
             </p>
-            {/* Confirmacion con la cuenta concreta: el caso que arruinaba la liga era
-                arrancar estando solo, y "1 de 11" lo dice mejor que cualquier advertencia. */}
             <ConfirmButton
               label="Iniciar draft"
               confirmLabel="Sí, arrancar"
@@ -363,9 +334,6 @@ function EnVivo({
   draftLabel: string;
   acciones: React.ReactNode;
 }) {
-  // A esta pantalla, con el draft corriendo, solo se llega a proposito: el redirect lleva a
-  // todo el mundo al draft al arrancar. Quien esta aca con un reloj de 60 segundos corriendo
-  // se equivoco, asi que la pantalla no le ofrece nada mas que la vuelta.
   return (
     <div className="flex flex-col gap-4">
       <Card>
@@ -414,9 +382,6 @@ function DespuesDelDraft({
 }) {
   return (
     <div className="flex flex-col gap-4">
-      {/* Tu equipo ya NO se reemplaza por el del rival (como era antes) — se queda siempre
-          ahi, y el rival flota encima en un popup (mas abajo). Pedido del usuario 2026-10-14:
-          ver el equipo de otro no tiene por que hacerte perder de vista el tuyo. */}
       {miEquipo && (
         <Card>
           <h2 className="mb-3 text-lg font-semibold">Tu equipo</h2>
@@ -454,10 +419,6 @@ function DespuesDelDraft({
   );
 }
 
-// ─── Armado de datos ────────────────────────────────────────────────
-
-// Los lookups viven aca, no en los componentes: buildDraftTeams devuelve ids a proposito, y
-// las queries de pilotos y escuderias son de la pagina.
 function resolver(team: DraftTeam, drivers: Driver[], constructors: { id: number }[]) {
   return {
     drivers: team.driverIds
@@ -469,7 +430,6 @@ function resolver(team: DraftTeam, drivers: Driver[], constructors: { id: number
   };
 }
 
-// Sirve para cualquier miembro, no solo para uno mismo: buildDraftTeams ya recibe el id.
 function equipoDe(
   picks: Parameters<typeof buildDraftTeams>[0],
   leagueMemberId: number | null,
@@ -512,8 +472,7 @@ function armarFilas({
     };
   });
 
-  // Con carreras procesadas manda la posicion; sin carreras, el orden es el de los picks y
-  // el tuyo va primero (lo deja asi buildDraftTeams).
+  // Sin carreras procesadas se respeta el orden de buildDraftTeams (el tuyo primero).
   return filas.every((f) => f.standing === null)
     ? filas
     : [...filas].sort((a, b) => (a.standing?.position ?? 99) - (b.standing?.position ?? 99));

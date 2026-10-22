@@ -2,11 +2,8 @@ import { useEffect, useRef } from 'react';
 import type { ConstructorRef, Driver } from '../../models/driver';
 import { TeamLineup } from '../draft/TeamLineup';
 
-// El equipo de un rival ya no REEMPLAZA "Tu equipo" (como era antes) — ahora flota encima en
-// un popup, y "Tu equipo" se queda atras sin cambiar. Mismo patron de dialogo que el drawer de
-// AppLayout y el cartel de AboutBoxBox: Escape, click en el scrim, o la X cierran; el foco
-// entra al abrir (a la X) y vuelve al gatillo al cerrar; el scroll del body se bloquea
-// mientras esta abierto.
+// Mismo patron de dialogo que el drawer de AppLayout: Escape, scrim o X cierran, el foco entra
+// a la X y vuelve al gatillo, y el scroll del body se bloquea.
 export function RivalTeamModal({
   nombre,
   motto,
@@ -66,10 +63,7 @@ export function RivalTeamModal({
               ✕
             </button>
           </div>
-          {/* Pedido del usuario 2026-10-15: el lema que cada quien pone en "Editar perfil"
-              (features/profile/EditProfileModal.tsx) se ve acá, como cita arriba del equipo —
-              no en ningún otro lado de la app. Sin lema, no se dibuja nada (null, no un
-              placeholder tipo "Sin lema"): la mayoría de los rivales no va a tener uno puesto. */}
+          {/* Sin lema no se dibuja nada: la mayoría de los rivales no va a tener uno. */}
           {motto && (
             <p className="mb-3 text-sm italic text-slate-500 dark:text-ink-muted">&ldquo;{motto}&rdquo;</p>
           )}

@@ -1,27 +1,16 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 
-// HelpPopover: el "¿qué es esto?" que el usuario tira cuando quiere, colgado de un título.
-//
-// Nació como AboutBoxBox en login/register —el único cartel de ayuda que había— y se generalizó
-// acá para poder colgarlo de cualquier pantalla. AboutBoxBox ahora es una llamada a este.
-//
-// Dos formas, no una que se adapta: en mobile es un diálogo de verdad (cartel que sube con un
-// scrim atrás y tapa el resto); en desktop es un panel que crece anclado al gatillo, sin
-// bloquear nada — la metáfora que pidió el usuario fue "una ampliación de texto", no un modal.
-// Los dos existen siempre en el DOM y se turnan por CSS (md:hidden / hidden md:block), mismo
-// patrón que las dos fotos de fondo del login.
+// Dos formas que se turnan por CSS: en mobile un diálogo modal con scrim; en desktop un panel
+// anclado al gatillo que no bloquea nada.
 
-// Hacia dónde crece el panel de desktop, con su flechita. Las clases van COMPLETAS en cada
-// rama y no armadas por concatenación: Tailwind escanea el código fuente buscando literales,
-// así que una clase construida con `${}` no existe en el CSS final.
+// Clases completas, no armadas con `${}`: Tailwind solo genera las que encuentra como literales.
 const PANEL_SEGUN_PLACEMENT = {
   top: 'bottom-full mb-3 after:top-full after:border-t-white dark:after:border-t-ink-surface',
   bottom: 'top-full mt-3 after:bottom-full after:border-b-white dark:after:border-b-ink-surface',
 } as const;
 
-// El círculo del "?" es de 22px, pero el <button> que lo contiene mide 44 (h-11) para llegar al
-// área táctil que piden las guías de Apple y Google. El -my-[11px] le devuelve a la fila el alto
-// que el botón le agregaba: el blanco de alrededor es clickeable sin empujar nada.
+// Botón de 44px (área táctil mínima) alrededor de un círculo de 22: el -my-[11px] evita que
+// empuje la fila.
 const GATILLO_ICONO = 'inline-flex h-11 w-11 -my-[11px] shrink-0 items-center justify-center';
 const CIRCULO_BASE =
   'flex h-[22px] w-[22px] items-center justify-center rounded-full text-[13px] font-bold leading-none';
@@ -36,10 +25,8 @@ export function HelpPopover({
 }: {
   title: string;
   children: ReactNode;
-  // Sin triggerText el gatillo es el circulito con el "?" (el caso de toda la app). Con texto es
-  // un link blanco, que es como lo necesita el hero del login sobre la foto.
+  // Sin triggerText el gatillo es el "?"; con texto es un link blanco (hero del login).
   triggerText?: string;
-  // 'top' para un gatillo que vive al pie de la pantalla, como el del login.
   placement?: 'top' | 'bottom';
 }) {
   const [open, setOpen] = useState(false);
@@ -55,15 +42,11 @@ export function HelpPopover({
   useEffect(() => {
     if (!open) return;
 
-    // El cartel mobile es modal de verdad (tapa todo), así que el foco entra ahí. El panel de
-    // desktop no bloquea nada — no hace falta moverle el foco encima al usuario.
+    // El foco solo entra al cartel mobile, que es modal; el panel de desktop no bloquea nada.
     closeButtonRef.current?.focus();
 
-    // El scroll se bloquea SOLO en la forma mobile. En desktop el panel está anclado al
-    // gatillo y viaja con él, así que scrollear no lo despega de nada; bloquear ahí dejaba la
-    // página muerta con un simple tooltip abierto.
-    // Límite conocido: se mide una vez al abrir. Si alguien cruza el breakpoint con el cartel abierto
-    // queda con el valor viejo — un matchMedia con listener lo arregla si alguna vez molesta.
+    // Scroll bloqueado solo en mobile. Límite: se mide al abrir, cruzar el breakpoint con el
+    // cartel abierto deja el valor viejo (un matchMedia con listener lo arregla).
     const esMobile = window.innerWidth < 768;
     const previousOverflow = document.body.style.overflow;
     if (esMobile) document.body.style.overflow = 'hidden';
@@ -71,8 +54,7 @@ export function HelpPopover({
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === 'Escape') close();
     }
-    // mousedown y no click: si fuera click, el mismo click que ABRE el cartel (el del gatillo) se
-    // procesaría también como "de afuera" y lo cerraría en el mismo gesto.
+    // mousedown y no click: el mismo click que abre el cartel lo cerraría como "de afuera".
     function onClickOutside(e: MouseEvent) {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) close();
     }
@@ -91,8 +73,6 @@ export function HelpPopover({
         ref={triggerRef}
         type="button"
         aria-expanded={open}
-        // Con texto, el texto ES el nombre accesible. Con el icono, el nombre lo tiene que dar
-        // el aria-label, y el título de la ayuda ya es una pregunta bien formada.
         aria-label={triggerText ? undefined : title}
         onClick={() => setOpen((v) => !v)}
         className={triggerText ? 'text-sm font-semibold text-white hover:underline' : GATILLO_ICONO}
@@ -109,7 +89,6 @@ export function HelpPopover({
 
       {open && (
         <>
-          {/* Mobile: cartel que sube desde abajo, con scrim atrás. */}
           <div
             aria-hidden="true"
             onClick={close}
@@ -135,8 +114,7 @@ export function HelpPopover({
             </button>
           </div>
 
-          {/* Desktop: panel anclado al gatillo, no un modal — no bloquea el resto de la
-              pantalla, por eso no lleva scrim ni aria-modal. */}
+          {/* Desktop: no es modal, por eso no lleva scrim ni aria-modal. */}
           <div
             role="dialog"
             aria-label={title}

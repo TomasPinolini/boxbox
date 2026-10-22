@@ -6,8 +6,6 @@ import type { DraftState } from '../../models/draft';
 import { ApiError } from '../../services/api-error';
 import { leaguesService, type CreateLeagueInput } from '../../services/leagues.service';
 
-// Un hook por lectura, un hook por escritura. Las escrituras invalidan lo que cambian, y
-// react-query vuelve a pedirlo — sin useEffect/useState a mano para datos del server.
 const keys = {
   all: ['leagues'] as const,
   one: (id: number) => ['leagues', id] as const,
@@ -24,17 +22,11 @@ export function useLeague(id: number) {
   return useQuery<League, ApiError>({
     queryKey: keys.one(id),
     queryFn: () => leaguesService.get(id),
-    // Mientras el draft esta PENDING hay que enterarse de que alguien lo arranco, y la
-    // pantalla de la liga no esta conectada al socket: ese namespace se abre recien al entrar
-    // a /draft. Sondear cada 5s es la forma mas barata de cubrirlo, y se apaga sola en cuanto
-    // el estado deja de ser PENDING — una liga con el draft terminado no pide nada.
-    // Límite conocido: es polling; si alguna vez molesta, el reemplazo es que el gateway emita el
-    // cambio de estado a una sala por liga y la pantalla escuche ahi.
+    // Esta pantalla no escucha el socket del draft, asi que sondea mientras esta PENDING para
+    // enterarse de que arranco. Limite: es polling; el reemplazo es un evento del gateway.
     refetchInterval: (query) => (query.state.data?.draftStatus === 'PENDING' ? 5000 : false),
-    // Sin esto el sondeo se detiene cuando la ventana pierde el foco, y como providers.tsx
-    // apaga refetchOnWindowFocus, tampoco hay recuperacion al volver: habria que esperar al
-    // siguiente tick. Con turnos de 60 segundos, el que tenia la pestaña atras se entera
-    // tarde y puede perder su turno. Esta query es una sola y liviana.
+    // Sin esto el sondeo se frena con la pestaña en segundo plano (y providers.tsx apaga
+    // refetchOnWindowFocus): con turnos de 60s, el que la tenia atras perderia su turno.
     refetchIntervalInBackground: true,
   });
 }
@@ -46,8 +38,6 @@ export function useMembers(id: number) {
   });
 }
 
-// Los equipos armados, para la pantalla de la liga. `enabled` porque antes de que el draft
-// termine no hay equipos que mostrar y no tiene sentido pedirlos.
 export function useLeagueTeams(id: number, enabled: boolean) {
   return useQuery<DraftState, ApiError>({
     queryKey: keys.draftState(id),
@@ -94,14 +84,10 @@ function useLeagueAction<TVars = void>(id: number, fn: (vars: TVars) => Promise<
   });
 }
 
-// Renombrar es la unica accion de liga reversible: no navega a ningun lado, solo cambia el
-// titulo. Por eso no lleva confirmacion y las otras si.
 export const useRenameLeague = (id: number) =>
   useLeagueAction<string>(id, (name) => leaguesService.rename(id, name));
 
-// Archivar es como el owner cierra una liga (ADR-0009): no hay DELETE, es un PATCH de status.
-// Invalida lo mismo que las demas acciones, incluido el listado, porque la liga archivada
-// tiene que desaparecer de ahi.
+// No hay DELETE de ligas: archivar es un PATCH de status.
 export const useArchiveLeague = (id: number) =>
   useLeagueAction(id, () => leaguesService.archive(id));
 

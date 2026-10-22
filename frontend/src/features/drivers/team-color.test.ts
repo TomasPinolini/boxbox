@@ -30,8 +30,7 @@ describe('textOn', () => {
     expect(textOn('#27F4D2')).toBe(BADGE_DARK);
   });
 
-  // Regresion del bug que tenia la primera version: con un umbral fijo en 0.5, el gris de Haas
-  // (luminancia 0.487) caia del lado equivocado y quedaba en 1.95:1.
+  // Con un umbral fijo en 0.5, el gris de Haas (luminancia 0.487) quedaba en 1.95:1.
   it('no se equivoca con los grises del medio, que es donde fallaba el umbral fijo', () => {
     expect(textOn('#B6BABD')).toBe(BADGE_DARK);
     expect(contrastOf('#B6BABD', textOn('#B6BABD'))).toBeGreaterThan(4.5);

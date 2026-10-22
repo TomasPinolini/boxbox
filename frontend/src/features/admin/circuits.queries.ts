@@ -12,8 +12,7 @@ export function useCircuits() {
 export function useCreateCircuit() {
   const qc = useQueryClient();
   return useMutation<Circuit, ApiError, CircuitInput>({
-    // Envuelta y no `circuitsService.create` a secas: React Query le pasa su contexto como
-    // segundo argumento, y entonces el servicio recibe un parametro que no espera.
+    // Envuelta: React Query pasa su contexto como segundo argumento y el servicio no lo espera.
     mutationFn: (input) => circuitsService.create(input),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.all }),
   });

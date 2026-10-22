@@ -1,4 +1,3 @@
-// Espejo de findByLeague en backend/src/modules/standings/standings.service.ts.
 export interface Standing {
   id: number;
   leagueMemberId: number;

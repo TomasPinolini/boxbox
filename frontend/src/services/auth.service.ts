@@ -7,7 +7,6 @@ interface AuthPayload {
   accessToken: string;
 }
 
-// El "servicio" de auth (rubrica): funciones sobre apiClient + el store. Sin React.
 export const authService = {
   async login(email: string, password: string): Promise<User> {
     const { user, accessToken } = await apiClient.post<AuthPayload>('/auth/login', {
@@ -28,8 +27,7 @@ export const authService = {
     return user;
   },
 
-  // Al arrancar la app: intenta restaurar la sesion con la cookie. Nunca tira: sin cookie o
-  // vencida, simplemente quedamos deslogueados.
+  // Nunca tira: sin cookie o vencida, simplemente quedamos deslogueados.
   async restoreSession(): Promise<void> {
     try {
       await apiClient.refreshOnce();
@@ -54,7 +52,7 @@ export const authService = {
     return user;
   },
 
-  // dataUrl: "data:image/png;base64,..." — ver EditProfileModal.tsx por el FileReader que arma esto.
+  // dataUrl: "data:image/png;base64,...", lo arma EditProfileModal.tsx.
   async updateAvatar(dataUrl: string): Promise<User> {
     const { user } = await apiClient.post<{ user: User }>('/auth/me/avatar', { avatar: dataUrl });
     useAuthStore.getState().updateUser(user);

@@ -2,15 +2,12 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { useAuthStore } from '../../store/auth.store';
 import { useDraftState } from './useDraftState';
 
-// Fake socket minimo (sin depender de tipos de Node — este archivo cae bajo el tsconfig del
-// browser): on/emit alcanzan para simular eventos "del servidor", y disconnect solo queda
-// registrado para afirmar que el cleanup del efecto lo llama. io() mockeado devuelve siempre
-// la misma instancia para poder disparar eventos desde el test.
+// Fake socket sin tipos de Node (este archivo cae bajo el tsconfig del browser). io() mockeado
+// devuelve siempre la misma instancia para poder disparar eventos desde el test.
 class FakeSocket {
   private listeners = new Map<string, ((...args: unknown[]) => void)[]>();
   disconnect = vi.fn();
-  // vi.fn (no un metodo plano): dispara los listeners locales para simular eventos "del
-  // servidor" en los tests Y queda espiable para afirmar que submitPick mando 'draft:pick'.
+  // vi.fn: dispara los listeners locales y a la vez queda espiable para submitPick.
   emit = vi.fn((event: string, ...args: unknown[]) => {
     for (const handler of this.listeners.get(event) ?? []) handler(...args);
   });

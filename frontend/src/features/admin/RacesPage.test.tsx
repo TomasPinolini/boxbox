@@ -175,9 +175,8 @@ describe('RacesPage', () => {
 
     expect(screen.getByLabelText('Nombre')).toHaveValue('Gran Premio de Gran Bretaña');
     expect(screen.getByLabelText('Ronda')).toHaveValue(12);
-    // La fecha vuelve al input en el formato que el input acepta, no el ISO crudo.
-    // toHaveValue no acepta un matcher asimétrico, asi que se compara el value a mano. El dia
-    // puede ser 04 o 05 segun el huso del que corra el test: lo que se afirma es el formato.
+    // toHaveValue no acepta un matcher asimétrico. El dia puede ser 04 o 05 segun el huso del
+    // que corra el test: lo que se afirma es el formato.
     expect((screen.getByLabelText('Fecha de carrera') as HTMLInputElement).value).toMatch(
       /^2026-07-0[45]T\d{2}:\d{2}$/,
     );
@@ -219,8 +218,7 @@ describe('RacesPage', () => {
     );
   });
 
-  // El caso que motivó la guarda del backend: sin ella esto llegaba como 500 y la pantalla
-  // decía "Algo salió mal" para una carrera que simplemente no se puede borrar.
+  // Sin la guarda del backend esto llegaba como 500 y la pantalla decía "Algo salió mal".
   it('muestra en castellano el rechazo de una carrera con resultados', async () => {
     const user = userEvent.setup();
     vi.mocked(racesService.remove).mockRejectedValue(

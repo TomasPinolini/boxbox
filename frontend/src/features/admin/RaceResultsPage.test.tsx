@@ -97,11 +97,9 @@ describe('RaceResultsPage', () => {
       expect(optgroups[0].label).toBe('Cargar resultados');
       expect(optgroups[1].label).toBe('Recalcular standings');
 
-      // UPCOMING race in first optgroup
       const upcoming = optgroups[0].querySelector('option[value="1"]');
       expect(upcoming).toBeInTheDocument();
 
-      // COMPLETED race in second optgroup
       const completed = optgroups[1].querySelector('option[value="2"]');
       expect(completed).toBeInTheDocument();
     });

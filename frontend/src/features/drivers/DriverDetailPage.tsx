@@ -6,7 +6,6 @@ import { DriverResultsTable } from './DriverResultsTable';
 import { TeamBadge } from './TeamBadge';
 import { useDriver } from './drivers.queries';
 
-// Las seis estadisticas que devuelve el backend, en el orden en que se leen.
 const STAT_LABELS: [keyof DriverStats, string][] = [
   ['races', 'Carreras'],
   ['points', 'Puntos'],
@@ -27,9 +26,7 @@ export function DriverDetailPage() {
       </PageShell>
     );
   }
-  // Adentro de PageShell y no suelto: si no, el texto aparece pegado al borde mientras el
-  // contenido real va mucho mas adentro, y la pagina salta al llegar los datos (mismo defecto
-  // que tenia LeagueDetailPage, arreglado ahi primero).
+  // Adentro de PageShell para que la pagina no salte al llegar los datos.
   if (!driver.data) {
     return (
       <PageShell title="Piloto">
@@ -50,8 +47,6 @@ export function DriverDetailPage() {
       }
     >
       <div className="flex flex-col gap-6">
-        {/* La cabecera pasa a Card para poder llevar la banda del equipo arriba. Antes era
-            un div suelto: el unico bloque de la pantalla sin la caja blanca del resto. */}
         <Card className="border-t-4" style={{ borderTopColor: d.constructor?.color ?? '#e2e8f0' }}>
           <div className="flex flex-wrap items-center gap-4">
             <DriverAvatar driver={d} size={88} />
@@ -59,7 +54,6 @@ export function DriverDetailPage() {
               <div className="flex items-center gap-3">
                 <span className="font-display tabular-nums text-lg">#{d.number}</span>
                 <span>{d.code}</span>
-                {/* Desde el piloto se llega a su escuderia. No hay otro click alrededor. */}
                 {d.constructor ? (
                   <Link to={`/constructors/${d.constructor.id}`} className="hover:underline">
                     <TeamBadge constructor={d.constructor} />
@@ -68,16 +62,13 @@ export function DriverDetailPage() {
                   <TeamBadge constructor={d.constructor} />
                 )}
               </div>
-              {/* Las 11 escuderias tienen logo (ver frontend/public/logos/CREDITS.md). Sin
-                  dark:bg-white: son marcas a color con fondo transparente, se leen bien
-                  directo contra la Card oscura — forzar una caja blanca ahi encima quedaba
-                  feo. Pedido del usuario 2026-10-15, mismo criterio en ConstructorLogo.tsx. */}
+              {/* Sin dark:bg-white: los logos tienen fondo transparente y se leen bien sobre
+                  la Card oscura (mismo criterio que ConstructorLogo). */}
               {d.constructor?.logoUrl && (
                 <img
                   src={d.constructor.logoUrl}
-                  // alt vacio + aria-hidden: el <Link> con el TeamBadge, tres lineas mas
-                  // arriba, YA se llama como la escuderia. Con alt se escuchaba "Ferrari,
-                  // enlace" e inmediatamente despues "Ferrari, imagen".
+                  // alt vacio: el <Link> del TeamBadge ya se llama como la escuderia; con alt
+                  // se oia "Ferrari, enlace" y enseguida "Ferrari, imagen".
                   alt=""
                   aria-hidden="true"
                   className="h-10 max-w-[220px] object-contain object-left"

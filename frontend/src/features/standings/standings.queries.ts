@@ -3,7 +3,6 @@ import type { ConstructorStanding, DriverStanding } from '../../models/champions
 import { ApiError } from '../../services/api-error';
 import { driversService } from '../../services/drivers.service';
 
-// Mismo patron que drivers.queries.ts: un hook por lectura, keys como tuplas.
 const keys = {
   drivers: ['championship', 'drivers'] as const,
   constructors: ['championship', 'constructors'] as const,

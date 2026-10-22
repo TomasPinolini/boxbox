@@ -2,8 +2,7 @@ import { useEffect, type ReactNode } from 'react';
 import { authService } from '../services/auth.service';
 import { useAuthStore } from '../store/auth.store';
 
-// Mismo logo claro/oscuro que AppLayout (ver el comentario de Logo() ahi), pero sin el
-// Link envolvente: todavia no existe el router en este punto.
+// Sin Link envolvente: aca todavia no existe el router.
 function Logo() {
   return (
     <>
@@ -22,9 +21,6 @@ export function SessionGate({ children }: { children: ReactNode }) {
     if (!ready) void authService.restoreSession();
   }, [ready]);
 
-  // Centrado y con el logo, no un <p> pegado al borde: todavia no existe el router (no
-  // sabemos si hay sesion ni en que pantalla esta), asi que no hay barra real que mostrar —
-  // pero el primer fotograma de cada F5 puede seguir pareciendo parte de la app.
   if (!ready) {
     return (
       <div className="flex min-h-dvh flex-col items-center justify-center gap-3">

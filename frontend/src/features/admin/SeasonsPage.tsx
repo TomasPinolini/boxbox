@@ -22,8 +22,7 @@ import {
   useUpdateSeason,
 } from './seasons.queries';
 
-// Mismas reglas que createSeasonSchema del backend. `coerce` porque un <input type="number">
-// entrega string: sin esto el backend recibe "2027" y rechaza por tipo, no por valor.
+// `coerce` porque un <input type="number"> entrega string y el backend lo rechazaria por tipo.
 const seasonSchema = z.object({
   year: z.coerce.number().int().min(2020, 'Desde 2020').max(2030, 'Hasta 2030'),
   driverCount: z.coerce.number().int().min(1, 'Mínimo 1').max(30, 'Máximo 30'),
@@ -37,8 +36,7 @@ export function SeasonsPage() {
   const updateSeason = useUpdateSeason();
   const removeSeason = useRemoveSeason();
   const activateSeason = useActivateSeason();
-  // Un solo formulario en dos modos. Con `editing` en null da de alta; con una temporada
-  // adentro, edita esa. Un segundo formulario seria el mismo codigo dos veces.
+  // Con `editing` en null el formulario da de alta.
   const [editing, setEditing] = useState<Season | null>(null);
 
   const form = useForm<SeasonForm, unknown, z.output<typeof seasonSchema>>({
@@ -117,8 +115,7 @@ export function SeasonsPage() {
             <thead>
               <tr className="border-b border-slate-200 text-slate-500 dark:border-ink-border dark:text-ink-muted">
                 <th className="py-2">Año</th>
-                {/* "Cupo" y no "Pilotos": es cuantos entran, no cuantos hay cargados. La
-                    columna de al lado es la otra cosa. */}
+                {/* "Cupo" y no "Pilotos": es cuantos entran, no cuantos hay cargados. */}
                 <th className="py-2">Cupo</th>
                 <th className="py-2">Carreras</th>
                 <th className="py-2">Ligas</th>
@@ -139,20 +136,17 @@ export function SeasonsPage() {
                       </span>
                     )}
                   </td>
-                  {/* Sin conteos el backend es anterior a este cambio: "—" dice que no se
-                      sabe. Un 0 afirmaria que no hay nada, que no es lo mismo. */}
+                  {/* "—" y no 0: sin conteos no se sabe, y un 0 afirmaria que no hay nada. */}
                   <td className="py-2 font-display">{season.counts?.races ?? '—'}</td>
                   <td className="py-2 font-display">{season.counts?.leagues ?? '—'}</td>
                   <td className="py-2 font-display">{season.counts?.drivers ?? '—'}</td>
                   <td className="py-2">
-                    {/* El estado se dice con texto, no solo con color: el acento rojo marca
-                        posicion en esta app, y un color solo no es informacion accesible. */}
+                    {/* Con texto y no solo color: un color solo no es informacion accesible. */}
                     {season.isActive ? <Badge tone="success">Activa</Badge> : null}
                   </td>
                   <td className="py-2">
                     <div className="flex flex-wrap justify-end gap-2">
-                      {/* El nombre accesible lleva el año: con varias filas, "Editar" a secas
-                          es ambiguo para quien navega por lista de botones. */}
+                      {/* Con el año: "Editar" a secas es ambiguo en la lista de botones. */}
                       <Button
                         variant="secondary"
                         aria-label={`Editar ${season.year}`}

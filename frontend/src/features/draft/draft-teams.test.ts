@@ -1,9 +1,8 @@
 import { buildDraftTeams } from './draft-teams';
 import type { DraftPick } from '../../models/draft';
 
-// El orden serpiente de 2 jugadores en 3 rondas: 1-2, 2-1, 1-2. Lo escribo con los
-// pickNumber reales en vez de generarlos, para que el test no repita la formula que
-// genera el orden en el backend.
+// Serpiente de 2 jugadores en 3 rondas: 1-2, 2-1, 1-2. pickNumber escritos a mano para no
+// repetir la formula del backend.
 const pick = (
   pickNumber: number,
   round: number,
@@ -37,9 +36,7 @@ describe('buildDraftTeams', () => {
     expect(others).toEqual([{ leagueMemberId: 20, driverIds: [1, 44], constructorId: 3 }]);
   });
 
-  // Pasa de verdad: el draft arranca con un solo miembro si el dueno aprieta "Iniciar draft"
-  // sin esperar a nadie, y no hay vuelta atras. La pantalla no puede mostrar una seccion
-  // "los demas" vacia en ese caso.
+  // Pasa de verdad: el dueno puede iniciar el draft estando solo.
   it('deja others vacio en una liga de un solo jugador', () => {
     const solo = PICKS.filter((p) => p.leagueMemberId === 10);
     const { mine, others } = buildDraftTeams(solo, 10);
@@ -48,9 +45,7 @@ describe('buildDraftTeams', () => {
     expect(others).toEqual([]);
   });
 
-  // useMembers resuelve despues que el socket, asi que hay un render donde todavia no se sabe
-  // cual de los leagueMemberId soy yo. Lo importante es que nadie se pierda: sin mi id, los
-  // tres equipos siguen estando, todos como "otros".
+  // useMembers resuelve despues que el socket: hay un render sin mi id.
   it('cuando todavia no se sabe quien soy, no pierde ningun equipo', () => {
     const { mine, others } = buildDraftTeams(PICKS, null);
 

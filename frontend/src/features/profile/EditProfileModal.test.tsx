@@ -8,11 +8,8 @@ import { EditProfileModal } from './EditProfileModal';
 
 vi.mock('../../services/auth.service');
 
-// getAllBy* y no getBy*, [0] y no una queja por "found multiple elements": el popup tiene DOS
-// copias de todo en el DOM a propósito (la hoja de mobile y el diálogo de escritorio, CSS
-// decide cuál se ve y jsdom no aplica CSS) — mismo criterio documentado en HelpPopover.test.tsx.
-// Las dos comparten el mismo estado de React (name/motto), así que interactuar con la copia [0]
-// alcanza: la [1] se actualiza sola.
+// getAllBy* y [0]: el popup tiene dos copias en el DOM (hoja de mobile y diálogo de escritorio;
+// CSS elige y jsdom no aplica CSS). Comparten el estado, así que tocar la [0] alcanza.
 
 const user: User = {
   id: 1,
@@ -26,8 +23,7 @@ const user: User = {
 const userConFoto: User = { ...user, avatarUrl: 'https://cdn.test/tomas.jpg' };
 
 describe('EditProfileModal', () => {
-  // vi.mock() auto-mockea el módulo una sola vez, compartido entre los tests de este archivo
-  // — sin esto, el historial de llamadas de un test se arrastra al siguiente.
+  // El mock es compartido por el archivo: sin esto, las llamadas de un test se arrastran al siguiente.
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -95,8 +91,7 @@ describe('EditProfileModal', () => {
     await u.click(screen.getAllByRole('button', { name: 'Guardar' })[0]);
 
     await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
-    // [0][0]: react-query le agrega un segundo argumento de contexto a mutationFn, no nos
-    // importa acá — solo qué le pasó EditProfileModal, el primer argumento.
+    // [0][0]: react-query agrega un segundo argumento de contexto a mutationFn.
     expect(vi.mocked(authService.updateProfile).mock.calls[0][0]).toEqual({
       name: 'Otro nombre',
       motto: 'Viejo lema',
@@ -131,7 +126,6 @@ describe('EditProfileModal', () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 
-  // Badge "x" de sacar la foto — wireframeado y aprobado por el usuario 2026-10-16.
   describe('quitar la foto', () => {
     it('sin foto no hay nada para quitar: el botón no aparece', () => {
       renderWithQuery(<EditProfileModal user={user} onClose={() => {}} />);

@@ -1,7 +1,5 @@
-// Espejo del payload de `draft:state` (backend/src/modules/draft/draft.gateway.ts) — mismo
-// shape que devuelve GET /leagues/:id/draft/state, mas `available` y `timer` que solo manda
-// el socket. Slice 13b (tramo 1) solo LEE este estado; picks y timer countdown quedan para
-// el tramo 2, pero el tipo ya refleja el wire format completo para no romper cuando se sumen.
+// Payload de `draft:state`: lo mismo que GET /leagues/:id/draft/state, mas `available` y
+// `timer`, que solo manda el socket.
 
 import type { ConstructorRef, Driver } from './driver';
 
@@ -17,10 +15,7 @@ export interface DraftPick {
   pickedAt: string | null;
 }
 
-// Drivers/constructors disponibles para pickear — mismo shape que `Driver`/`ConstructorRef`
-// de /drivers (Slice 14), no una version recortada: el picker del draft pinta foto, dorsal
-// y escudería con los mismos componentes (`DriverAvatar`, `TeamBadge`), así que necesita los
-// mismos datos.
+// Mismo shape que /drivers y no uno recortado: el picker usa DriverAvatar y TeamBadge.
 export interface DraftAvailable {
   drivers: Driver[];
   constructors: ConstructorRef[];

@@ -19,8 +19,7 @@ describe('groupByConstructor', () => {
     ]);
   });
 
-  // El caso que reporto el bug: a un piloto de Alpine lo pickean (desaparece del array) y el
-  // companero que queda tiene que seguir solo en su propia fila, no pegado a Ferrari.
+  // Pickean a un piloto de Alpine: el companero sigue solo en su fila, no pegado a Ferrari.
   it('un equipo con un solo piloto disponible queda en su propia tanda, no se mezcla con el siguiente', () => {
     const items = [
       { id: 2, constructor: alpine }, // el companero de equipo ya fue pickeado

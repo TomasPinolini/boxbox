@@ -1,17 +1,13 @@
 import type { Season } from '../models/season';
 import { apiClient } from './api-client';
 
-// El servicio de temporadas: todo lo que habla con /seasons. Sin React, sin URLs en los
-// componentes — mismo contrato que leagues.service.ts.
 export interface SeasonInput {
   year: number;
   driverCount: number;
 }
 
 export const seasonsService = {
-  // Si el backend es anterior a los conteos, `counts` llega undefined y la pantalla muestra
-  // "—". Rellenarlo con ceros seria peor que no tenerlo: una temporada con ligas diria que no
-  // tiene ninguna, y eso es un numero equivocado dicho con seguridad.
+  // `counts` puede llegar undefined: no se rellena con ceros, que dirian algo falso.
   list: () => apiClient.get<Season[]>('/seasons'),
   create: (input: SeasonInput) => apiClient.post<Season>('/seasons', input),
   update: (id: number, input: SeasonInput) => apiClient.patch<Season>(`/seasons/${id}`, input),

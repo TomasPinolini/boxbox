@@ -17,7 +17,7 @@ import { WelcomeTour } from '../help/WelcomeTour';
 import { LeagueCard } from './LeagueCard';
 import { useCreateLeague, useJoinLeague, useLeagues } from './leagues.queries';
 
-// Mismas reglas que createLeagueSchema del backend: 4-20 chars, minusculas/numeros/guiones.
+// Mismas reglas que createLeagueSchema del backend.
 const createSchema = z.object({
   name: z.string().min(1, 'Obligatorio'),
   inviteCode: z
@@ -28,22 +28,19 @@ const joinSchema = z.object({ inviteCode: z.string().min(4, 'Mínimo 4 caractere
 
 export function LeaguesPage() {
   const navigate = useNavigate();
-  // El tour de bienvenida. RegisterPage no puede mostrarlo en su propia pantalla (GuestOnly la
-  // desmonta apenas hay sesión), así que manda un flag en el state de la ruta y se abre acá.
+  // RegisterPage no puede abrir el tour (GuestOnly la desmonta al haber sesión): manda un flag
+  // en el state de la ruta y se abre acá.
   const location = useLocation();
   const veniaDelRegistro = Boolean((location.state as { tour?: boolean } | null)?.tour);
   const [tourOpen, setTourOpen] = useState(veniaDelRegistro);
-  // Y se borra el flag de la entrada del historial: el state lo guarda el navegador, no React,
-  // así que sobrevive a un F5 y sin esto el tour volvería a abrirse en cada recarga.
+  // El state de la ruta lo guarda el navegador y sobrevive a un F5: sin borrarlo, el tour se
+  // reabriría en cada recarga.
   useEffect(() => {
     if (!veniaDelRegistro) return;
     void navigate(location.pathname, { replace: true, state: null });
   }, [veniaDelRegistro, location.pathname, navigate]);
 
   const leagues = useLeagues();
-  // El catalogo se pide una vez para toda la pantalla y cada tarjeta resuelve sus tres ids
-  // contra el. Son las mismas queries que ya usan /drivers y el draft, asi que normalmente
-  // ya estan en cache.
   const drivers = useDrivers();
   const constructors = useConstructors();
   const createLeague = useCreateLeague();
@@ -85,9 +82,8 @@ export function LeaguesPage() {
 
         <aside className="flex flex-col gap-6">
           <Card>
-            {/* El "?" va en el titulo de la tarjeta y no al lado del label del codigo, que es
-                donde la maqueta lo tenia: Field envuelve todo en un <label>, y un <button>
-                adentro de un <label> es HTML invalido — el click tambien enfocaria el input. */}
+            {/* El "?" va en el titulo y no junto al campo: Field envuelve todo en un <label>, y
+                un <button> adentro de un <label> es HTML invalido. */}
             <div className="mb-3 flex items-center gap-2">
               <h2 className="text-lg font-semibold">Crear liga</h2>
               <HelpPopover title="¿Qué es el código de invitación?">
@@ -140,10 +136,7 @@ export function LeaguesPage() {
               )}
               className="flex flex-col gap-3"
             >
-              {/* "Código que te pasaron" y no "Código" a secas: en esta misma pantalla el form
-                  de crear tiene un "Código de invitación", y dos campos que se llaman casi
-                  igual pero significan cosas distintas (uno lo elegís vos, el otro te lo dan)
-                  se confunden. */}
+              {/* No "Código" a secas: se confundiría con el "Código de invitación" de crear. */}
               <Field
                 label="Código que te pasaron"
                 error={joinForm.formState.errors.inviteCode?.message}

@@ -1,12 +1,7 @@
-// Espejo de lo que devuelve backend/src/modules/drivers/drivers.service.ts.
-// El campo se llama `constructor`, no `team`: docs/glossary.md prohibe "team" suelto porque
-// se confunde con FantasyTeam. Ojo que `constructor` es tambien una propiedad heredada de
-// Object.prototype — en tipos de objeto planos como estos no molesta (a diferencia de los
-// `select` de Prisma, donde si rompio en los Slices 4 y 5).
+// `constructor` y no `team`: "team" suelto se confunde con FantasyTeam (docs/glossary.md).
 
 export type RaceResultStatus = 'CLASSIFIED' | 'DNF' | 'DSQ' | 'DNS';
 
-// Version reducida de Constructor: solo lo que hace falta para pintar el chip de equipo.
 export interface ConstructorRef {
   id: number;
   name: string;

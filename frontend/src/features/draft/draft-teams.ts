@@ -7,20 +7,8 @@ export interface DraftTeam {
   constructorId: number | null;
 }
 
-// Agrupa los picks de un draft en un equipo por jugador, separando el tuyo del resto.
-//
-// Funcion pura y en su propio archivo por los mismos dos motivos que draft-announcement.ts:
-// `react-refresh/only-export-components` no deja exportar algo que no sea un componente desde
-// un archivo de componente, y asi se testea sin montar una pantalla que depende del socket,
-// de tres queries y del router.
-//
-// Devuelve { mine, others } y no una lista plana a proposito: la pantalla existe para
-// contestar "que me toco a mi", asi que esa distincion es del dominio y no del render. Con
-// una lista plana, "mi equipo primero" quedaria a criterio de quien dibuje y ningun test lo
-// defenderia.
-//
-// NO resuelve nombres ni fotos: recibe ids y devuelve ids. Los lookups contra useDrivers /
-// useConstructors / useMembers quedan en el componente, igual que en draft-announcement.ts.
+// { mine, others } y no una lista plana: "mi equipo primero" es del dominio y asi lo cubre un test.
+// Recibe y devuelve ids; los lookups de nombres quedan en el componente.
 export function buildDraftTeams(
   picks: DraftPick[],
   myLeagueMemberId: number | null,

@@ -20,13 +20,10 @@ import { toIsoUtc, toLocalInput } from './race-dates';
 import { useCreateRace, useRaces, useRemoveRace, useUpdateRace } from './races.queries';
 import { useSeasons } from './seasons.queries';
 
-// Mismas reglas que createRaceSchema del backend. La diferencia es el formato de las fechas:
-// el <input type="datetime-local"> entrega "2026-07-05T14:00" y el backend exige ISO con zona,
-// asi que cada fecha pasa por toIsoUtc (ver race-dates.ts).
+// El <input type="datetime-local"> entrega "2026-07-05T14:00" y el backend exige ISO con zona.
 const fechaObligatoria = z.string().min(1, 'Obligatorio').transform(toIsoUtc);
 
-// Opcional de verdad: vacio sale como undefined, no como null ni como "". El backend las tiene
-// `.optional()`, asi que un null lo rechazaria con VALIDATION_ERROR.
+// Vacio sale como undefined: el backend tiene `.optional()` y un null lo rechaza.
 const fechaOpcional = z
   .string()
   .transform((valor) => (valor === '' ? undefined : toIsoUtc(valor)))
@@ -58,9 +55,7 @@ const EMPTY: RaceForm = {
   circuitId: '',
 };
 
-// El enum vive en el backend en ingles; la pantalla es lo unico que lo traduce. Privado a
-// proposito: si otra pantalla lo necesita, se muda a su propio archivo (regla de
-// react-refresh/only-export-components).
+// Si otra pantalla lo necesita, se muda a su propio archivo (react-refresh/only-export-components).
 const ESTADOS: Record<RaceStatus, { label: string; tone: BadgeTone }> = {
   UPCOMING: { label: 'Por correr', tone: 'info' },
   QUALIFYING_LOCKED: { label: 'Clasificación cerrada', tone: 'warning' },
@@ -69,7 +64,6 @@ const ESTADOS: Record<RaceStatus, { label: string; tone: BadgeTone }> = {
   POSTPONED: { label: 'Postergada', tone: 'neutral' },
 };
 
-// Fecha para la tabla: dia y hora en el reloj del que mira, sin segundos. `date` llega en UTC.
 const fechaCorta = new Intl.DateTimeFormat('es-AR', { dateStyle: 'short', timeStyle: 'short' });
 
 export function RacesPage() {
@@ -79,7 +73,7 @@ export function RacesPage() {
   const createRace = useCreateRace();
   const updateRace = useUpdateRace();
   const removeRace = useRemoveRace();
-  // Un solo formulario en dos modos, igual que circuitos: con `editing` en null da de alta.
+  // Con `editing` en null el formulario da de alta.
   const [editing, setEditing] = useState<Race | null>(null);
 
   const form = useForm<RaceForm, unknown, z.output<typeof raceSchema>>({
@@ -138,9 +132,8 @@ export function RacesPage() {
           <Field label="Ronda" error={form.formState.errors.round?.message}>
             <input type="number" min="1" className={inputClass} {...form.register('round')} />
           </Field>
-          {/* Los dos <select> se pueblan con sus propios listados y no con lo que ya aparece en
-              la tabla: si las opciones salieran de las carreras cargadas, una temporada sin
-              carreras no se podria elegir nunca — el mismo criterio que el filtro de pilotos. */}
+          {/* Opciones de sus propios listados y no de la tabla: si no, una temporada sin
+              carreras no se podria elegir nunca. */}
           <Field label="Temporada" error={form.formState.errors.seasonId?.message}>
             <select className={selectClass} {...form.register('seasonId')}>
               <option value="">Elegí una temporada</option>
@@ -165,9 +158,7 @@ export function RacesPage() {
           <Field label="Fecha de carrera" error={form.formState.errors.date?.message}>
             <input type="datetime-local" className={inputClass} {...form.register('date')} />
           </Field>
-          {/* lockDate es el unico campo cuyo nombre no explica que hace, y cargarlo mal no se
-              nota hasta que alguien intenta jugar. De ahi la ayuda, asociada por
-              aria-describedby y no suelta al lado. */}
+          {/* Cargar mal el cierre no se nota hasta que alguien juega: de ahi la ayuda. */}
           <div>
             <Field label="Cierre" error={form.formState.errors.lockDate?.message}>
               <input
@@ -246,8 +237,6 @@ export function RacesPage() {
                   >
                     <td className="py-2 font-display">{race.round}</td>
                     <td className="py-2">{race.name}</td>
-                    {/* El año y no el seasonId: el id no le dice nada a nadie. "—" cuando el
-                        listado de temporadas todavia no llego. */}
                     <td className="py-2">{anioDe(race) || '—'}</td>
                     <td className="py-2">{race.circuit.name}</td>
                     <td className="py-2">{fechaCorta.format(new Date(race.date))}</td>
@@ -256,8 +245,7 @@ export function RacesPage() {
                     </td>
                     <td className="py-2">
                       <div className="flex flex-wrap justify-end gap-2">
-                        {/* El nombre accesible lleva la carrera: con 23 filas, "Editar" a secas
-                            es ambiguo para quien navega por lista de botones. */}
+                        {/* Con la carrera: "Editar" a secas es ambiguo en la lista de botones. */}
                         <Button
                           variant="secondary"
                           aria-label={`Editar ${race.name}`}
@@ -269,9 +257,6 @@ export function RacesPage() {
                           label="Borrar"
                           ariaLabel={`Borrar ${race.name}`}
                           confirmLabel="Confirmar borrado"
-                          // A diferencia de circuitos, esta baja NO es logica: la fila
-                          // desaparece de la base. Y si la carrera ya tiene resultados, el
-                          // backend la rechaza con RACE_HAS_DEPENDENCIES.
                           consequence={`${race.name} se borra de la base, no se da de baja. Si ya tiene resultados cargados, el backend va a rechazarlo.`}
                           variant="danger"
                           disabled={removeRace.isPending}
