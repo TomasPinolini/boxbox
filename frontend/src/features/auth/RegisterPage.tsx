@@ -6,7 +6,8 @@ import { z } from 'zod';
 import { Alert, Button } from '../../components/ui';
 import { ApiError, toApiError } from '../../services/api-error';
 import { authService } from '../../services/auth.service';
-import { AboutBoxBox } from './AboutBoxBox';
+import { AuthLayout } from './AuthLayout';
+import { GlassField } from './GlassField';
 
 const schema = z.object({
   name: z.string().min(2, 'Mínimo 2 caracteres'),
@@ -14,10 +15,6 @@ const schema = z.object({
   password: z.string().min(8, 'Mínimo 8 caracteres'),
 });
 type RegisterForm = z.infer<typeof schema>;
-
-// Mismo input "de vidrio" que LoginPage.
-const glassInputClass =
-  'w-full rounded-t-md border-0 border-b border-white/35 bg-white/10 px-3 py-2.5 text-white placeholder:text-white/40 focus:border-red-500 focus:bg-white/15 focus:outline-none';
 
 export function RegisterPage() {
   const navigate = useNavigate();
@@ -41,111 +38,53 @@ export function RegisterPage() {
   }
 
   return (
-    // Mismo layout que LoginPage. Sin clases dark: la foto de fondo es igual en los dos temas.
-    <div className="relative min-h-dvh overflow-hidden">
-      <img
-        src="/login-hero-mobile.jpg"
-        alt=""
-        aria-hidden="true"
-        className="absolute inset-0 h-full w-full scale-105 object-cover blur-[2px] md:hidden"
-      />
-      <img
-        src="/login-hero-desktop.jpg"
-        alt=""
-        aria-hidden="true"
-        className="absolute inset-0 hidden h-full w-full scale-105 object-cover blur-[2px] md:block"
-      />
-      <div className="absolute inset-0 bg-black/55" />
-      <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-black/10" />
-
-      <div className="relative z-10 flex min-h-dvh flex-col items-center text-center md:items-stretch md:text-left">
-        <div className="px-6 pt-14 md:px-16 md:pt-28">
-          <img
-            src="/logo-oscuro.svg"
-            alt="boxbox"
-            className="mx-auto h-10 w-auto md:mx-0 md:h-14"
+    <AuthLayout>
+      <form onSubmit={handleSubmit(onSubmit)} className="w-full max-w-sm text-left">
+        <h1 className="mb-6 text-2xl font-bold text-white">Crear cuenta</h1>
+        <div className="flex flex-col gap-5">
+          <GlassField
+            label="Nombre"
+            type="text"
+            autoComplete="name"
+            registration={register('name')}
+            error={errors.name?.message}
           />
-          <p className="mt-3.5 text-sm font-medium text-white/80 md:mt-4 md:text-base">
-            Fantasy League de F1
-          </p>
+          <GlassField
+            label="Email"
+            type="email"
+            autoComplete="email"
+            registration={register('email')}
+            error={errors.email?.message}
+          />
+          <GlassField
+            label="Contraseña"
+            type="password"
+            autoComplete="new-password"
+            registration={register('password')}
+            error={errors.password?.message}
+          />
+          {error && <Alert code={error.code} message={error.message} />}
+          <Button type="submit" disabled={isSubmitting}>
+            {isSubmitting ? 'Creando…' : 'Crear cuenta'}
+          </Button>
         </div>
-
-        <div className="flex flex-1 items-center justify-center px-6 md:justify-end md:px-24">
-          <form onSubmit={handleSubmit(onSubmit)} className="w-full max-w-sm text-left">
-            <h1 className="mb-6 text-2xl font-bold text-white">Crear cuenta</h1>
-            <div className="flex flex-col gap-5">
-              <label className="block">
-                <span className="mb-1.5 block text-sm font-medium text-white/70">Nombre</span>
-                <input
-                  type="text"
-                  autoComplete="name"
-                  className={glassInputClass}
-                  {...register('name')}
-                />
-                {errors.name && (
-                  <span className="mt-1.5 block text-sm text-red-400">
-                    {errors.name.message}
-                  </span>
-                )}
-              </label>
-              <label className="block">
-                <span className="mb-1.5 block text-sm font-medium text-white/70">Email</span>
-                <input
-                  type="email"
-                  autoComplete="email"
-                  className={glassInputClass}
-                  {...register('email')}
-                />
-                {errors.email && (
-                  <span className="mt-1.5 block text-sm text-red-400">
-                    {errors.email.message}
-                  </span>
-                )}
-              </label>
-              <label className="block">
-                <span className="mb-1.5 block text-sm font-medium text-white/70">
-                  Contraseña
-                </span>
-                <input
-                  type="password"
-                  autoComplete="new-password"
-                  className={glassInputClass}
-                  {...register('password')}
-                />
-                {errors.password && (
-                  <span className="mt-1.5 block text-sm text-red-400">
-                    {errors.password.message}
-                  </span>
-                )}
-              </label>
-              {error && <Alert code={error.code} message={error.message} />}
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? 'Creando…' : 'Crear cuenta'}
-              </Button>
-            </div>
-            {/* El aviso beta va junto al boton y no en un banner (banner blindness): esta
-                pantalla no tiene AppLayout, asi que tampoco el rotulo "Beta". */}
-            <p className="mt-4 text-sm text-white/70">
-              BoxBox está en beta: todavía le faltan cosas y, si corregimos un error de cálculo,
-              los puntos de tu liga se pueden mover.{' '}
-              <Link to="/novedades" className="font-semibold text-white hover:underline">
-                Mirá qué falta
-              </Link>
-              .
-            </p>
-            <p className="mt-5 text-sm text-white/70">
-              ¿Ya tenés cuenta?{' '}
-              <Link to="/login" className="font-semibold text-white hover:underline">
-                Entrá
-              </Link>
-            </p>
-          </form>
-        </div>
-
-        <div className="px-6 pb-10 md:px-16 md:pb-14">
-          <AboutBoxBox />
-        </div>
-      </div>
-    </div>
+        {/* El aviso beta va junto al boton y no en un banner (banner blindness): esta
+            pantalla no tiene AppLayout, asi que tampoco el rotulo "Beta". */}
+        <p className="mt-4 text-sm text-white/70">
+          BoxBox está en beta: todavía le faltan cosas y, si corregimos un error de cálculo, los
+          puntos de tu liga se pueden mover.{' '}
+          <Link to="/novedades" className="font-semibold text-white hover:underline">
+            Mirá qué falta
+          </Link>
+          .
+        </p>
+        <p className="mt-5 text-sm text-white/70">
+          ¿Ya tenés cuenta?{' '}
+          <Link to="/login" className="font-semibold text-white hover:underline">
+            Entrá
+          </Link>
+        </p>
+      </form>
+    </AuthLayout>
   );
 }
