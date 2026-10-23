@@ -1,33 +1,25 @@
-import { AxiosError, AxiosHeaders } from 'axios';
-import { ApiError, toApiError } from './api-error';
+import { ApiError, errorFromResponse, toApiError } from './api-error';
 
-function axiosErrorWith(status: number, data?: unknown): AxiosError {
-  const err = new AxiosError('Request failed', 'ERR_BAD_REQUEST');
-  err.response = {
-    status,
-    data,
-    statusText: '',
-    headers: {},
-    config: { headers: new AxiosHeaders() },
-  };
-  return err;
-}
-
-describe('toApiError', () => {
-  it('convierte el envelope { error } del backend en ApiError', () => {
-    const err = toApiError(
-      axiosErrorWith(409, {
-        error: { code: 'LEAGUE_FULL', message: 'League is at capacity', status: 409 },
-      }),
-    );
+describe('errorFromResponse', () => {
+  it('convierte el envelope { error } del backend en ApiError', async () => {
+    const body = { error: { code: 'LEAGUE_FULL', message: 'League is at capacity', status: 409 } };
+    const err = await errorFromResponse(new Response(JSON.stringify(body), { status: 409 }));
     expect(err).toBeInstanceOf(ApiError);
     expect(err.code).toBe('LEAGUE_FULL');
     expect(err.status).toBe(409);
     expect(err.message).toBe('League is at capacity');
   });
 
+  it('una respuesta que no es el envelope queda como UNKNOWN_ERROR con su status', async () => {
+    const err = await errorFromResponse(new Response('<html>Bad Gateway</html>', { status: 502 }));
+    expect(err.code).toBe('UNKNOWN_ERROR');
+    expect(err.status).toBe(502);
+  });
+});
+
+describe('toApiError', () => {
   it('sin respuesta del server es NETWORK_ERROR', () => {
-    const err = toApiError(new AxiosError('Network Error', 'ERR_NETWORK'));
+    const err = toApiError(new TypeError('Failed to fetch'));
     expect(err.code).toBe('NETWORK_ERROR');
     expect(err.status).toBe(0);
   });
