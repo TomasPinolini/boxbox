@@ -12,7 +12,6 @@ import { createTestAdmin } from '../../tests/setup';
 import { env } from '../../config/env';
 import { prisma } from '../../shared/prisma';
 import { registerDraftGateway, clearAllDraftTimers } from './draft.gateway';
-import { setIo } from '../../shared/socket';
 
 const PICK_TIMEOUT_MS = 300;
 
@@ -23,7 +22,6 @@ let port: number;
 beforeAll(async () => {
   httpServer = createServer(app);
   io = registerDraftGateway(httpServer, { pickTimeoutMs: PICK_TIMEOUT_MS });
-  setIo(io);
   await new Promise<void>((resolve) => httpServer.listen(0, resolve));
   const address = httpServer.address();
   port = typeof address === 'object' && address !== null ? address.port : 0;
@@ -36,7 +34,6 @@ afterEach(() => {
 });
 
 afterAll(async () => {
-  setIo(null);
   // io.close() y no httpServer.close(): este ultimo se cuelga esperando las conexiones
   // keep-alive de socket.io y el hook termina en timeout.
   await new Promise<void>((resolve) => io.close(() => resolve()));
@@ -64,7 +61,13 @@ async function seedDriver(seasonId?: number) {
   const res = await request(app)
     .post('/api/v1/drivers')
     .set('Authorization', `Bearer ${accessToken}`)
-    .send({ firstName: 'GW', lastName: `D${n}`, number: n, code: `G${String(n).padStart(2, '0')}`, externalId: `gw-driver-${n}` });
+    .send({
+      firstName: 'GW',
+      lastName: `D${n}`,
+      number: n,
+      code: `G${String(n).padStart(2, '0')}`,
+      externalId: `gw-driver-${n}`,
+    });
   if (res.status !== 201) throw new Error(`seedDriver fallo: ${JSON.stringify(res.body)}`);
   const driverId = res.body.data.id as number;
 
@@ -121,7 +124,10 @@ async function setupLeague(count: number) {
 }
 
 async function discoverOrder(leagueId: number, members: Member[]): Promise<Member[]> {
-  const round1 = await prisma.draftPick.findMany({ where: { leagueId, round: 1 }, orderBy: { pickNumber: 'asc' } });
+  const round1 = await prisma.draftPick.findMany({
+    where: { leagueId, round: 1 },
+    orderBy: { pickNumber: 'asc' },
+  });
   return round1.map((p) => members.find((m) => m.leagueMemberId === p.leagueMemberId)!);
 }
 
@@ -133,9 +139,16 @@ function connectSocket(token: string, leagueId: number): ClientSocket {
   });
 }
 
-function waitForEvent<T = unknown>(socket: ClientSocket, event: string, timeoutMs = 2000): Promise<T> {
+function waitForEvent<T = unknown>(
+  socket: ClientSocket,
+  event: string,
+  timeoutMs = 2000,
+): Promise<T> {
   return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error(`timeout esperando evento '${event}'`)), timeoutMs);
+    const timer = setTimeout(
+      () => reject(new Error(`timeout esperando evento '${event}'`)),
+      timeoutMs,
+    );
     socket.once(event, (payload: T) => {
       clearTimeout(timer);
       resolve(payload);
@@ -154,7 +167,10 @@ function waitForConnect(socket: ClientSocket): Promise<void> {
 // server puede emitir el estado apenas conecta.
 async function connectMember(token: string, leagueId: number) {
   const socket = connectSocket(token, leagueId);
-  const statePromise = waitForEvent<{ draftStatus: string; picks: unknown[] }>(socket, 'draft:state');
+  const statePromise = waitForEvent<{ draftStatus: string; picks: unknown[] }>(
+    socket,
+    'draft:state',
+  );
   await waitForConnect(socket);
   const state = await statePromise;
   return { socket, state };
@@ -204,12 +220,21 @@ describe('draft namespace — draft:pick', () => {
       connectMember(order[1].token, leagueId),
     ]);
 
-    const updatePromiseFirst = waitForEvent<{ pick: { driverId: number } }>(socketFirst, 'draft:update');
-    const updatePromiseSecond = waitForEvent<{ pick: { driverId: number } }>(socketSecond, 'draft:update');
+    const updatePromiseFirst = waitForEvent<{ pick: { driverId: number } }>(
+      socketFirst,
+      'draft:update',
+    );
+    const updatePromiseSecond = waitForEvent<{ pick: { driverId: number } }>(
+      socketSecond,
+      'draft:update',
+    );
 
     socketFirst.emit('draft:pick', { driverId: d1 });
 
-    const [updateFirst, updateSecond] = await Promise.all([updatePromiseFirst, updatePromiseSecond]);
+    const [updateFirst, updateSecond] = await Promise.all([
+      updatePromiseFirst,
+      updatePromiseSecond,
+    ]);
     expect(updateFirst.pick.driverId).toBe(d1);
     expect(updateSecond.pick.driverId).toBe(d1);
 
@@ -335,7 +360,10 @@ describe('draft namespace — timer y auto-pick', () => {
       .set('Authorization', `Bearer ${owner.token}`);
     await waitForEvent(socket, 'draft:timer');
 
-    const completePromise = waitForEvent<{ teams: { constructorId: number }[] }>(socket, 'draft:complete');
+    const completePromise = waitForEvent<{ teams: { constructorId: number }[] }>(
+      socket,
+      'draft:complete',
+    );
 
     for (let i = 0; i < 2; i++) {
       const updatePromise = waitForEvent(socket, 'draft:update');

@@ -1,7 +1,6 @@
 import { Request, Response } from 'express';
 import * as leaguesService from './leagues.service';
-import { getIo } from '../../shared/socket';
-import { announceLeagueArchived } from '../draft/draft.gateway';
+import { notifyLeagueArchived } from '../draft/draft.gateway';
 
 export async function create(req: Request, res: Response) {
   const league = await leaguesService.createLeague(req.body, req.user!.userId);
@@ -21,13 +20,7 @@ export async function getById(req: Request, res: Response) {
 export async function update(req: Request, res: Response) {
   const league = await leaguesService.updateLeague(Number(req.params.id), req.body);
   // Archivar con un draft en vivo saca a los jugadores de la pantalla del draft.
-  // getIo() es null en los tests con supertest, asi que ahi no hace nada.
-  if (league.status === 'ARCHIVED') {
-    const io = getIo();
-    if (io) {
-      announceLeagueArchived(io, league.id);
-    }
-  }
+  if (league.status === 'ARCHIVED') notifyLeagueArchived(league.id);
   res.json({ data: league });
 }
 

@@ -1,6 +1,6 @@
 // Las reglas del draft viven en draft.service.ts; aca solo hay auth del handshake, rooms,
 // broadcasts y el timer de auto-pick. El server no tickea el countdown: avisa una vez cuanto
-// dura y dispara una vez al vencer. Los picks por REST emiten los mismos eventos.
+// dura y dispara una vez al vencer. Lo que llega por REST avisa con las funciones notify*.
 
 import type { Server as HttpServer } from 'http';
 import { Server as SocketIOServer, Socket } from 'socket.io';
@@ -8,18 +8,13 @@ import { env } from '../../config/env';
 import { prisma } from '../../shared/prisma';
 import { verifyAccessToken } from '../../shared/jwt';
 import { AppError } from '../../shared/errors';
-import {
-  getDraftState,
-  getAvailablePicks,
-  submitPick,
-  categoryForRound,
-} from './draft.service';
+import { getDraftState, getAvailablePicks, submitPick, categoryForRound } from './draft.service';
 import { draftPickSchema } from './draft.schema';
 
 const DEFAULT_PICK_TIMEOUT_MS = 60_000;
 
-// A nivel de modulo y no como parametro: draft.controller.ts llama a las funciones exportadas
-// sin saber de timers y tiene que respetar el override que registro el gateway (tests).
+// A nivel de modulo y no como parametro: los notify* que llaman los controllers no saben de
+// timers y tienen que respetar el override que registro el gateway (tests).
 let configuredPickTimeoutMs = DEFAULT_PICK_TIMEOUT_MS;
 
 type SocketData = {
@@ -49,7 +44,10 @@ function roomName(leagueId: number): string {
 
 // En memoria: un restart del server pierde los timers. startedAt permite decirle a un cliente
 // que se conecta a mitad del countdown cuanto le queda.
-const activeTimers = new Map<number, { handle: NodeJS.Timeout; startedAt: number; timeoutMs: number }>();
+const activeTimers = new Map<
+  number,
+  { handle: NodeJS.Timeout; startedAt: number; timeoutMs: number }
+>();
 
 function clearDraftTimer(leagueId: number): void {
   const existing = activeTimers.get(leagueId);
@@ -98,7 +96,11 @@ function scheduleAutoPick(io: DraftServer, leagueId: number): void {
 // Al azar entre los legales de la ronda: no hay ranking para elegir "el mejor disponible".
 async function runAutoPick(io: DraftServer, leagueId: number): Promise<void> {
   const state = await getDraftState(leagueId);
-  if (state.draftStatus !== 'LIVE' || state.round === null || state.currentTurnLeagueMemberId === null) {
+  if (
+    state.draftStatus !== 'LIVE' ||
+    state.round === null ||
+    state.currentTurnLeagueMemberId === null
+  ) {
     // Se reseteo o completo entre que se agendo el timer y que disparo.
     return;
   }
@@ -127,8 +129,8 @@ async function runAutoPick(io: DraftServer, leagueId: number): Promise<void> {
   await broadcastPickResult(io, leagueId);
 }
 
-// Despues de cualquier pick exitoso: por socket, por REST (draft.controller.ts) o del timer.
-export async function broadcastPickResult(io: DraftServer, leagueId: number): Promise<void> {
+// Despues de cualquier pick exitoso: por socket, por REST (notifyPick) o del timer.
+async function broadcastPickResult(io: DraftServer, leagueId: number): Promise<void> {
   const state = await getDraftState(leagueId);
   const available = await getAvailablePicks(leagueId);
   const lastPick = state.picks[state.picks.length - 1] ?? null;
@@ -152,7 +154,7 @@ export async function broadcastPickResult(io: DraftServer, leagueId: number): Pr
   scheduleAutoPick(io, leagueId);
 }
 
-export async function announceDraftStarted(io: DraftServer, leagueId: number): Promise<void> {
+async function announceDraftStarted(io: DraftServer, leagueId: number): Promise<void> {
   const state = await getDraftState(leagueId);
   const available = await getAvailablePicks(leagueId);
   io.of('/draft')
@@ -161,7 +163,7 @@ export async function announceDraftStarted(io: DraftServer, leagueId: number): P
   scheduleAutoPick(io, leagueId);
 }
 
-export async function announceDraftReset(io: DraftServer, leagueId: number): Promise<void> {
+async function announceDraftReset(io: DraftServer, leagueId: number): Promise<void> {
   clearDraftTimer(leagueId);
   const state = await getDraftState(leagueId);
   const available = await getAvailablePicks(leagueId);
@@ -172,10 +174,33 @@ export async function announceDraftReset(io: DraftServer, leagueId: number): Pro
 
 // Se puede archivar con el draft corriendo; sin este aviso los demas siguen mirando el reloj
 // de una liga muerta. Va por /draft porque la pantalla de la liga no abre socket.
-export function announceLeagueArchived(io: DraftServer, leagueId: number): void {
+function announceLeagueArchived(io: DraftServer, leagueId: number): void {
   clearDraftTimer(leagueId);
   io.of('/draft').to(roomName(leagueId)).emit('league:archived', { leagueId });
 }
+
+// El socket lo recibe registerDraftGateway una sola vez. Sin gateway registrado, como en los
+// tests con supertest (importan app, no server.ts), los notify* no hacen nada.
+let draftIo: DraftServer | null = null;
+
+// Disparar y olvidarse: el pedido HTTP no espera el aviso, y un error se loguea en vez de
+// terminar el proceso por una promesa rechazada sin catch.
+function notify(name: string, run: (io: DraftServer) => Promise<void> | void): void {
+  const io = draftIo;
+  if (!io) return;
+  void Promise.resolve()
+    .then(() => run(io))
+    .catch((err) => console.error(`[draft] ${name} fallo`, err));
+}
+
+export const notifyPick = (leagueId: number) =>
+  notify('notifyPick', (io) => broadcastPickResult(io, leagueId));
+export const notifyDraftStarted = (leagueId: number) =>
+  notify('notifyDraftStarted', (io) => announceDraftStarted(io, leagueId));
+export const notifyDraftReset = (leagueId: number) =>
+  notify('notifyDraftReset', (io) => announceDraftReset(io, leagueId));
+export const notifyLeagueArchived = (leagueId: number) =>
+  notify('notifyLeagueArchived', (io) => announceLeagueArchived(io, leagueId));
 
 async function handleSocketPick(io: DraftServer, socket: Socket, payload: unknown) {
   const parsed = draftPickSchema.safeParse(payload);
@@ -261,5 +286,6 @@ export function registerDraftGateway(
     });
   });
 
+  draftIo = io;
   return io;
 }
