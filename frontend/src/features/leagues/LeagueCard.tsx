@@ -3,6 +3,7 @@ import type { ConstructorRef, Driver } from '../../models/driver';
 import type { LeagueListItem } from '../../models/league';
 import { ConstructorLogo } from '../drivers/ConstructorLogo';
 import { DriverAvatar } from '../drivers/DriverAvatar';
+import { resolveTeam } from '../drivers/resolve-team';
 import { DRAFT_LABEL } from './draft-label';
 
 // La tarjeta entera es el boton (stretched link), como DriverCard.
@@ -20,10 +21,12 @@ export function LeagueCard({
   const draft = DRAFT_LABEL[league.draftStatus];
 
   const equipo = league.myTeam;
-  const misPilotos = [equipo?.driver1Id, equipo?.driver2Id]
-    .map((driverId) => drivers.find((d) => d.id === driverId))
-    .filter((d): d is Driver => d !== undefined);
-  const miEscuderia = constructors.find((c) => c.id === equipo?.constructorId) ?? null;
+  const { drivers: misPilotos, constructor: miEscuderia } = resolveTeam(
+    [equipo?.driver1Id, equipo?.driver2Id],
+    equipo?.constructorId,
+    drivers,
+    constructors,
+  );
   // Antes del draft el FantasyTeam existe con los slots vacios: no se dibuja nada.
   const hayEquipo = misPilotos.length > 0 || miEscuderia !== null;
 
