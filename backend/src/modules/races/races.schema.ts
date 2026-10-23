@@ -30,7 +30,6 @@ export const listRacesQuerySchema = seasonQuerySchema.extend({
 const raceResultItemSchema = z.object({
   driverId: z.number().int().positive(),
   position: z.number().int().positive().optional(),
-  points: z.number().int().nonnegative(),
   gridPosition: z.number().int().positive().optional(),
   laps: z.number().int().nonnegative().optional(),
   fastestLap: z.boolean().optional(),

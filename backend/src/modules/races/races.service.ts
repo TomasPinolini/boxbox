@@ -4,6 +4,7 @@ import type { RaceStatus } from '../../generated/prisma/enums';
 import { NotFoundError, ConflictError } from '../../shared/errors';
 import { CreateRaceInput, UpdateRaceInput, LoadRaceResultsInput } from './races.schema';
 import { seasonTeams } from '../drivers/drivers.service';
+import { recalculateInTx } from '../standings/standings.service';
 
 export async function findAll(seasonId?: number, status?: RaceStatus) {
   return prisma.race.findMany({
@@ -92,6 +93,17 @@ export async function remove(id: number) {
 
 const LOADABLE_STATUSES: readonly RaceStatus[] = ['UPCOMING', 'QUALIFYING_LOCKED'];
 
+// Puntos del Gran Premio por puesto final. Desde 2025 no hay punto por vuelta rapida.
+// Limitacion conocida: no contempla el puntaje reducido de una carrera suspendida.
+const POINTS_BY_POSITION = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1];
+
+function pointsFor(position: number | undefined, status: string): number {
+  if (status !== 'CLASSIFIED' || position === undefined) return 0;
+  return POINTS_BY_POSITION[position - 1] ?? 0;
+}
+
+type ScoredResult = LoadRaceResultsInput['results'][number] & { points: number };
+
 export async function loadResults(raceId: number, input: LoadRaceResultsInput) {
   // El @@unique([raceId, driverId]) tambien lo frena, pero con un error de Prisma poco claro.
   const driverIds = input.results.map((r) => r.driverId);
@@ -150,16 +162,21 @@ export async function loadResults(raceId: number, input: LoadRaceResultsInput) {
         'DRIVER_NOT_IN_SEASON',
       );
     }
-    const constructorRows = buildConstructorResults(raceId, input.results, constructorOf);
+    const scored: ScoredResult[] = input.results.map((r) => ({
+      ...r,
+      points: pointsFor(r.position, r.status),
+    }));
+    const constructorRows = buildConstructorResults(raceId, scored, constructorOf);
 
     await tx.raceResult.createMany({
-      data: input.results.map((r) => ({ ...r, raceId })),
+      data: scored.map((r) => ({ ...r, raceId })),
     });
     await tx.constructorResult.createMany({ data: constructorRows });
     await tx.race.update({
       where: { id: raceId },
       data: { status: 'COMPLETED' },
     });
+    await recalculateInTx(tx, race);
     return tx.raceResult.findMany({
       where: { raceId },
       orderBy: [{ position: { sort: 'asc', nulls: 'last' } }],
@@ -179,7 +196,7 @@ type ConstructorResultRow = {
 // fila: standings lo trata como 0.
 function buildConstructorResults(
   raceId: number,
-  results: LoadRaceResultsInput['results'],
+  results: ScoredResult[],
   constructorOf: Map<number, number>,
 ): ConstructorResultRow[] {
   const pointsByConstructor = new Map<number, number[]>();

@@ -138,7 +138,6 @@ function mapResult(r: JolpicaResult, driverId: number): LoadRaceResultsInput['re
     driverId,
     // Jolpica numera tambien a los no clasificados; aca `position` es puesto final.
     ...(status === 'CLASSIFIED' ? { position: r.position } : {}),
-    points: r.points,
     // grid 0 = largo desde boxes: no tiene posicion de grilla.
     ...(r.grid ? { gridPosition: r.grid } : {}),
     ...(r.laps !== undefined ? { laps: r.laps } : {}),
@@ -191,7 +190,7 @@ export function syncResults(raceId: number, triggeredById: number, dryRun: boole
       }
     }
 
-    // Aca no hay middleware que valide: el schema ataja p. ej. medios puntos (points es Int).
+    // Aca no hay middleware que valide. Los puntos de Jolpica no viajan: los calcula loadResults.
     const parsed = loadRaceResultsSchema.safeParse({ results: mapped });
     if (!parsed.success) {
       throw new AppError(

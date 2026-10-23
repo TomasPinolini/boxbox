@@ -287,19 +287,20 @@ describe('POST /admin/sync/races/:id/results (12c)', () => {
     expect(by('russell')).toEqual({
       driverId: driverId.russell,
       position: 1,
-      points: 25,
       gridPosition: 1,
       laps: 58,
       fastestLap: false,
       status: 'CLASSIFIED',
     });
-    expect(by('bearman')).toMatchObject({ position: 7, points: 6, status: 'CLASSIFIED' });
-    expect(by('max_verstappen')).toMatchObject({ position: 6, points: 8, fastestLap: true });
-    expect(by('stroll')).toMatchObject({ points: 0, laps: 43, status: 'DNF' });
+    expect(by('bearman')).toMatchObject({ position: 7, status: 'CLASSIFIED' });
+    expect(by('max_verstappen')).toMatchObject({ position: 6, fastestLap: true });
+    expect(by('stroll')).toMatchObject({ laps: 43, status: 'DNF' });
     expect(by('stroll')).not.toHaveProperty('position');
     expect(by('alonso')).toMatchObject({ status: 'DNF' });
-    expect(by('piastri')).toMatchObject({ points: 0, laps: 0, status: 'DNS' });
+    expect(by('piastri')).toMatchObject({ laps: 0, status: 'DNS' });
     expect(by('piastri')).not.toHaveProperty('position');
+    // Los puntos de Jolpica no viajan: los calcula loadResults con la tabla.
+    expect(by('russell')).not.toHaveProperty('points');
   });
 
   it('import real: carga via loadResults, deriva ConstructorResults, cierra la Race, log PARTIAL', async () => {
