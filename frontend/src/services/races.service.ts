@@ -27,7 +27,6 @@ export interface RaceInput {
   round: number;
   date: string;
   qualifyingDate?: string;
-  sprintDate?: string;
   seasonId: number;
   circuitId: number;
 }

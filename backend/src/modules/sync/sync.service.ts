@@ -86,7 +86,6 @@ export function syncRaces(year: number, triggeredById: number) {
         name: r.raceName,
         date,
         qualifyingDate: r.Qualifying ? toDate(r.Qualifying) : null,
-        sprintDate: r.Sprint ? toDate(r.Sprint) : null,
         circuitId: circuit.id,
       };
 

@@ -11,7 +11,6 @@ export const createRaceSchema = z.object({
   round: z.number().int().min(1),
   date: isoDate,
   qualifyingDate: isoDate.optional(),
-  sprintDate: isoDate.optional(),
   seasonId: z.number().int(),
   circuitId: z.number().int(),
 });

@@ -43,7 +43,6 @@ const britanico: Race = {
   round: 12,
   date: '2026-07-05T14:00:00.000Z',
   qualifyingDate: null,
-  sprintDate: null,
   status: 'UPCOMING',
   seasonId: 1,
   circuitId: 10,
@@ -56,7 +55,6 @@ const italiano: Race = {
   round: 16,
   date: '2026-09-06T13:00:00.000Z',
   qualifyingDate: '2026-09-05T13:00:00.000Z',
-  sprintDate: null,
   status: 'COMPLETED',
   seasonId: 1,
   circuitId: 11,
@@ -132,7 +130,6 @@ describe('RacesPage', () => {
     expect(enviado.date).toMatch(/Z$/);
     // Las opcionales vacías no viajan: el schema del backend las tiene optional, no nullable.
     expect(enviado.qualifyingDate).toBeUndefined();
-    expect(enviado.sprintDate).toBeUndefined();
   });
 
   it('no deja crear sin temporada ni circuito', async () => {

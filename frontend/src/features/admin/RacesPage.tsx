@@ -34,7 +34,6 @@ const raceSchema = z.object({
   round: z.coerce.number().int().min(1, 'Tiene que ser 1 o más'),
   date: fechaObligatoria,
   qualifyingDate: fechaOpcional,
-  sprintDate: fechaOpcional,
   seasonId: z.coerce.number().int().min(1, 'Obligatorio'),
   circuitId: z.coerce.number().int().min(1, 'Obligatorio'),
 });
@@ -46,7 +45,6 @@ const EMPTY: RaceForm = {
   round: '',
   date: '',
   qualifyingDate: '',
-  sprintDate: '',
   seasonId: '',
   circuitId: '',
 };
@@ -94,7 +92,6 @@ export function RacesPage() {
       round: race.round,
       date: toLocalInput(race.date),
       qualifyingDate: toLocalInput(race.qualifyingDate),
-      sprintDate: toLocalInput(race.sprintDate),
       seasonId: race.seasonId,
       circuitId: race.circuitId,
     });
@@ -162,9 +159,6 @@ export function RacesPage() {
               className={inputClass}
               {...form.register('qualifyingDate')}
             />
-          </Field>
-          <Field label="Sprint (opcional)" error={form.formState.errors.sprintDate?.message}>
-            <input type="datetime-local" className={inputClass} {...form.register('sprintDate')} />
           </Field>
           <div className="flex items-end gap-2">
             <Button type="submit" disabled={saving}>

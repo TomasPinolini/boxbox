@@ -171,7 +171,6 @@ model Race {
   round          Int
   date           DateTime
   qualifyingDate DateTime?
-  sprintDate     DateTime?
   seasonId       Int
   circuitId      Int
   status         RaceStatus @default(UPCOMING)

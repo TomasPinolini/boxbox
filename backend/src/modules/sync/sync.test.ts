@@ -95,8 +95,6 @@ describe('POST /admin/sync/races (12b)', () => {
       [2, 'Chinese Grand Prix', 'shanghai'],
     ]);
     expect(races[0].date.toISOString()).toBe('2026-03-08T04:00:00.000Z');
-    expect(races[0].sprintDate).toBeNull();
-    expect(races[1].sprintDate?.toISOString()).toBe('2026-03-14T03:00:00.000Z');
     expect(races[1].status).toBe('UPCOMING');
 
     expect(await lastLog()).toMatchObject({

@@ -98,7 +98,7 @@ Existe porque la relación Driver ↔ Constructor **cambia con el tiempo** y ese
 
 Una **Race** es un Gran Premio del calendario de F1 — el GP de Australia, el GP de Mónaco, etc. Es el evento que activa la mecánica central de BoxBox: registra resultados cuando termina y actualiza los standings de la liga.
 
-Los atributos clave son **name**, **round** (número de la carrera en la temporada: 1, 2, 3...), **date** (fecha de la carrera principal), **qualifyingDate** (nullable hasta que se confirme vía API) y **sprintDate** (nullable — solo en fines de semana sprint, aprox. 6 por temporada).
+Los atributos clave son **name**, **round** (número de la carrera en la temporada: 1, 2, 3...), **date** (fecha de la carrera principal) y **qualifyingDate** (nullable hasta que se confirme vía API).
 
 El **status** modela el ciclo de vida operativo: `UPCOMING` → `QUALIFYING_LOCKED` (empezó la clasificación) → `COMPLETED` (resultados cargados) o `CANCELLED` / `POSTPONED`. Una Race pertenece a una Season y se disputa en un Circuit.
 
