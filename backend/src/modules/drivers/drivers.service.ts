@@ -1,7 +1,7 @@
 import { prisma } from '../../shared/prisma';
 import { NotFoundError, ConflictError } from '../../shared/errors';
 import { CreateDriverInput, UpdateDriverInput } from './drivers.schema';
-import type { RaceResultStatus } from '../../generated/prisma/client';
+import type { Prisma, RaceResultStatus } from '../../generated/prisma/client';
 
 const notDeleted = { deletedAt: null };
 
@@ -21,23 +21,42 @@ export async function resolveSeasonId(seasonId?: number): Promise<number | null>
   return active?.id ?? null;
 }
 
-function indexConstructorsByDriver(
-  links: { driverId: number; constructorId: number }[],
-  constructors: ConstructorRef[],
-): Map<number, ConstructorRef> {
-  const byId = new Map(constructors.map((c) => [c.id, c]));
-  const byDriver = new Map<number, ConstructorRef>();
-  for (const link of links) {
-    const constructor = byId.get(link.constructorId);
-    // Escudería soft-deleted: el piloto queda sin equipo en las lecturas públicas.
-    if (constructor) byDriver.set(link.driverId, constructor);
-  }
-  return byDriver;
+export type SeasonTeam = {
+  constructorId: number;
+  // null si la escudería está soft-deleted: el piloto queda sin equipo en las lecturas públicas.
+  constructor: ConstructorRef | null;
+};
+
+// El único lugar que lee DriverSeason para saber quién corre para quién en una temporada.
+// Devuelve la temporada entera: cada caller toma de ahí lo que necesita.
+// `db` acepta una transacción para quien escribe dentro de una (races.loadResults).
+// Queries planas + merge en TS en vez de include/select sobre la relación `constructor`:
+// ese nombre choca con Object.prototype.constructor y rompe los tipos de Prisma en tsc.
+export async function seasonTeams(
+  seasonId: number,
+  db: Prisma.TransactionClient = prisma,
+): Promise<Map<number, SeasonTeam>> {
+  const links = await db.driverSeason.findMany({ where: { seasonId } });
+  if (links.length === 0) return new Map();
+
+  const constructors = await db.constructor.findMany({
+    where: { id: { in: [...new Set(links.map((l) => l.constructorId))] }, ...notDeleted },
+  });
+  const refById = new Map<number, ConstructorRef>(
+    constructors.map((c) => [c.id, { id: c.id, name: c.name, color: c.color, logoUrl: c.logoUrl }]),
+  );
+
+  return new Map(
+    links.map((l) => [
+      l.driverId,
+      { constructorId: l.constructorId, constructor: refById.get(l.constructorId) ?? null },
+    ]),
+  );
 }
 
 // Agrupado por escudería para que, con 2 pilotos por equipo y grilla de 2 columnas, cada fila
 // sea un equipo. Los sin equipo van al final (con "" quedarían primeros).
-function sortByConstructorThenName<T extends { constructor: { name: string } | null; lastName: string; firstName: string }>(
+export function sortByConstructorThenName<T extends { constructor: { name: string } | null; lastName: string; firstName: string }>(
   items: T[],
 ): T[] {
   return [...items].sort((a, b) => {
@@ -51,9 +70,6 @@ function sortByConstructorThenName<T extends { constructor: { name: string } | n
   });
 }
 
-// Tres queries planas + merge en TS en vez de include/select sobre la relación `constructor`:
-// ese nombre choca con Object.prototype.constructor y rompe los tipos de Prisma en tsc.
-// El delegate prisma.constructor sí es seguro.
 export async function findAll(constructorId?: number, seasonId?: number) {
   const resolvedSeasonId = await resolveSeasonId(seasonId);
 
@@ -80,37 +96,13 @@ export async function findAll(constructorId?: number, seasonId?: number) {
 
   if (!resolvedSeasonId) return drivers.map((driver) => ({ ...driver, constructor: null }));
 
-  const byDriver = await constructorsForDrivers(
-    drivers.map((d) => d.id),
-    resolvedSeasonId,
-  );
+  const teams = await seasonTeams(resolvedSeasonId);
 
   return sortByConstructorThenName(
     drivers.map((driver) => ({
       ...driver,
-      constructor: byDriver.get(driver.id) ?? null,
+      constructor: teams.get(driver.id)?.constructor ?? null,
     })),
-  );
-}
-
-async function constructorsForDrivers(
-  driverIds: number[],
-  seasonId: number,
-): Promise<Map<number, ConstructorRef>> {
-  // Fila entera, sin select: ver la colisión de nombres en findAll.
-  const links = await prisma.driverSeason.findMany({
-    where: { seasonId, driverId: { in: driverIds } },
-  });
-
-  if (links.length === 0) return new Map();
-
-  const constructors = await prisma.constructor.findMany({
-    where: { id: { in: links.map((l) => l.constructorId) }, deletedAt: null },
-  });
-
-  return indexConstructorsByDriver(
-    links,
-    constructors.map((c) => ({ id: c.id, name: c.name, color: c.color, logoUrl: c.logoUrl })),
   );
 }
 
@@ -166,7 +158,7 @@ export async function findDetail(id: number, seasonId?: number) {
     };
   }
 
-  const byDriver = await constructorsForDrivers([driver.id], resolvedSeasonId);
+  const teams = await seasonTeams(resolvedSeasonId);
 
   // include de `race` es seguro: la colisión de nombres es solo con `constructor`.
   const raceResults = await prisma.raceResult.findMany({
@@ -177,7 +169,7 @@ export async function findDetail(id: number, seasonId?: number) {
 
   return {
     ...driver,
-    constructor: byDriver.get(driver.id) ?? null,
+    constructor: teams.get(driver.id)?.constructor ?? null,
     seasonId: resolvedSeasonId,
     stats: buildDriverStats(raceResults),
     results: raceResults.map((r) => ({
@@ -200,17 +192,16 @@ export async function findStandings(seasonId?: number) {
   const resolvedSeasonId = await resolveSeasonId(seasonId);
   if (!resolvedSeasonId) return [];
 
-  const links = await prisma.driverSeason.findMany({ where: { seasonId: resolvedSeasonId } });
+  const teams = await seasonTeams(resolvedSeasonId);
   const drivers = await prisma.driver.findMany({
-    where: { id: { in: links.map((l) => l.driverId) }, ...notDeleted },
+    where: { id: { in: [...teams.keys()] }, ...notDeleted },
   });
   if (drivers.length === 0) return [];
 
   const driverIds = drivers.map((d) => d.id);
   const inSeason = { driverId: { in: driverIds }, race: { seasonId: resolvedSeasonId } };
 
-  const [byDriver, pointRows, winRows] = await Promise.all([
-    constructorsForDrivers(driverIds, resolvedSeasonId),
+  const [pointRows, winRows] = await Promise.all([
     prisma.raceResult.groupBy({ by: ['driverId'], where: inSeason, _sum: { points: true } }),
     prisma.raceResult.groupBy({
       by: ['driverId'],
@@ -233,7 +224,7 @@ export async function findStandings(seasonId?: number) {
           lastName: d.lastName,
           code: d.code,
           headshotUrl: d.headshotUrl,
-          constructor: byDriver.get(d.id) ?? null,
+          constructor: teams.get(d.id)?.constructor ?? null,
         },
       }))
       // Victorias es el desempate real de la F1; el nombre hace el orden determinístico en cero.

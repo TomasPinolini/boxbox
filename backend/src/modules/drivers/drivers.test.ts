@@ -263,7 +263,6 @@ async function seedCompletedRace(
       name: `Gran Premio ${round}`,
       round,
       date: new Date(`2026-0${round}-01T15:00:00Z`),
-      lockDate: new Date(`2026-0${round}-01T13:00:00Z`),
       seasonId,
       circuitId: circuit.id,
       status: 'COMPLETED',

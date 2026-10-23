@@ -7,6 +7,7 @@ import type { RaceResultStatus, SyncType } from '../../generated/prisma/enums';
 import { AppError, ConflictError, NotFoundError } from '../../shared/errors';
 import { fetchRaces, fetchRaceResults, type JolpicaResult } from '../../shared/jolpica';
 import { loadResults } from '../races/races.service';
+import { seasonTeams } from '../drivers/drivers.service';
 import { loadRaceResultsSchema, type LoadRaceResultsInput } from '../races/races.schema';
 
 type Skipped = { ref: string; reason: string };
@@ -46,7 +47,6 @@ async function withSyncLog<T extends Outcome>(
   }
 }
 
-const oneHourBefore = (date: Date) => new Date(date.getTime() - 60 * 60 * 1000);
 const toDate = (s: { date: string; time?: string }) =>
   new Date(`${s.date}T${s.time ?? '00:00:00Z'}`);
 
@@ -85,9 +85,7 @@ export function syncRaces(year: number, triggeredById: number) {
       const data = {
         name: r.raceName,
         date,
-        lockDate: oneHourBefore(date),
         qualifyingDate: r.Qualifying ? toDate(r.Qualifying) : null,
-        sprintDate: r.Sprint ? toDate(r.Sprint) : null,
         circuitId: circuit.id,
       };
 
@@ -137,7 +135,6 @@ function mapResult(r: JolpicaResult, driverId: number): LoadRaceResultsInput['re
     driverId,
     // Jolpica numera tambien a los no clasificados; aca `position` es puesto final.
     ...(status === 'CLASSIFIED' ? { position: r.position } : {}),
-    points: r.points,
     // grid 0 = largo desde boxes: no tiene posicion de grilla.
     ...(r.grid ? { gridPosition: r.grid } : {}),
     ...(r.laps !== undefined ? { laps: r.laps } : {}),
@@ -175,10 +172,7 @@ export function syncResults(raceId: number, triggeredById: number, dryRun: boole
       select: { id: true, externalId: true },
     });
     const idByExternalId = new Map(drivers.map((d) => [d.externalId, d.id]));
-    const links = await prisma.driverSeason.findMany({
-      where: { seasonId: race.seasonId, driverId: { in: drivers.map((d) => d.id) } },
-    });
-    const inSeason = new Set(links.map((l) => l.driverId));
+    const inSeason = new Set((await seasonTeams(race.seasonId)).keys());
 
     const skipped: Skipped[] = [];
     const mapped: LoadRaceResultsInput['results'] = [];
@@ -193,7 +187,7 @@ export function syncResults(raceId: number, triggeredById: number, dryRun: boole
       }
     }
 
-    // Aca no hay middleware que valide: el schema ataja p. ej. medios puntos (points es Int).
+    // Aca no hay middleware que valide. Los puntos de Jolpica no viajan: los calcula loadResults.
     const parsed = loadRaceResultsSchema.safeParse({ results: mapped });
     if (!parsed.success) {
       throw new AppError(

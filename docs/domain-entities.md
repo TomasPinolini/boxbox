@@ -10,7 +10,7 @@ Un **Driver** representa a un piloto profesional de F1 — una persona real que 
 
 A lo largo de su carrera, un piloto puede correr para distintos **Constructors** en distintas **Seasons** — esa información se modela vía `DriverSeason`. Por ejemplo: Hamilton corrió para McLaren (2008), Mercedes (2013-2024) y Ferrari (2025+); cada combinación es una fila distinta en `DriverSeason`.
 
-Los Drivers se **soft-deletean** (con `deletedAt`) — nunca se borran físicamente. Tienen historial de `RaceResult` apuntándoles, además de eventuales `Prediction` y `FantasyTeam` que los referencian. Si un piloto se retira, se marca como deleted y se filtra de listados activos. Si vuelve a competir (caso típico: pilotos reserva que reciben un asiento), se restaura limpiando el `deletedAt`.
+Los Drivers se **soft-deletean** (con `deletedAt`) — nunca se borran físicamente. Tienen historial de `RaceResult` apuntándoles, además de eventuales `FantasyTeam` que los referencian. Si un piloto se retira, se marca como deleted y se filtra de listados activos. Si vuelve a competir (caso típico: pilotos reserva que reciben un asiento), se restaura limpiando el `deletedAt`.
 
 ---
 
@@ -20,13 +20,13 @@ Un **LeagueMember** representa la **membresía concreta** de un User en una Leag
 
 Cada LeagueMember tiene una fecha de unión (`joinedAt`), un flag `isOwner` que indica si fue quien creó la liga, y un `status` (ACTIVE / LEFT / KICKED) que refleja su estado actual. Esa metadata pertenece a la membresía — no al User (que existe independientemente) ni a la League (que existe sin importar quiénes son sus miembros).
 
-Cada LeagueMember **posee exactamente un FantasyTeam** (relación 1:1) y participa en el draft de su league haciendo `DraftPick`s, en cada race haciendo `Prediction`s, y acumulando puntaje vía `LeagueStanding`s. Si un miembro deja la liga (status LEFT) o es expulsado (KICKED), su FantasyTeam y resto de data histórica se conservan — no se borran, solo se ocultan de la operación activa.
+Cada LeagueMember **posee exactamente un FantasyTeam** (relación 1:1) y participa en el draft de su league haciendo `DraftPick`s y acumula puntaje vía `LeagueStanding`s. Si un miembro deja la liga (status LEFT) o es expulsado (KICKED), su FantasyTeam y resto de data histórica se conservan — no se borran, solo se ocultan de la operación activa.
 
 ---
 
 ## DraftPick
 
-Un **DraftPick** representa **una elección hecha por un LeagueMember durante el draft de su league**. El draft de BoxBox es un *snake draft* de 3 rondas: en cada ronda, cada miembro elige por turno un Driver (rondas 1 y 2) o un Constructor (ronda 3) para incorporar a su FantasyTeam. No hay piloto reserva (ver [ADR-0006](./adr/ADR-0006-draft-3-rondas-sin-reserva.md)).
+Un **DraftPick** representa **una elección hecha por un LeagueMember durante el draft de su league**. El draft de BoxBox es un *snake draft* de 3 rondas: en cada ronda, cada miembro elige por turno un Driver (rondas 1 y 2) o un Constructor (ronda 3) para incorporar a su FantasyTeam. No hay piloto reserva.
 
 Cada DraftPick tiene un `pickNumber` (orden global de la elección dentro del draft, ej: el 5° pick de toda la liga), un `round` (1 a 3), y referencia **o un Driver o un Constructor** — nunca ambos en el mismo pick (por eso `driverId` y `constructorId` son nullable y mutuamente exclusivos a nivel lógica de negocio).
 
@@ -36,7 +36,7 @@ Los DraftPicks son **inmutables después de hechos**: una vez que el LeagueMembe
 
 ## User
 
-Un **User** es una persona registrada en BoxBox — tiene cuenta propia con email y contraseña. Es la entidad de identidad del sistema: todo lo que hace una persona en la plataforma (crear ligas, unirse, hacer predicciones) se hace a través de un User.
+Un **User** es una persona registrada en BoxBox — tiene cuenta propia con email y contraseña. Es la entidad de identidad del sistema: todo lo que hace una persona en la plataforma (crear ligas, unirse, draftear su equipo) se hace a través de un User.
 
 Los atributos relevantes al dominio son el **email** (único, es el identificador de login), el **role** (USER para jugadores normales, ADMIN para quien puede disparar sincronizaciones con la API externa de F1) y el **name** más **avatarUrl** para la presentación en la UI. La contraseña se guarda como hash bcrypt — nunca en texto plano.
 
@@ -48,11 +48,11 @@ Los Users no tienen `deletedAt` en el modelo actual — si un usuario se da de b
 
 ## Constructor
 
-Un **Constructor** es un equipo de F1 que compite en el campeonato — Mercedes, Ferrari, Red Bull, McLaren, etc. En el contexto de BoxBox representa la unidad que los usuarios pueden elegir en el draft para sumar puntos de constructores, y sobre la cual se hacen predicciones de rendimiento por carrera.
+Un **Constructor** es un equipo de F1 que compite en el campeonato — Mercedes, Ferrari, Red Bull, McLaren, etc. En el contexto de BoxBox representa la unidad que los usuarios pueden elegir en el draft para sumar puntos de constructores.
 
 Los atributos relevantes son el **name** (el identificador humano del equipo), el **color** principal (usado en la UI para distinguir visualmente los equipos en tablas y gráficos) y el **externalId** que lo conecta con Jolpica-F1 para sincronizar resultados automáticamente. El `logoUrl` es display data.
 
-Un Constructor agrupa múltiples Drivers a lo largo del tiempo vía `DriverSeason` — Ferrari 2024 tenía Leclerc + Sainz, Ferrari 2025 tiene Leclerc + Hamilton, pero es el mismo Constructor en el modelo. Cada carrera genera un `ConstructorResult` para ese equipo. Los usuarios lo pueden elegir en el draft (round 3) a través de `DraftPick`, y queda registrado en `FantasyTeam.constructorId`. También es el objeto de predicciones en `Prediction.predictedTopConstructorId`.
+Un Constructor agrupa múltiples Drivers a lo largo del tiempo vía `DriverSeason` — Ferrari 2024 tenía Leclerc + Sainz, Ferrari 2025 tiene Leclerc + Hamilton, pero es el mismo Constructor en el modelo. Cada carrera genera un `ConstructorResult` para ese equipo. Los usuarios lo pueden elegir en el draft (round 3) a través de `DraftPick`, y queda registrado en `FantasyTeam.constructorId`.
 
 Los Constructors se **soft-deletean** con `deletedAt` — si un equipo sale de la F1 o se rebrandea (Force India → Racing Point → Aston Martin), el registro histórico de resultados y contratos debe preservarse. El equipo viejo se marca como deleted; el nuevo entra como Constructor fresco.
 
@@ -96,11 +96,11 @@ Existe porque la relación Driver ↔ Constructor **cambia con el tiempo** y ese
 
 ## Race
 
-Una **Race** es un Gran Premio del calendario de F1 — el GP de Australia, el GP de Mónaco, etc. Es el evento que activa la mecánica central de BoxBox: bloquea las predicciones antes de que empiece, registra resultados cuando termina y actualiza los standings de la liga.
+Una **Race** es un Gran Premio del calendario de F1 — el GP de Australia, el GP de Mónaco, etc. Es el evento que activa la mecánica central de BoxBox: registra resultados cuando termina y actualiza los standings de la liga.
 
-Los atributos clave son **name**, **round** (número de la carrera en la temporada: 1, 2, 3...), **date** (fecha de la carrera principal), **qualifyingDate** (nullable hasta que se confirme vía API), **sprintDate** (nullable — solo en fines de semana sprint, aprox. 6 por temporada), y **lockDate** — la fecha límite para hacer predicciones, que no necesariamente coincide con la clasificación.
+Los atributos clave son **name**, **round** (número de la carrera en la temporada: 1, 2, 3...), **date** (fecha de la carrera principal) y **qualifyingDate** (nullable hasta que se confirme vía API).
 
-El **status** modela el ciclo de vida operativo: `UPCOMING` → `QUALIFYING_LOCKED` (se cierran las predicciones) → `COMPLETED` (resultados cargados) o `CANCELLED` / `POSTPONED`. Una Race pertenece a una Season y se disputa en un Circuit.
+El **status** modela el ciclo de vida operativo: `UPCOMING` → `QUALIFYING_LOCKED` (empezó la clasificación) → `COMPLETED` (resultados cargados) o `CANCELLED` / `POSTPONED`. Una Race pertenece a una Season y se disputa en un Circuit.
 
 Las Races no se borran — si una carrera se cancela, su status pasa a `CANCELLED` y se preserva el registro para el historial y para no corromper los standings ya calculados.
 
@@ -110,7 +110,7 @@ Las Races no se borran — si una carrera se cancela, su status pasa a `CANCELLE
 
 Una **League** es la competencia privada en la que participan los usuarios de BoxBox. Un grupo de amigos (o compañeros de facultad) crea una liga para una temporada, invita a los demás con un código único, hace el draft juntos, y compite durante toda la temporada por el puntaje acumulado.
 
-Los atributos clave son **name**, **inviteCode** (único en el sistema — es el código que se comparte para unirse a la liga), **maxMembers** (default y tope = `floor(Season.driverCount / 2)`: 11 para la grilla de 22 — cada miembro draftea 2 pilotos exclusivos; ver ADR-0006), **seasonId** (una liga siempre pertenece a una temporada específica) y **createdById** (el User que la creó, que también es su primer LeagueMember con `isOwner = true`).
+Los atributos clave son **name**, **inviteCode** (único en el sistema — es el código que se comparte para unirse a la liga), **maxMembers** (default y tope = `floor(Season.driverCount / 2)`: 11 para la grilla de 22 — cada miembro draftea 2 pilotos exclusivos), **seasonId** (una liga siempre pertenece a una temporada específica) y **createdById** (el User que la creó, que también es su primer LeagueMember con `isOwner = true`).
 
 El **draftStatus** modela el estado del snake draft: `PENDING` (todavía no arrancó), `LIVE` (en progreso, turnos activos) y `COMPLETED` (draft cerrado, los equipos están armados). El **status** general es `ACTIVE` durante la temporada, y puede pasar a `ARCHIVED` al terminar o `CANCELLED` si se abandona.
 
@@ -122,7 +122,7 @@ Una League contiene muchos `LeagueMember`s y genera muchos `DraftPick`s. Existe 
 
 Un **FantasyTeam** es el equipo armado por un LeagueMember para competir en su liga. Tiene dos pilotos (`driver1Id`, `driver2Id`) y un Constructor (`constructorId`). Es la entidad que acumula puntos reales de F1 a través de los resultados de sus pilotos y constructor.
 
-Los tres slots (`driver1Id`, `driver2Id`, `constructorId`) son **nullable hasta que el draft se completa** — el FantasyTeam existe desde que el LeagueMember se une a la liga, pero empieza vacío. No hay piloto reserva: se eliminó del juego junto con `DriverSwap` (ver [ADR-0006](./adr/ADR-0006-draft-3-rondas-sin-reserva.md)); si un piloto no termina una carrera, ese slot suma 0 puntos en esa carrera.
+Los tres slots (`driver1Id`, `driver2Id`, `constructorId`) son **nullable hasta que el draft se completa** — el FantasyTeam existe desde que el LeagueMember se une a la liga, pero empieza vacío. No hay piloto reserva: se eliminó del juego junto con `DriverSwap`; si un piloto no termina una carrera, ese slot suma 0 puntos en esa carrera.
 
 La relación con LeagueMember es **1:1 estricta** — un miembro tiene exactamente un equipo en esa liga, y cada equipo pertenece a exactamente un miembro. El FantasyTeam existe como entidad propia (y no como columnas en LeagueMember) porque es el objeto que acumula puntos carrera a carrera, separado de la membresía (que tiene su propio ciclo: ACTIVE / LEFT / KICKED).
 
@@ -150,19 +150,9 @@ Existe como entidad propia (en lugar de calcularse on-the-fly desde `RaceResult`
 
 ---
 
-## Prediction
-
-Una **Prediction** es el pronóstico que un LeagueMember hace antes de una carrera: quién va a ganar (`predictedWinnerId`), quién va a hacer la pole position (`predictedPoleId`) y qué constructor va a quedar primero en puntos esa carrera (`predictedTopConstructorId`). Acertar suma puntos bonus adicionales a los del equipo de fantasy.
-
-Una vez que la carrera termina, el sistema evalúa cada predicción y cachea el resultado en los campos booleanos `winnerCorrect`, `poleCorrect` y `topConstructorCorrect` (los tres son `null` hasta que la carrera es scored — no son false por default). El `bonusPoints` acumula el total de puntos extra ganados (default 0, nunca null).
-
-Las Predictions están **bloqueadas después del lockDate** de la carrera — no se pueden editar una vez que el sistema las cierra. Se crean durante la ventana entre que se publica el calendar entry y el lockDate. Existe como entidad propia porque une tres datos independientes (predicción de ganador, pole y constructor) que se evalúan juntos en el mismo momento y generan puntaje en el mismo contexto.
-
----
-
 ## LeagueStanding
 
-Un **LeagueStanding** es un snapshot de la posición de un LeagueMember en su liga después de una carrera específica. Registra cuántos puntos acumuló ese miembro hasta ese momento, desglosado por tipo: **driverPoints** (de sus pilotos titulares), **constructorPoints** (de su constructor) y **predictionPoints** (de predicciones acertadas), más el **totalPoints** como suma. También guarda la **position** en el ranking de la liga y el **positionChange** respecto a la carrera anterior (positivo = subió, negativo = bajó).
+Un **LeagueStanding** es un snapshot de la posición de un LeagueMember en su liga después de una carrera específica. Registra cuántos puntos acumuló ese miembro hasta ese momento, desglosado por tipo: **driverPoints** (de sus pilotos titulares), **constructorPoints** (de su constructor), más el **totalPoints** como suma. También guarda la **position** en el ranking de la liga y el **positionChange** respecto a la carrera anterior (positivo = subió, negativo = bajó).
 
 Es un snapshot inmutable, no una vista live. Cada vez que se procesan los resultados de una carrera, se crean nuevas filas de LeagueStanding para todos los miembros de todas las ligas activas. Esto permite mostrar la evolución de posiciones a lo largo de la temporada sin recalcular desde cero.
 

@@ -19,7 +19,6 @@ type ComputedStanding = {
   leagueMemberId: number;
   driverPoints: number;
   constructorPoints: number;
-  predictionPoints: number;
   totalPoints: number;
 };
 
@@ -59,14 +58,11 @@ function scoreTeam(
     ? (points.byConstructor.get(team.constructorId) ?? 0)
     : 0;
 
-  // Predictions no esta construido: la columna existe y va en 0. Es el unico lugar a tocar.
-  const predictionPoints = 0;
 
   return {
     driverPoints,
     constructorPoints,
-    predictionPoints,
-    totalPoints: driverPoints + constructorPoints + predictionPoints,
+    totalPoints: driverPoints + constructorPoints,
   };
 }
 
@@ -97,81 +93,88 @@ export async function recalculate(raceId: number) {
     );
   }
 
-  return prisma.$transaction(async (tx) => {
-    const countedRaces = await tx.race.findMany({
-      where: { seasonId: race.seasonId, status: 'COMPLETED', round: { lte: race.round } },
-      select: { id: true },
+  return prisma.$transaction((tx) => recalculateInTx(tx, race));
+}
+
+// Separado para que loadResults lo corra dentro de su propia transaccion: cargar la fecha y
+// actualizar las ligas pasan juntos o no pasa ninguno.
+export async function recalculateInTx(
+  tx: Prisma.TransactionClient,
+  race: { id: number; seasonId: number; round: number },
+) {
+  const countedRaces = await tx.race.findMany({
+    where: { seasonId: race.seasonId, status: 'COMPLETED', round: { lte: race.round } },
+    select: { id: true },
+  });
+  const countedRaceIds = countedRaces.map((r) => r.id);
+
+  const points = indexPoints(
+    await tx.raceResult.findMany({
+      where: { raceId: { in: countedRaceIds } },
+      select: { driverId: true, points: true },
+    }),
+    await tx.constructorResult.findMany({
+      where: { raceId: { in: countedRaceIds } },
+      select: constructorResultPointsSelect,
+    }),
+  );
+
+  const previousRace = await tx.race.findFirst({
+    where: { seasonId: race.seasonId, status: 'COMPLETED', round: { lt: race.round } },
+    orderBy: { round: 'desc' },
+    select: { id: true },
+  });
+  const previousPositions = new Map<number, number>();
+  if (previousRace) {
+    const previous = await tx.leagueStanding.findMany({
+      where: { raceId: previousRace.id },
+      select: { leagueMemberId: true, position: true },
     });
-    const countedRaceIds = countedRaces.map((r) => r.id);
+    for (const p of previous) previousPositions.set(p.leagueMemberId, p.position);
+  }
 
-    const points = indexPoints(
-      await tx.raceResult.findMany({
-        where: { raceId: { in: countedRaceIds } },
-        select: { driverId: true, points: true },
-      }),
-      await tx.constructorResult.findMany({
-        where: { raceId: { in: countedRaceIds } },
-        select: constructorResultPointsSelect,
-      }),
-    );
-
-    const previousRace = await tx.race.findFirst({
-      where: { seasonId: race.seasonId, status: 'COMPLETED', round: { lt: race.round } },
-      orderBy: { round: 'desc' },
-      select: { id: true },
-    });
-    const previousPositions = new Map<number, number>();
-    if (previousRace) {
-      const previous = await tx.leagueStanding.findMany({
-        where: { raceId: previousRace.id },
-        select: { leagueMemberId: true, position: true },
-      });
-      for (const p of previous) previousPositions.set(p.leagueMemberId, p.position);
-    }
-
-    // Solo miembros ACTIVE: el que se fue conserva sus standings viejos pero no genera nuevos.
-    const leagues = await tx.league.findMany({
-      where: { seasonId: race.seasonId, status: 'ACTIVE' },
-      select: {
-        id: true,
-        members: {
-          where: { status: 'ACTIVE' },
-          select: {
-            id: true,
-            fantasyTeam: { select: fantasyTeamSlotsSelect },
-          },
+  // Solo miembros ACTIVE: el que se fue conserva sus standings viejos pero no genera nuevos.
+  const leagues = await tx.league.findMany({
+    where: { seasonId: race.seasonId, status: 'ACTIVE' },
+    select: {
+      id: true,
+      members: {
+        where: { status: 'ACTIVE' },
+        select: {
+          id: true,
+          fantasyTeam: { select: fantasyTeamSlotsSelect },
         },
       },
-    });
-
-    let written = 0;
-    for (const league of leagues) {
-      const computed: ComputedStanding[] = league.members.map((member) => ({
-        leagueMemberId: member.id,
-        ...scoreTeam(
-          member.fantasyTeam ?? { driver1Id: null, driver2Id: null, constructorId: null },
-          points,
-        ),
-      }));
-
-      for (const row of rank(computed)) {
-        const before = previousPositions.get(row.leagueMemberId);
-        // Positivo = subio.
-        const positionChange = before === undefined ? 0 : before - row.position;
-
-        await tx.leagueStanding.upsert({
-          where: {
-            leagueMemberId_raceId: { leagueMemberId: row.leagueMemberId, raceId: race.id },
-          },
-          update: { ...row, raceId: race.id, positionChange },
-          create: { ...row, raceId: race.id, positionChange },
-        });
-        written += 1;
-      }
-    }
-
-    return { raceId: race.id, leagues: leagues.length, standings: written };
+    },
   });
+
+  let written = 0;
+  for (const league of leagues) {
+    const computed: ComputedStanding[] = league.members.map((member) => ({
+      leagueMemberId: member.id,
+      ...scoreTeam(
+        member.fantasyTeam ?? { driver1Id: null, driver2Id: null, constructorId: null },
+        points,
+      ),
+    }));
+
+    for (const row of rank(computed)) {
+      const before = previousPositions.get(row.leagueMemberId);
+      // Positivo = subio.
+      const positionChange = before === undefined ? 0 : before - row.position;
+
+      await tx.leagueStanding.upsert({
+        where: {
+          leagueMemberId_raceId: { leagueMemberId: row.leagueMemberId, raceId: race.id },
+        },
+        update: { ...row, raceId: race.id, positionChange },
+        create: { ...row, raceId: race.id, positionChange },
+      });
+      written += 1;
+    }
+  }
+
+  return { raceId: race.id, leagues: leagues.length, standings: written };
 }
 
 // Sin raceId devuelve la ultima carrera que tenga standings de esa liga.
@@ -197,7 +200,6 @@ export async function findByLeague(leagueId: number, raceId?: number) {
       leagueMemberId: true,
       driverPoints: true,
       constructorPoints: true,
-      predictionPoints: true,
       totalPoints: true,
       position: true,
       positionChange: true,

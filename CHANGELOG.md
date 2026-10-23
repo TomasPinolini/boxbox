@@ -2,7 +2,7 @@
 
 Todas las versiones publicadas de BoxBox, escritas en lenguaje de usuario y no de commit.
 
-Las reglas están en [ADR-0011](./docs/adr/ADR-0011-semantic-versioning.md): un solo número para
+Se versiona con semver: un solo número para
 todo el repositorio, que vive en un tag anotado de git, y cuya superficie versionada es el contrato
 HTTP (`docs/api-endpoints.md` + `docs/error-codes.md`).
 
@@ -11,7 +11,7 @@ HTTP (`docs/api-endpoints.md` + `docs/error-codes.md`).
 ## [1.0.0] — 2026-10-13
 
 Primera versión publicada. Es lo que se presentó a la cátedra: el juego completo de punta a punta,
-sin predicciones y sin puntaje de sprints.
+sin puntaje de sprints.
 
 ### Cuentas y ligas
 
@@ -41,8 +41,6 @@ sin predicciones y sin puntaje de sprints.
 
 ### Limitaciones conocidas de esta versión
 
-- Las predicciones pre-carrera no están construidas: todavía no se puede apostar quién gana, quién
-  saca la pole ni qué escudería suma más en cada fin de semana. Queda para una versión siguiente.
 - Los puntos de los sprints no se cuentan: un fin de semana con sprint reparte menos puntos que en
   la Fórmula 1 real.
 - Un piloto que cambia de escudería a mitad de temporada acredita todos sus puntos a una sola de

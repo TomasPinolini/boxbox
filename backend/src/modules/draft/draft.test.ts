@@ -452,7 +452,7 @@ describe('POST /api/v1/leagues/:id/draft/pick', () => {
       expect(team!.driver1Id).not.toBeNull();
       expect(team!.driver2Id).not.toBeNull();
       expect(team!.constructorId).not.toBeNull();
-      // ADR-0006: la reserva no existe, ni como columna.
+      // La reserva no existe, ni como columna.
       expect(team).not.toHaveProperty('reserveDriverId');
     }
   });

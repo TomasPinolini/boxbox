@@ -33,24 +33,18 @@ const raceSchema = z.object({
   name: z.string().min(1, 'Obligatorio'),
   round: z.coerce.number().int().min(1, 'Tiene que ser 1 o más'),
   date: fechaObligatoria,
-  lockDate: fechaObligatoria,
   qualifyingDate: fechaOpcional,
-  sprintDate: fechaOpcional,
   seasonId: z.coerce.number().int().min(1, 'Obligatorio'),
   circuitId: z.coerce.number().int().min(1, 'Obligatorio'),
 });
 
 type RaceForm = z.input<typeof raceSchema>;
 
-const LOCK_HINT_ID = 'race-lock-hint';
-
 const EMPTY: RaceForm = {
   name: '',
   round: '',
   date: '',
-  lockDate: '',
   qualifyingDate: '',
-  sprintDate: '',
   seasonId: '',
   circuitId: '',
 };
@@ -97,9 +91,7 @@ export function RacesPage() {
       name: race.name,
       round: race.round,
       date: toLocalInput(race.date),
-      lockDate: toLocalInput(race.lockDate),
       qualifyingDate: toLocalInput(race.qualifyingDate),
-      sprintDate: toLocalInput(race.sprintDate),
       seasonId: race.seasonId,
       circuitId: race.circuitId,
     });
@@ -158,21 +150,6 @@ export function RacesPage() {
           <Field label="Fecha de carrera" error={form.formState.errors.date?.message}>
             <input type="datetime-local" className={inputClass} {...form.register('date')} />
           </Field>
-          {/* Cargar mal el cierre no se nota hasta que alguien juega: de ahi la ayuda. */}
-          <div>
-            <Field label="Cierre" error={form.formState.errors.lockDate?.message}>
-              <input
-                type="datetime-local"
-                className={inputClass}
-                aria-describedby={LOCK_HINT_ID}
-                {...form.register('lockDate')}
-              />
-            </Field>
-            <p id={LOCK_HINT_ID} className="mt-1 text-xs text-slate-500 dark:text-ink-muted">
-              Momento desde el cual la carrera queda cerrada. Suele ser el inicio de la
-              clasificación.
-            </p>
-          </div>
           <Field
             label="Clasificación (opcional)"
             error={form.formState.errors.qualifyingDate?.message}
@@ -182,9 +159,6 @@ export function RacesPage() {
               className={inputClass}
               {...form.register('qualifyingDate')}
             />
-          </Field>
-          <Field label="Sprint (opcional)" error={form.formState.errors.sprintDate?.message}>
-            <input type="datetime-local" className={inputClass} {...form.register('sprintDate')} />
           </Field>
           <div className="flex items-end gap-2">
             <Button type="submit" disabled={saving}>

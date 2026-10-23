@@ -84,7 +84,6 @@ describe('GET /api/v1/constructors/:id — detalle', () => {
         name: 'GP de Italia',
         round: 1,
         date: new Date('2026-09-06T13:00:00Z'),
-        lockDate: new Date('2026-09-06T12:00:00Z'),
         seasonId: season.id,
         circuitId: circuit.id,
       },
@@ -120,6 +119,36 @@ describe('GET /api/v1/constructors/:id — detalle', () => {
       [sainz.id]: 8,
     });
     expect(data.stats).toEqual({ races: 1, points: 26 });
+  });
+
+  // Igual que /drivers: un piloto soft-deleted no aparece en ninguna lectura publica.
+  it('no lista pilotos soft-deleted en la ficha de su escuderia', async () => {
+    const season = await prisma.season.create({ data: { year: 2026, isActive: true } });
+    const constructor = await prisma.constructor.create({
+      data: { name: 'Williams', color: '#64C4FF', externalId: 'williams' },
+    });
+    const albon = await prisma.driver.create({
+      data: { firstName: 'Alex', lastName: 'Albon', number: 23, code: 'ALB', externalId: 'albon' },
+    });
+    const borrado = await prisma.driver.create({
+      data: {
+        firstName: 'Logan',
+        lastName: 'Sargeant',
+        number: 2,
+        code: 'SAR',
+        externalId: 'sargeant',
+        deletedAt: new Date(),
+      },
+    });
+    for (const driver of [albon, borrado]) {
+      await prisma.driverSeason.create({
+        data: { driverId: driver.id, constructorId: constructor.id, seasonId: season.id },
+      });
+    }
+
+    const res = await request(app).get(`/api/v1/constructors/${constructor.id}`);
+    expect(res.status).toBe(200);
+    expect(res.body.data.drivers.map((d: { code: string }) => d.code)).toEqual(['ALB']);
   });
 
   it('sin temporada activa devuelve el detalle vacio, no un error', async () => {
@@ -337,7 +366,6 @@ async function seedRaceTotals(
       name: `Gran Premio ${round}`,
       round,
       date: new Date(`2026-0${round}-01T15:00:00Z`),
-      lockDate: new Date(`2026-0${round}-01T13:00:00Z`),
       seasonId,
       circuitId: circuit.id,
       status: 'COMPLETED',

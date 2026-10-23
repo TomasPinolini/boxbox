@@ -2,11 +2,11 @@ import type { RaceResultStatus } from '../models/driver';
 import type { Race } from '../models/race';
 import { apiClient } from './api-client';
 
-// Espejo de raceResultItemSchema en backend/src/modules/races/races.schema.ts.
+// Espejo de raceResultItemSchema en backend/src/modules/races/races.schema.ts. Sin puntos:
+// los calcula el backend por puesto.
 export interface RaceResultInput {
   driverId: number;
   position?: number;
-  points: number;
   // Solo los trae la importacion de Jolpica; la grilla manual no los pide.
   gridPosition?: number;
   laps?: number;
@@ -27,8 +27,6 @@ export interface RaceInput {
   round: number;
   date: string;
   qualifyingDate?: string;
-  sprintDate?: string;
-  lockDate: string;
   seasonId: number;
   circuitId: number;
 }

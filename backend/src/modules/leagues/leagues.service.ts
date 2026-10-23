@@ -39,7 +39,7 @@ const fantasyTeamSelect = {
   createdAt: true,
 } as Prisma.FantasyTeamSelect;
 
-// Cada miembro draftea 2 pilotos exclusivos por liga (ADR-0006): el tope es floor(pilotos / 2).
+// Cada miembro draftea 2 pilotos exclusivos por liga: el tope es floor(pilotos / 2).
 // Unica fuente de la formula; draft.service.ts la reusa en startDraft.
 export function maxMembersForSeason(driverCount: number): number {
   return Math.floor(driverCount / 2);
@@ -113,7 +113,7 @@ export async function listLeagues(userId: number) {
     where: {
       // Dos status distintos: el de la membresia (sigo adentro) y el de la liga (sigue abierta).
       members: { some: { userId, status: 'ACTIVE' } },
-      // Archivar es como el owner cierra una liga (ADR-0009): deja de aparecer en el listado.
+      // Archivar es como el owner cierra una liga (nunca se borra): deja de aparecer en el listado.
       status: 'ACTIVE',
     },
     select: {

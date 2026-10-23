@@ -62,7 +62,7 @@ describe('POST /api/v1/leagues', () => {
       driver2Id: null,
       constructorId: null,
     });
-    // ADR-0006: la reserva no existe, ni como columna.
+    // La reserva no existe, ni como columna.
     expect(team).not.toHaveProperty('reserveDriverId');
   });
 
@@ -333,7 +333,7 @@ describe('PATCH /api/v1/leagues/:id', () => {
     });
   });
 
-  // Archivar es como el owner cierra una liga (ADR-0009): si sigue en el listado, no sirvio.
+  // Archivar es como el owner cierra una liga (nunca se borra): si sigue en el listado, no sirvio.
   it('la liga archivada desaparece de GET /leagues, para todos sus miembros', async () => {
     const owner = await authedUser('own');
     const socio = await authedUser('soc');
@@ -886,7 +886,7 @@ describe('GET /api/v1/leagues/:id/teams/me', () => {
       driver2Id: null,
       constructorId: null,
     });
-    // ADR-0006: el FantasyTeam tiene 3 slots, sin reserva.
+    // El FantasyTeam tiene 3 slots, sin reserva.
     expect(res.body.data).not.toHaveProperty('reserveDriverId');
   });
 

@@ -15,6 +15,7 @@ import type { ConstructorRef, Driver } from '../../models/driver';
 import type { DraftStatus } from '../../models/league';
 import { useAuthStore } from '../../store/auth.store';
 import { buildDraftTeams, type DraftTeam } from '../draft/draft-teams';
+import { resolveTeam } from '../drivers/resolve-team';
 import { TeamLineup } from '../draft/TeamLineup';
 import { useConstructors, useDrivers } from '../drivers/drivers.queries';
 import { DRAFT_LABEL } from './draft-label';
@@ -419,22 +420,15 @@ function DespuesDelDraft({
   );
 }
 
-function resolver(team: DraftTeam, drivers: Driver[], constructors: { id: number }[]) {
-  return {
-    drivers: team.driverIds
-      .map((driverId) => drivers.find((d) => d.id === driverId))
-      .filter((d): d is Driver => d !== undefined),
-    constructor:
-      (constructors.find((c) => c.id === team.constructorId) as
-        TeamRowData['constructor'] | undefined) ?? null,
-  };
+function resolver(team: DraftTeam, drivers: Driver[], constructors: ConstructorRef[]) {
+  return resolveTeam(team.driverIds, team.constructorId, drivers, constructors);
 }
 
 function equipoDe(
   picks: Parameters<typeof buildDraftTeams>[0],
   leagueMemberId: number | null,
   drivers: Driver[],
-  constructors: { id: number }[],
+  constructors: ConstructorRef[],
 ) {
   const { mine } = buildDraftTeams(picks, leagueMemberId);
   return mine ? resolver(mine, drivers, constructors) : null;
@@ -452,7 +446,7 @@ function armarFilas({
   miembros: { id: number; user: { name: string; avatarUrl: string | null } }[];
   standings: TeamRowData['standing'][];
   drivers: Driver[];
-  constructors: { id: number }[];
+  constructors: ConstructorRef[];
   myLeagueMemberId: number | null;
 }): TeamRowData[] {
   const { mine, others } = buildDraftTeams(picks, myLeagueMemberId);

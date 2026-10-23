@@ -166,7 +166,7 @@ async function main() {
 
     let body: Record<string, number>;
     if (round === 3) {
-      // Ronda 3 es constructor (ADR-0006).
+      // Ronda 3 es constructor: no hay ronda de reserva.
       const pick = (available.body.data.constructors as { id: number }[]).find((c) =>
         fixtureConstructorIds.has(c.id),
       );
@@ -233,24 +233,25 @@ async function main() {
   }[];
 
   // Los ConstructorResult los deriva loadResults, asi que no hay que mandarlos.
-  async function runRace(round: number, pointsByDriverId: Map<number, number>) {
+  // Los puntos los calcula el backend por puesto: el fixture reparte puestos, no puntos.
+  // Quien no esta en el mapa abandona (DNF, 0 puntos).
+  async function runRace(round: number, positionByDriverId: Map<number, number>) {
     const race = await prisma.race.create({
       data: {
         name: `GP ${round} (${runId})`,
         round,
         date: new Date(`${YEAR}-0${round}-01T15:00:00Z`),
-        lockDate: new Date(`${YEAR}-0${round}-01T13:00:00Z`),
         seasonId: season.id,
         circuitId: circuit.id,
       },
     });
     // Se cargan para los pilotos que quedaron en los equipos, que pueden no ser los del fixture.
-    const results = draftedDriverIds.map((driverId, i) => ({
-      driverId,
-      position: i + 1,
-      points: pointsByDriverId.get(driverId) ?? 0,
-      status: 'CLASSIFIED' as const,
-    }));
+    const results = draftedDriverIds.map((driverId) => {
+      const position = positionByDriverId.get(driverId);
+      return position
+        ? { driverId, position, status: 'CLASSIFIED' as const }
+        : { driverId, status: 'DNF' as const };
+    });
     const loaded = await api('POST', `/races/${race.id}/results`, {
       token: adminToken,
       body: { results },
@@ -276,13 +277,16 @@ async function main() {
     }[];
   }
 
-  step('Fecha 1: cargar resultados y recalcular standings');
+  step('Fecha 1: cargar resultados actualiza los standings, sin llamar a recalculate');
   // Asimetrico a proposito: con el mismo puntaje en las dos fechas los totales empatan y el
   // positionChange nunca se mueve, asi que el chequeo de abajo no podria fallar.
-  const race1 = await runRace(1, new Map([[teamA.driver1Id, 10]]));
-  const recalc1 = await api('POST', `/races/${race1}/recalculate`, { token: adminToken });
-  if (recalc1.status !== 200) fail('recalculate fecha 1 fallo', recalc1.body);
-  expect(recalc1.body.data.standings, 2, 'standings generados');
+  // P6 = 8 puntos.
+  const race1 = await runRace(1, new Map([[teamA.driver1Id, 6]]));
+  expect(
+    await prisma.leagueStanding.count({ where: { raceId: race1, leagueMember: { leagueId } } }),
+    2,
+    'standings generados por la carga',
+  );
 
   step('Verificar la aritmetica, no solo el 200');
   const t1 = await standingsOf(owner.token);
@@ -290,16 +294,14 @@ async function main() {
   const b1 = t1.find((s) => s.leagueMemberId === teamB.leagueMemberId)!;
   console.log(dim(`    A: ${a1.driverPoints}+${a1.constructorPoints}=${a1.totalPoints} (pos ${a1.position})`));
   console.log(dim(`    B: ${b1.driverPoints}+${b1.constructorPoints}=${b1.totalPoints} (pos ${b1.position})`));
-  expect(a1.driverPoints, 10, 'A driverPoints');
+  expect(a1.driverPoints, 8, 'A driverPoints (P6)');
   expect(a1.totalPoints, a1.driverPoints + a1.constructorPoints, 'A totalPoints = suma de partes');
   expect(a1.position, 1, 'A position');
   expect(b1.position, 2, 'B position');
   expect(a1.positionChange, 0, 'positionChange en la primera fecha');
 
-  step('Fecha 2 al reves: B saca 25, A saca 0');
-  const race2 = await runRace(2, new Map([[teamB.driver1Id, 25]]));
-  const recalc2 = await api('POST', `/races/${race2}/recalculate`, { token: adminToken });
-  if (recalc2.status !== 200) fail('recalculate fecha 2 fallo', recalc2.body);
+  step('Fecha 2 al reves: B gana (25), A abandona (0)');
+  const race2 = await runRace(2, new Map([[teamB.driver1Id, 1]]));
 
   step('Los puntos ACUMULAN, no se reemplazan');
   const t2 = await standingsOf(owner.token);
@@ -339,7 +341,6 @@ async function main() {
       name: `GP futuro ${runId}`,
       round: 9,
       date: new Date(`${YEAR}-09-01T15:00:00Z`),
-      lockDate: new Date(`${YEAR}-09-01T13:00:00Z`),
       seasonId: season.id,
       circuitId: circuit.id,
     },

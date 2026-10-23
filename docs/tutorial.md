@@ -173,7 +173,7 @@ Si tenés un container con Postgres en `54322:5432` (típico de Supabase local),
 Si tu password tiene `@`, `#`, `:`, etc., en la `DATABASE_URL` van URL-encodeados (`%40`, `%23`, `%3A`). En TablePlus poné el password decodificado, no el de la URL.
 
 **6. Agregaste una tabla y los tests filtran data entre archivos.**
-Si tu PR agrega una tabla nueva al schema, agregala también al `TRUNCATE ... CASCADE` en [`backend/src/tests/setup.ts`](../backend/src/tests/setup.ts), respetando el orden FK-safe (hijos primero, padres después). Sin esto, los tests filtran state y vas a ver fallos intermitentes random. Documentado en [`recipes/add-a-module.md`](./recipes/add-a-module.md).
+Si tu PR agrega una tabla nueva al schema, agregala también al `TRUNCATE ... CASCADE` en [`backend/src/tests/setup.ts`](../backend/src/tests/setup.ts), respetando el orden FK-safe (hijos primero, padres después). Sin esto, los tests filtran state y vas a ver fallos intermitentes random.
 
 ---
 
@@ -296,13 +296,11 @@ Una vez que veas la data en TablePlus, entrá por la puerta principal de la docu
 
 **[`docs/README.md`](./README.md)** — el índice que te orienta según qué querés hacer (onboarding / construir feature). Te va a ir mandando a los siguientes archivos:
 
-- [`docs/glossary.md`](./glossary.md) — términos del dominio (LeagueMember vs User, snake draft, lockDate, etc.). Léelo antes de tocar código.
+- [`docs/glossary.md`](./glossary.md) — términos del dominio (LeagueMember vs User, snake draft, soft-delete, etc.). Léelo antes de tocar código.
 - [`docs/data-model.mmd`](./data-model.mmd) — diagrama ER completo. Abrilo con la extensión Mermaid de VS Code o en [mermaid.live](https://mermaid.live).
 - [`docs/domain-entities.md`](./domain-entities.md) — narrativa: qué representa cada entidad, ciclo de vida, por qué existe.
 - [`docs/api-endpoints.md`](./api-endpoints.md) — endpoints (con tags `[✅ shipped]` / `[🚧 planned]` / `[🔒 outlier]`).
-- [`backend/docs/roadmap.md`](../backend/docs/roadmap.md) y [`frontend/docs/roadmap.md`](../frontend/docs/roadmap.md) — slices ordenados por dependencia; acá encontrás qué falta construir y cuál tomar. El [`docs/roadmap.md`](./roadmap.md) de arriba es el hub: rúbrica, epics y fuera de alcance.
-- [`docs/recipes/add-a-module.md`](./recipes/add-a-module.md) — receta paso a paso para agregar un módulo nuevo (la mayoría de los slices del roadmap son módulos nuevos).
-- [`docs/adr/`](./adr/) — decisiones cerradas (por qué Prisma y no MikroORM, por qué no Repository pattern, etc.). Leelas cuando una decisión te parezca rara.
+- [`backend/docs/roadmap.md`](../backend/docs/roadmap.md) y [`frontend/docs/roadmap.md`](../frontend/docs/roadmap.md) — slices ordenados por dependencia; acá encontrás qué falta construir y cuál tomar.
 - [`CLAUDE.md`](../CLAUDE.md) (raíz) — convenciones de código y request lifecycle. Fuente de verdad de "cómo se programa acá".
 
 ## Tu primer PR

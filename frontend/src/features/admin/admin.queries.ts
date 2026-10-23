@@ -18,19 +18,11 @@ export function useActiveSeasonRaces() {
   });
 }
 
-// Dos requests NO atomicos: si el segundo falla la carrera ya quedo COMPLETED, pero
-// recalculate es idempotente y se puede reintentar.
+// Un solo pedido: el backend carga la fecha y recalcula las ligas en la misma transaccion.
 export function useProcessRace() {
   const qc = useQueryClient();
-  return useMutation<
-    { leagues: number; standings: number },
-    ApiError,
-    { raceId: number; results: RaceResultInput[] }
-  >({
-    mutationFn: async ({ raceId, results }) => {
-      await racesService.loadResults(raceId, results);
-      return racesService.recalculate(raceId);
-    },
+  return useMutation<unknown, ApiError, { raceId: number; results: RaceResultInput[] }>({
+    mutationFn: ({ raceId, results }) => racesService.loadResults(raceId, results),
     onSettled: () => {
       void qc.invalidateQueries({ queryKey: ['races'] });
       void qc.invalidateQueries({ queryKey: ['drivers'] });

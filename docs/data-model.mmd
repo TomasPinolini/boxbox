@@ -67,8 +67,6 @@ erDiagram
         int round
         datetime date
         datetime qualifyingDate "nullable until known via external API"
-        datetime sprintDate "nullable — only sprint weekends"
-        datetime lockDate "deadline for predictions; not necessarily = qualifyingDate"
         int seasonId FK
         int circuitId FK
         enum status "UPCOMING | QUALIFYING_LOCKED | COMPLETED | CANCELLED | POSTPONED"
@@ -142,28 +140,12 @@ erDiagram
         int totalPoints "driver1Points + driver2Points, pre-computado"
     }
 
-    Prediction {
-        int id PK
-        int leagueMemberId FK
-        int raceId FK
-        int predictedWinnerId FK
-        int predictedPoleId FK
-        int predictedTopConstructorId FK
-        boolean winnerCorrect "nullable — cached from RaceResult, null until race scored"
-        boolean poleCorrect "nullable — cached from RaceResult, null until race scored"
-        boolean topConstructorCorrect "nullable — cached from RaceResult, null until race scored"
-        int bonusPoints "default 0, NOT NULL — total of correct predictions × bonus values"
-        datetime createdAt
-        datetime updatedAt
-    }
-
     LeagueStanding {
         int id PK
         int leagueMemberId FK
         int raceId FK
         int driverPoints
         int constructorPoints
-        int predictionPoints
         int totalPoints
         int position
         int positionChange
@@ -218,7 +200,6 @@ erDiagram
 
     LeagueMember ||--|| FantasyTeam : "owns"
     LeagueMember ||--o{ DraftPick : "makes"
-    LeagueMember ||--o{ Prediction : "makes"
     LeagueMember ||--o{ LeagueStanding : "has"
 
     FantasyTeam }o--|| Driver : "driver1"
@@ -230,12 +211,7 @@ erDiagram
 
     Race ||--o{ RaceResult : "has"
     Race ||--o{ ConstructorResult : "has"
-    Race ||--o{ Prediction : "for"
     Race ||--o{ LeagueStanding : "snapshot at"
 
     Driver ||--o{ RaceResult : "has"
     Constructor ||--o{ ConstructorResult : "has"
-
-    Prediction }o--|| Driver : "predicted winner"
-    Prediction }o--|| Driver : "predicted pole"
-    Prediction }o--|| Constructor : "predicted top team"

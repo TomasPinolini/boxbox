@@ -1,8 +1,6 @@
 # Roadmap del frontend
 
-Carril frontend del TP. El panorama completo, la tabla de estado contra la rúbrica de
-la cátedra y el reparto de epics viven en el hub: [`../../docs/roadmap.md`](../../docs/roadmap.md).
-El carril backend está en [`../../backend/docs/roadmap.md`](../../backend/docs/roadmap.md).
+Carril frontend del TP. El carril backend está en [`../../backend/docs/roadmap.md`](../../backend/docs/roadmap.md).
 
 Slices ordenados por dependencia. Cada slice ≈ 1 PR. Ningún slice salta sobre otro si
 está marcado en `Blocked by`.
@@ -33,8 +31,7 @@ TypeScript + Tailwind v4. Tests = Vitest + Testing Library, e2e con Playwright.
 
 _(Nada de código. Todo este carril está abajo, en "Completados": Slices 13a, 13b, 14, 15, 16 y 17,
 más el trabajo posterior al 17 que entró sin número de slice.
-El único entregable que falta de la entrega es el **video demo**, que no es un slice — vive en
-el hub, [`../../docs/roadmap.md`](../../docs/roadmap.md) → "Trámites de cátedra".)_
+El único entregable que falta de la entrega es el **video demo**, que no es un slice.)_
 
 ---
 
@@ -115,7 +112,7 @@ el tramo 2 se apoyó en esa base sin rehacer nada.
 - **Tramo 2 — picks desde la UI + timer countdown**. `useDraftState` suma `submitPick(input)` (`emit('draft:pick', ...)` sobre el mismo socket) y maneja `draft:timer`/`draft:error`/`draft:complete`; `DraftPage` suma el `<select>` + botón "Confirmar pick" cuando `isMyTurn`, deshabilitado mientras `pickPending`, con el error del pick (`NOT_YOUR_TURN`, etc.) en un `Alert` aparte del de conexión.
   - **El countdown es local, no un poll al backend**: el server manda `draft:timer` **una vez** por ronda (`{ secondsRemaining }`), igual que hace con los clientes Socket.io directos (Slice 6) — el `setInterval` que lo decrementa vive en el frontend. Separar `timerTick` (sube solo cuando llega un evento de timer nuevo) de `secondsRemaining` (lo que se muestra, decrementado por el intervalo) evita dos problemas de las reglas de pureza de `eslint-plugin-react-hooks` v7: recrear el `setInterval` en cada segundo (si dependiera de `secondsRemaining`) y leer `Date.now()` durante el render (si se derivara el valor mostrado a cada render en vez de mantenerlo como estado).
   - **Reset de la selección sin `useEffect`**: cuando cambia el turno o la ronda, `DraftPage` limpia el `<select>` ajustando el estado durante el render (comparando una `turnKey` contra la última vista), no con un efecto — mismo patrón que React recomienda para "adjusting state when a prop changes"; un efecto ahí también viola la regla de pureza (`no llamar a setState sincrónicamente dentro de un efecto`).
-- **Tests**: 10 unitarios en `useDraftState.test.ts` (los 5 de tramo 1 + `submitPick` emite `draft:pick` y marca `pending`, `draft:error` baja `pending` y guarda el error, un `draft:update` propio limpia el error anterior, el timer cuenta 1 por segundo con `vi.useFakeTimers`, `draft:complete` limpia el timer) — mockeando `socket.io-client` con un fake socket cuyo `emit` es a la vez dispatcher de eventos entrantes (simula al servidor) y spy (afirma lo que mandó `submitPick`). Verificado a mano contra `npm run dev` real: **un draft completo de punta a punta desde la UI** — 2 miembros, 3 rondas, 6 picks alternando quién le toca según el turno, ambas pantallas terminan en "El draft ya terminó." sin reload. Pase responsive a 375px con el picker visible, sin overflow. Evidencia en `docs/test-evidence/slice-13b-unit.txt` y `slice-13b-tramo2-unit.txt`.
+- **Tests**: 10 unitarios en `useDraftState.test.ts` (los 5 de tramo 1 + `submitPick` emite `draft:pick` y marca `pending`, `draft:error` baja `pending` y guarda el error, un `draft:update` propio limpia el error anterior, el timer cuenta 1 por segundo con `vi.useFakeTimers`, `draft:complete` limpia el timer) — mockeando `socket.io-client` con un fake socket cuyo `emit` es a la vez dispatcher de eventos entrantes (simula al servidor) y spy (afirma lo que mandó `submitPick`). Verificado a mano contra `npm run dev` real: **un draft completo de punta a punta desde la UI** — 2 miembros, 3 rondas, 6 picks alternando quién le toca según el turno, ambas pantallas terminan en "El draft ya terminó." sin reload. Pase responsive a 375px con el picker visible, sin overflow.
 
 ### Slice 15 — Protección de rutas por nivel
 
@@ -148,7 +145,7 @@ el tramo 2 se apoyó en esa base sin rehacer nada.
   - **Multimedia**: `Driver.headshotUrl` (21/22 al cerrar el slice) guardaba la **URL** contra el CDN de F1, no el archivo — son imágenes de prensa y el repo es público. `Constructor.logoUrl` (8/11) sí eran estáticos, de Wikimedia Commons, con licencias en `frontend/public/logos/CREDITS.md`. **Actualizado desde entonces**: hoy el seed apunta a archivos locales y están completos — 22/22 fotos en `frontend/public/drivers/` y 11/11 logos en `frontend/public/logos/` (verificado el 2026-10-17).
 - **Gotcha que solo apareció midiendo**: el badge se pinta con el color oficial del equipo. Elegir el color del texto comparando la luminancia contra un umbral fijo dejaba **4 de 11 equipos por debajo del mínimo de contraste de WCAG** (Haas 1.95:1, Williams 2.19, McLaren 2.52, Racing Bulls 2.95). Hay que elegir el color que **maximiza** el contraste, y el texto oscuro tiene que ser **negro puro**: con el `#111827` del sistema de diseño, el rojo de Audi topaba en 4.07 y ninguna de las dos opciones llegaba. `team-color.test.ts` afirma que cada uno de los 11 llega a 4.5:1.
 - **Primeros del repo**: el primer `<select>`, y `src/test/render-with-query.tsx`, el primer wrapper de React Query para tests (ningún test renderizaba un componente con `useQuery`).
-- **Tests**: 37 (+24) unitarios, 4 e2e (+2 — uno verifica que `/drivers` **no** redirige a `/login`, el par simétrico del de `/leagues`). Pase responsive 375/768/1024 sin overflow. Evidencia en `docs/test-evidence/slice-14-*.txt`.
+- **Tests**: 37 (+24) unitarios, 4 e2e (+2 — uno verifica que `/drivers` **no** redirige a `/login`, el par simétrico del de `/leagues`). Pase responsive 375/768/1024 sin overflow.
 - ~~**Pendiente, post-entrega**: el logo dentro del badge de cada card. Necesita conseguir Ferrari, Audi y Racing Bulls (no están en Commons) y recortar los wordmarks a un ícono cuadrado.~~ **Hecho**: los 11 logos están en `frontend/public/logos/`, Ferrari, Audi y Racing Bulls (`rb.png`) incluidos.
 
 ### Slice 13a — Frontend bootstrap (auth + ligas)
@@ -158,5 +155,5 @@ el tramo 2 se apoyó en esa base sin rehacer nada.
 - **Shipped**: `frontend/` (Vite + React 19 + TS + Tailwind v4). `services/api-client.ts` (axios singleton, interceptor con refresh de token dedup'do vía `refreshOnce()`), `store/auth.store.ts` (Zustand, token solo en memoria — sin `persist`), React Query para todo el fetching (`features/*/[...].queries.ts`, un hook por operación, invalidación en cada mutación), React Router v7 con layout-routes de guarda (`RequireAuth` / `GuestOnly`), formularios con `react-hook-form` + Zod (mismos schemas que el backend). Componentes UI propios en `components/ui/` (`Alert`, `Badge`, `Button`, `Card`, `Field`, `PageShell`).
   - **Pantallas**: `/login`, `/register` (auth), `/leagues` (lista + alta + join por código), `/leagues/:id` (detalle: miembros, invitar por código, iniciar draft si sos owner, salir/echar miembros — todo respetando `ROSTER_LOCKED` una vez que el draft está LIVE).
 - **Touches reales**: todo `frontend/` (nuevo); `backend` sin cambios de lógica — solo `FRONTEND_URL` en CORS (ya soportado desde antes) y `user.name` agregado a `memberSelect` en `leagues.service.ts` para que la UI pueda mostrar nombres.
-- **Tests**: Vitest + Testing Library (`RequireAuth.test.tsx`, `LeagueCard.test.tsx`, `auth.store.test.ts`, `api-error.test.ts`) — 13 tests. E2E con Playwright (`frontend/e2e/leagues.spec.ts`, `npm run e2e`): registro → crear liga → verse como owner, y redirect a `/login` sin sesión — 2 tests, evidencia en `docs/test-evidence/`. Cada task se verificó además con un script Playwright manual contra `npm run dev` real (login, crear/joinear liga, iniciar draft, roster lock) antes de mergear. Pase responsive (375/768/1024px) sin overflow horizontal en `/leagues` y `/leagues/:id`.
+- **Tests**: Vitest + Testing Library (`RequireAuth.test.tsx`, `LeagueCard.test.tsx`, `auth.store.test.ts`, `api-error.test.ts`) — 13 tests. E2E con Playwright (`frontend/e2e/leagues.spec.ts`, `npm run e2e`): registro → crear liga → verse como owner, y redirect a `/login` sin sesión — 2 tests. Cada task se verificó además con un script Playwright manual contra `npm run dev` real (login, crear/joinear liga, iniciar draft, roster lock) antes de mergear. Pase responsive (375/768/1024px) sin overflow horizontal en `/leagues` y `/leagues/:id`.
 - **Pendiente (Slice 13b)**: draft en vivo conectado a Socket.io.

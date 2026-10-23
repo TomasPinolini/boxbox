@@ -170,7 +170,7 @@ HTTP externo del repo — confirmado con grep: no hay ningún `fetch`/axios a Op
 | `/{year}/drivers` | — | — | ❌ **decisión explícita** (BOX-9): Jolpica lista 32 pilotos para 2026 y `maxMembersForSeason` depende de `driverCount` |
 | `/{year}/constructors` | — | — | ❌ ídem: los 11 equipos vienen del seed |
 | `/{year}/qualifying` | — | — | ❌ nunca se pidió |
-| `/{year}/sprint` | — | — | ❌ nunca se pidió (sí guardamos `Race.sprintDate`) |
+| `/{year}/sprint` | — | — | ❌ nunca se pidió |
 | `/{year}/{round}/pitstops` | — | — | ❌ sin modelo donde guardarlo |
 | `/{year}/{round}/laps` | — | — | ❌ ídem |
 | `/{year}/driverstandings` | — | — | ❌ calculamos el campeonato nosotros (`GET /drivers/standings`, Slice 16) |
@@ -184,9 +184,9 @@ HTTP externo del repo — confirmado con grep: no hay ningún `fetch`/axios a Op
 |---|---|---|---|
 | `round` | ✅ clave `(seasonId, round)` | — | — |
 | `raceName` | ✅ `Race.name` | — | — |
-| `date` + `time` | ✅ `Race.date`; `Race.lockDate` = una hora antes | — | — |
+| `date` + `time` | ✅ `Race.date` | — | — |
 | `Qualifying{date,time}` | — | ⚠️ `Race.qualifyingDate` — se escribe en el sync y **ninguna pantalla lo lee** (0 referencias en `frontend/src`) | — |
-| `Sprint{date,time}` | — | ⚠️ `Race.sprintDate` — ídem | — |
+| `Sprint{date,time}` | — | ❌ sin columna | — |
 | `Circuit.circuitId` | ✅ `Circuit.externalId` (clave de upsert y chequeo anti-desfasaje) | — | — |
 | `Circuit.circuitName` | ✅ `Circuit.name` (sólo al crear; nunca pisa uno existente) | — | — |
 | `Location.locality` / `country` | ✅ `Circuit.city` / `Circuit.country` | ⚠️ se guardan pero ninguna pantalla muestra circuitos (`circuit` no aparece en `frontend/src`) | — |
@@ -240,8 +240,7 @@ consumimos **1 campo de 1 endpoint**, copiado a mano al seed, sin llamadas en ru
 Sin estimaciones de esfuerzo: sólo qué dato existe, que hoy no traemos, y qué habilitaría.
 
 1. **Qualifying de Jolpica (`/{year}/qualifying`: `Q1`, `Q2`, `Q3`, `position`) y/o `starting_grid`
-   de OpenF1.** Habilita la pole real, que es uno de los tres aciertos del Slice 10 (Predicciones,
-   `predictedPoleId` ya está en `schema.prisma`). Hoy no hay ninguna fuente de pole en la DB:
+   de OpenF1.** Habilita la pole real. Hoy no hay ninguna fuente de pole en la DB:
    `RaceResult.gridPosition` es la grilla de largada, que puede diferir de la pole por sanciones.
 2. **`session_result.points` de OpenF1 + `/{year}/driverstandings` de Jolpica.** Habilita una
    verificación independiente del campeonato que calculamos en el Slice 16: dos fuentes que
@@ -256,7 +255,7 @@ Sin estimaciones de esfuerzo: sólo qué dato existe, que hoy no traemos, y qué
    el dato ya está en la base y en la respuesta, falta la columna. Es el hueco más corto del
    listado porque no toca la red.
 5. **`Sprint` de Jolpica (`/{year}/sprint`, 132 filas en 2026).** Habilita puntuar los sprints:
-   hoy guardamos `Race.sprintDate` pero los puntos del sprint no entran nunca a `RaceResult`,
+   hoy los puntos del sprint no entran nunca a `RaceResult`,
    así que un fin de semana con sprint reparte menos puntos en BoxBox que en la F1 real.
 6. **`Location.lat`/`long` de Jolpica y `circuit_image`/`country_flag`/`circuit_info_url` de
    OpenF1.** Habilita una pantalla de circuitos y banderas de país en el calendario. Hoy ni

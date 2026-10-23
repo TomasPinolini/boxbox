@@ -41,7 +41,6 @@ async function seedRace(round: number, status: 'COMPLETED' | 'UPCOMING' = 'COMPL
       name: `GP ${round}`,
       round,
       date: new Date(`2026-0${round}-01T15:00:00Z`),
-      lockDate: new Date(`2026-0${round}-01T13:00:00Z`),
       seasonId,
       circuitId,
       status,

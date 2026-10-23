@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Alert, Badge, Button, Card, HelpPopover, PageShell } from '../../components/ui';
-import type { Driver } from '../../models/driver';
 import type { DraftState } from '../../models/draft';
 import { useAuthStore } from '../../store/auth.store';
 import { useDrivers, useConstructors } from '../drivers/drivers.queries';
@@ -10,6 +9,7 @@ import { useMembers } from '../leagues/leagues.queries';
 import { draftAnnouncement } from './draft-announcement';
 import { DraftPicker } from './DraftPicker';
 import { buildDraftTeams, type DraftTeam } from './draft-teams';
+import { resolveTeam } from '../drivers/resolve-team';
 import { TeamLineup, TeamRow } from './TeamLineup';
 import { useDraftState } from './useDraftState';
 
@@ -63,12 +63,8 @@ export function DraftPage() {
     members.data?.find((m) => m.id === leagueMemberId)?.user.name ?? `miembro ${leagueMemberId}`;
 
   const teams = state ? buildDraftTeams(state.picks, myLeagueMemberId) : null;
-  const driversOf = (team: DraftTeam) =>
-    team.driverIds
-      .map((driverId) => drivers.data?.find((d) => d.id === driverId))
-      .filter((d): d is Driver => d !== undefined);
-  const constructorOf = (team: DraftTeam) =>
-    constructors.data?.find((c) => c.id === team.constructorId) ?? null;
+  const resolve = (team: DraftTeam) =>
+    resolveTeam(team.driverIds, team.constructorId, drivers.data, constructors.data);
 
   // `state.picks` acumula toda la liga y todas las rondas, no solo los picks propios.
   const takenDriverIds = new Set(
@@ -79,11 +75,13 @@ export function DraftPage() {
   );
 
   const pickLabel = (pick: NonNullable<typeof state>['picks'][number]) => {
+    const {
+      drivers: [driver],
+      constructor,
+    } = resolveTeam([pick.driverId], pick.constructorId, drivers.data, constructors.data);
     if (pick.driverId !== null) {
-      const driver = drivers.data?.find((d) => d.id === pick.driverId);
       return driver ? `${driver.firstName} ${driver.lastName}` : `piloto ${pick.driverId}`;
     }
-    const constructor = constructors.data?.find((c) => c.id === pick.constructorId);
     return constructor?.name ?? `escudería ${pick.constructorId}`;
   };
 
@@ -109,15 +107,19 @@ export function DraftPage() {
     submitPick(category === 'DRIVER' ? { driverId: selected } : { constructorId: selected });
   }
 
+  const selectedTeam =
+    category === 'DRIVER'
+      ? resolveTeam([selected], null, drivers.data, constructors.data)
+      : resolveTeam([], selected, drivers.data, constructors.data);
+  const selectedDriver = selectedTeam.drivers[0];
   const selectedLabel =
     selected === null
       ? null
       : category === 'DRIVER'
-        ? (() => {
-            const d = drivers.data?.find((driver) => driver.id === selected);
-            return d ? `${d.firstName} ${d.lastName}` : null;
-          })()
-        : (constructors.data?.find((c) => c.id === selected)?.name ?? null);
+        ? selectedDriver
+          ? `${selectedDriver.firstName} ${selectedDriver.lastName}`
+          : null
+        : (selectedTeam.constructor?.name ?? null);
 
   return (
     <PageShell
@@ -235,8 +237,8 @@ export function DraftPage() {
                     <Card className="enter-scale">
                       <h2 className="mb-3 text-lg font-semibold">Tu equipo</h2>
                       <TeamLineup
-                        drivers={driversOf(teams.mine)}
-                        constructor={constructorOf(teams.mine)}
+                        drivers={resolve(teams.mine).drivers}
+                        constructor={resolve(teams.mine).constructor}
                         onOpenDriver={(driverId) => navigate(`/drivers/${driverId}`)}
                       />
                     </Card>
@@ -252,8 +254,8 @@ export function DraftPage() {
                           <TeamRow
                             key={team.leagueMemberId}
                             memberName={memberName(team.leagueMemberId)}
-                            drivers={driversOf(team)}
-                            constructor={constructorOf(team)}
+                            drivers={resolve(team).drivers}
+                            constructor={resolve(team).constructor}
                           />
                         ))}
                       </ul>

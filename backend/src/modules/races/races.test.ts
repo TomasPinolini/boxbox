@@ -38,7 +38,6 @@ function validRace() {
     name: 'British Grand Prix',
     round: 1,
     date: '2026-07-05T14:00:00Z',
-    lockDate: '2026-07-04T12:00:00Z',
     seasonId,
     circuitId,
   };
@@ -168,7 +167,7 @@ describe('POST /api/v1/races', () => {
 
   // z.coerce.date() convertiria null/true/0 en 1970-01-01 sin fallar.
   it('rejects non-ISO dates instead of coercing them to 1970 (null, true, 0)', async () => {
-    for (const bad of [{ lockDate: null }, { qualifyingDate: true }, { date: 0 }]) {
+    for (const bad of [{ date: null }, { qualifyingDate: true }, { date: 0 }]) {
       const res = await request(app)
         .post('/api/v1/races')
         .set('Authorization', `Bearer ${adminToken}`)
@@ -187,7 +186,7 @@ describe('POST /api/v1/races', () => {
     const res = await request(app)
       .patch(`/api/v1/races/${created.body.data.id}`)
       .set('Authorization', `Bearer ${adminToken}`)
-      .send({ lockDate: null });
+      .send({ date: null });
     expect(res.status).toBe(400);
   });
 });
@@ -309,13 +308,10 @@ async function createDrivers(
   return drivers;
 }
 
-const F1_POINTS_TABLE = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1];
-
 function buildResults(drivers: Array<{ id: number }>) {
   return drivers.map((d, i) => ({
     driverId: d.id,
     position: i + 1,
-    points: F1_POINTS_TABLE[i] ?? 0,
     gridPosition: drivers.length - i,
     laps: 71,
     fastestLap: i === 2, // 3er clasificado logra la vuelta rapida en este escenario
@@ -345,6 +341,67 @@ describe('POST /api/v1/races/:id/results', () => {
 
     const race = await prisma.race.findUnique({ where: { id: raceId } });
     expect(race?.status).toBe('COMPLETED');
+  });
+
+  // Una sola tabla de puntos, la del backend: lo que mande el cliente en `points` se descarta.
+  it('calcula los puntos por puesto e ignora los que manda el cliente', async () => {
+    const raceRes = await request(app)
+      .post('/api/v1/races')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send(validRace());
+    const raceId = raceRes.body.data.id;
+    const [winner, dnf] = await createDrivers(2);
+
+    const res = await request(app)
+      .post(`/api/v1/races/${raceId}/results`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        results: [
+          { driverId: winner.id, position: 1, points: 99, status: 'CLASSIFIED' },
+          { driverId: dnf.id, points: 50, status: 'DNF' },
+        ],
+      });
+    expect(res.status).toBe(201);
+
+    const rows = await prisma.raceResult.findMany({ where: { raceId } });
+    const pointsOf = (id: number) => rows.find((r) => r.driverId === id)?.points;
+    expect(pointsOf(winner.id)).toBe(25);
+    expect(pointsOf(dnf.id)).toBe(0);
+  });
+
+  // Cargar la fecha y actualizar las ligas pasan juntos: no hace falta POST /recalculate.
+  it('cargar resultados actualiza los standings de las ligas en la misma operacion', async () => {
+    const raceRes = await request(app)
+      .post('/api/v1/races')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send(validRace());
+    const raceId = raceRes.body.data.id;
+    const [winner] = await createDrivers(2);
+
+    const owner = await createTestUser({ email: 'owner@test.com' });
+    const league = await prisma.league.create({
+      data: { name: 'Liga', inviteCode: 'ligacarga', seasonId, createdById: owner.user.id },
+    });
+    const member = await prisma.leagueMember.create({
+      data: { leagueId: league.id, userId: owner.user.id, isOwner: true },
+    });
+    await prisma.fantasyTeam.create({
+      data: { leagueMemberId: member.id, driver1Id: winner.id },
+    });
+
+    const res = await request(app)
+      .post(`/api/v1/races/${raceId}/results`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ results: [{ driverId: winner.id, position: 1, status: 'CLASSIFIED' }] });
+    expect(res.status).toBe(201);
+
+    const standings = await prisma.leagueStanding.findMany({ where: { raceId } });
+    expect(standings).toHaveLength(1);
+    expect(standings[0]).toMatchObject({
+      leagueMemberId: member.id,
+      driverPoints: 25,
+      position: 1,
+    });
   });
 
   it('sin token → 401 TOKEN_MISSING', async () => {
@@ -403,7 +460,7 @@ describe('POST /api/v1/races/:id/results', () => {
 
     const results = [
       ...buildResults(drivers),
-      { driverId: 999999, position: 3, points: 15, status: 'CLASSIFIED' as const },
+      { driverId: 999999, position: 3, status: 'CLASSIFIED' as const },
     ];
 
     const res = await request(app)
@@ -539,8 +596,8 @@ describe('POST /api/v1/races/:id/results', () => {
     const { accessToken } = await createTestAdmin();
 
     const results = [
-      { driverId: drivers[0].id, position: 1, points: 25, status: 'CLASSIFIED' as const },
-      { driverId: drivers[0].id, position: 2, points: 18, status: 'CLASSIFIED' as const },
+      { driverId: drivers[0].id, position: 1, status: 'CLASSIFIED' as const },
+      { driverId: drivers[0].id, position: 2, status: 'CLASSIFIED' as const },
     ];
 
     const res = await request(app)
@@ -580,11 +637,62 @@ describe('POST /api/v1/races/:id/results', () => {
       .post(`/api/v1/races/${raceRes.body.data.id}/results`)
       .set('Authorization', `Bearer ${accessToken}`)
       .send({
-        results: [{ driverId: drivers[0].id, points: 25, status: 'BOGUS' }],
+        results: [{ driverId: drivers[0].id, status: 'BOGUS' }],
       });
 
     expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+});
+
+// Sin pasar por el navegador: estas reglas tienen que valer para cualquier cliente.
+describe('POST /api/v1/races/:id/results — reglas entre filas', () => {
+  async function postResults(results: unknown[]) {
+    const raceRes = await request(app)
+      .post('/api/v1/races')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send(validRace());
+    return request(app)
+      .post(`/api/v1/races/${raceRes.body.data.id}/results`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ results });
+  }
+
+  it('dos pilotos con la misma posicion → 400, no se reparten puntos de mas', async () => {
+    const [a, b] = await createDrivers(2);
+    const res = await postResults([
+      { driverId: a.id, position: 1, status: 'CLASSIFIED' },
+      { driverId: b.id, position: 1, status: 'CLASSIFIED' },
+    ]);
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    expect(await prisma.raceResult.count()).toBe(0);
+  });
+
+  it('CLASSIFIED sin posicion → 400', async () => {
+    const [a] = await createDrivers(1);
+    const res = await postResults([{ driverId: a.id, status: 'CLASSIFIED' }]);
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  it('dos vueltas rapidas → 400', async () => {
+    const [a, b] = await createDrivers(2);
+    const res = await postResults([
+      { driverId: a.id, position: 1, fastestLap: true, status: 'CLASSIFIED' },
+      { driverId: b.id, position: 2, fastestLap: true, status: 'CLASSIFIED' },
+    ]);
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  it('un hueco en las posiciones se acepta: el suplente salteado de Jolpica', async () => {
+    const [a, b] = await createDrivers(2);
+    const res = await postResults([
+      { driverId: a.id, position: 1, status: 'CLASSIFIED' },
+      { driverId: b.id, position: 3, status: 'CLASSIFIED' },
+    ]);
+    expect(res.status).toBe(201);
   });
 });
 

@@ -157,7 +157,7 @@ piloto, porque eso mezclaría temporadas y `round` dejaría de ser un orden tota
 | Método | Endpoint                 | Acceso | Notas                                                                                                                                                                                                                                             |
 | ------ | ------------------------ | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | GET    | `/races`                 | User   | Soporta `?seasonId=X&status=Y`                                                                                                                                                                                                                    |
-| GET    | `/races/:id`             | User   | Incluye estado de lock                                                                                                                                                                                                                            |
+| GET    | `/races/:id`             | User   |                                                                                                                                                                                                                                                   |
 | POST   | `/races`                 | Admin  |                                                                                                                                                                                                                                                   |
 | PATCH  | `/races/:id`             | Admin  |                                                                                                                                                                                                                                                   |
 | DELETE | `/races/:id`             | Admin  |                                                                                                                                                                                                                                                   |
@@ -190,7 +190,7 @@ piloto, porque eso mezclaría temporadas y `round` dejaría de ser un orden tota
 
 ### REST Endpoints
 
-3 rondas fijas por draft (una por slot de FantasyTeam): rondas 1-2 categoría DRIVER (llenan `driver1`/`driver2` en ese orden), ronda 3 categoría CONSTRUCTOR (llena `constructor`). Con N miembros ACTIVE, el draft completo son `N × 3` picks. No hay piloto reserva (ADR-0006). `start` rechaza con 409 `TOO_MANY_MEMBERS_FOR_DRAFT` si los miembros superan `floor(season.driverCount / 2)`.
+3 rondas fijas por draft (una por slot de FantasyTeam): rondas 1-2 categoría DRIVER (llenan `driver1`/`driver2` en ese orden), ronda 3 categoría CONSTRUCTOR (llena `constructor`). Con N miembros ACTIVE, el draft completo son `N × 3` picks. No hay piloto reserva. `start` rechaza con 409 `TOO_MANY_MEMBERS_FOR_DRAFT` si los miembros superan `floor(season.driverCount / 2)`.
 
 | Método | Endpoint                       | Acceso        | Notas                             |
 | ------ | ------------------------------ | ------------- | ---------------------------------- |
@@ -231,16 +231,6 @@ Si el timer llega a 0 sin que nadie pickee, el servidor auto-asigna **al azar** 
 
 ---
 
-## Predictions [🚧 planned]
-
-| Método | Endpoint                               | Acceso        | Notas                                        |
-| ------ | -------------------------------------- | ------------- | -------------------------------------------- |
-| PUT    | `/leagues/:id/predictions/:raceId`     | League member | Upsert. Solo antes de `lockDate`             |
-| GET    | `/leagues/:id/predictions/:raceId`     | League member | Mi predicción                                |
-| GET    | `/leagues/:id/predictions/:raceId/all` | League member | Predicciones de todos. Solo después del lock |
-
----
-
 ## Standings & Recaps [🚧 planned]
 
 | Método | Endpoint                          | Acceso        | Notas                                         |
@@ -259,11 +249,6 @@ Si el timer llega a 0 sin que nadie pickee, el servidor auto-asigna **al azar** 
     "driver1Points": 18,
     "driver2Points": 12,
     "totalPoints": 30
-  },
-  "predictions": {
-    "winner": { "predicted": "Verstappen", "actual": "Verstappen", "correct": true, "points": 10 },
-    "pole": { "predicted": "Norris", "actual": "Norris", "correct": true, "points": 8 },
-    "topConstructor": { "predicted": "McLaren", "actual": "Ferrari", "correct": false, "points": 0 }
   },
   "standings": {
     "position": 2,
@@ -322,14 +307,6 @@ Todo el router va detrás de `requireAuth → requireAdmin`. Cada corrida deja u
 
 Suma de los puntos reales de ambos pilotos del constructor en la carrera.
 
-### Puntos por Predicción
-
-| Predicción          | Puntos si es correcta |
-| ------------------- | --------------------- |
-| Race winner         | +10                   |
-| Pole position       | +8                    |
-| Team con más puntos | +12                   |
-
 ### Piloto que no termina (DNF / DSQ / DNS)
 
-- No hay piloto reserva ni swaps (ADR-0006). Un piloto con status `DNF`, `DSQ` o `DNS` suma 0 puntos para ese slot del FantasyTeam en esa carrera.
+- No hay piloto reserva ni swaps. Un piloto con status `DNF`, `DSQ` o `DNS` suma 0 puntos para ese slot del FantasyTeam en esa carrera.

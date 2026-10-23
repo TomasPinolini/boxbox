@@ -21,7 +21,7 @@ Definiciones de una línea de todos los términos del dominio. Si necesitás nar
 | Término | Definición | Evitar |
 |---|---|---|
 | **Driver** | Piloto profesional de F1; entidad de catálogo con `number`, `code` (3 letras) y `externalId`. | pilot, racer |
-| **Constructor** | Equipo de F1 (Mercedes, Ferrari, ...) como entidad de catálogo; sirve como pick de draft y objetivo de predicción. | team |
+| **Constructor** | Equipo de F1 (Mercedes, Ferrari, ...) como entidad de catálogo; sirve como pick de draft. | team |
 | **Circuit** | Pista física donde se corre un Grand Prix; tiene `country`, `city`, `circuitLength`. | track, racetrack |
 | **Season** | Año del campeonato mundial (`year` único); solo una puede tener `isActive: true`. | year (suelto), championship |
 | **DriverSeason** | Fila que une **Driver** × **Constructor** × **Season** — modela "este piloto corrió para este equipo en esta temporada". | DriverContract, contract |
@@ -32,11 +32,9 @@ Definiciones de una línea de todos los términos del dominio. Si necesitás nar
 
 | Término | Definición | Evitar |
 |---|---|---|
-| **Race** | Grand Prix del calendario de una **Season**; tiene `round`, `date`, `lockDate` y `status` operativo. | GP (en código), event |
-| **RaceResult** | Resultado oficial de un **Driver** en el **Gran Premio** de una **Race** — no en su **Sprint**: position, points, gridPosition, fastestLap, status (CLASSIFIED/DNF/DSQ/DNS). Se renombra a **GrandPrixResult** (modelo y tabla, no el contrato HTTP) — ver [ADR-0010](./adr/ADR-0010-resultados-de-sprint-en-tablas-propias.md). | result (suelto), "resultado del fin de semana" |
+| **Race** | Grand Prix del calendario de una **Season**; tiene `round`, `date` y `status` operativo. | GP (en código), event |
+| **RaceResult** | Resultado oficial de un **Driver** en una **Race**: position, points, gridPosition, fastestLap, status (CLASSIFIED/DNF/DSQ/DNS). | result (suelto), "resultado del fin de semana" |
 | **ConstructorResult** | Resultado agregado de un **Constructor** en una **Race**: `driver1Points` + `driver2Points`; pre-computado al cargar RaceResults. | teamResult |
-| **Sprint** | Carrera corta del sábado en ~6 fechas por temporada; reparte 8-7-6-5-4-3-2-1 al top 8 y no tiene punto de vuelta rápida. Sus puntos **sí** cuentan para los campeonatos y para las ligas; sus victorias y podios **no** entran en las estadísticas de un piloto, igual que en la F1 real. Su fecha vive en `Race.sprintDate`. | "carrera del sábado", sprint race |
-| **SprintResult** | Resultado de un **Driver** en el **Sprint** de una **Race**, en su propia tabla. Planificado, no construido — [ADR-0010](./adr/ADR-0010-resultados-de-sprint-en-tablas-propias.md), Slice 17. | "RaceResult de sprint" |
 
 ---
 
@@ -45,9 +43,8 @@ Definiciones de una línea de todos los términos del dominio. Si necesitás nar
 | Término | Definición | Evitar |
 |---|---|---|
 | **League** | Competencia privada de hasta 11 **LeagueMember**s sobre una **Season**, con `inviteCode` único y `draftStatus`. | room, group, lobby |
-| **FantasyTeam** | Equipo armado por un **LeagueMember** en su **League**: 2 pilotos y 1 constructor (sin reserva — ADR-0006); 1:1 estricto con LeagueMember. | team (suelto — ambiguo con Constructor), lineup |
+| **FantasyTeam** | Equipo armado por un **LeagueMember** en su **League**: 2 pilotos y 1 constructor (sin reserva); 1:1 estricto con LeagueMember. | team (suelto — ambiguo con Constructor), lineup |
 | **DraftPick** | Una elección hecha por un **LeagueMember** durante el draft; referencia O un Driver O un Constructor (nunca ambos). | selection, choice |
-| **Prediction** | Pronóstico pre-carrera de un **LeagueMember**: ganador, pole y top constructor; suma bonus si acierta. | guess, bet, forecast |
 | **LeagueStanding** | Snapshot inmutable de la posición de un **LeagueMember** en su **League** después de una **Race** específica; guarda totalPoints, position, positionChange. | leaderboard entry, ranking row |
 
 ---
@@ -57,7 +54,7 @@ Definiciones de una línea de todos los términos del dominio. Si necesitás nar
 | Término | Definición | Evitar |
 |---|---|---|
 | **SyncLog** | Registro auditable de una sincronización con Jolpica/OpenF1: `type`, `status`, contadores y `triggeredById` (nullable para syncs cron). | sync record, log entry |
-| **beta** | Etapa declarada del **producto**: faltan features del alcance declarado, puede haber caídas y **los puntos pueden recalcularse** cuando se corrige un defecto de scoring. Es **ortogonal a la versión semver** — [ADR-0011](./adr/ADR-0011-semantic-versioning.md) versiona el contrato HTTP, que sí es estable. | preview, early access, alpha; "versión beta" (confunde los dos ejes) |
+| **beta** | Etapa declarada del **producto**: faltan features del alcance declarado, puede haber caídas y **los puntos pueden recalcularse** cuando se corrige un defecto de scoring. Es **ortogonal a la versión semver** — semver versiona el contrato HTTP, que sí es estable. | preview, early access, alpha; "versión beta" (confunde los dos ejes) |
 
 ---
 
@@ -65,10 +62,9 @@ Definiciones de una línea de todos los términos del dominio. Si necesitás nar
 
 | Término | Definición | Evitar |
 |---|---|---|
-| **lockDate** | Timestamp por **Race** después del cual no se aceptan más **Prediction**s: **un minuto antes de `qualifyingDate`** ([ADR-0012](./adr/ADR-0012-predicciones-pre-carrera.md)). Hasta la v1.0.0 era una hora antes del race start, o sea después de la clasificación — por eso la pole no era un pronóstico. | deadline, cutoff |
 | **snake draft** | Modalidad de draft donde el orden de picks se revierte cada ronda (1→N, N→1, 1→N); 3 rondas en BoxBox: titular 1, titular 2, constructor. | serpentine draft, mirror draft |
 | **soft-delete** | Política de borrado lógico: la fila queda en DB con `deletedAt` seteado y se filtra de reads; solo aplica a entidades de catálogo (Driver, Constructor, Circuit). | logical delete (en docs); usar "borrar" cuando se borra físicamente |
-| **archivado** | Cierre definitivo de una **League** por su **owner**: pasa a `status = 'ARCHIVED'`, desaparece de los listados, deja de aceptar su `inviteCode` y sale del recálculo de **LeagueStanding**s. La fila y todos sus datos quedan en DB: una League **nunca** se borra (ADR-0009). | borrar/eliminar una liga, cancelar, cerrar |
+| **archivado** | Cierre definitivo de una **League** por su **owner**: pasa a `status = 'ARCHIVED'`, desaparece de los listados, deja de aceptar su `inviteCode` y sale del recálculo de **LeagueStanding**s. La fila y todos sus datos quedan en DB: una League **nunca** se borra. | borrar/eliminar una liga, cancelar, cerrar |
 | **externalId** | ID estable que viene de Jolpica-F1 / OpenF1 para reconciliar entidades en re-syncs; `@unique` en Driver, Constructor, Circuit; `@unique` compuesto en Race. | external_key, jolpica_id |
 
 ---
@@ -98,7 +94,7 @@ Definiciones de una línea de todos los términos del dominio. Si necesitás nar
 
 > **Dev A:** "Si un **Driver** hace **DNF** en una **Race**, ¿el sistema lo reemplaza?"
 >
-> **Dev B:** "No — no hay piloto reserva (ADR-0006). El **RaceResult** con status `DNF` suma 0 puntos para ese slot del **FantasyTeam** en esa carrera, y listo."
+> **Dev B:** "No — no hay piloto reserva. El **RaceResult** con status `DNF` suma 0 puntos para ese slot del **FantasyTeam** en esa carrera, y listo."
 >
 > **Dev A:** "¿Y cuántos pueden entrar en una **League**?"
 >
@@ -106,7 +102,7 @@ Definiciones de una línea de todos los términos del dominio. Si necesitás nar
 >
 > **Dev A:** "OK, y el **LeagueStanding** se regenera cuando se carga el RaceResult, ¿no?"
 >
-> **Dev B:** "Lo dispara el endpoint `/recalculate`: recalcula `driverPoints` (de los 2 pilotos), `constructorPoints` (de su Constructor) y `predictionPoints` (de las Predictions evaluadas). El `positionChange` se computa contra el LeagueStanding de la Race anterior."
+> **Dev B:** "Lo dispara el endpoint `/recalculate`: recalcula `driverPoints` (de los 2 pilotos) y `constructorPoints` (de su Constructor). El `positionChange` se computa contra el LeagueStanding de la Race anterior."
 
 ---
 
@@ -116,8 +112,6 @@ Definiciones de una línea de todos los términos del dominio. Si necesitás nar
 - **"user"** vs **"member"** — un **User** existe en el sistema; un **LeagueMember** existe dentro de una **League** específica. Un user con 3 ligas es 1 User + 3 LeagueMembers. Usar el término preciso según contexto.
 - **"DriverContract"** (histórico) — fue rechazado a favor de **DriverSeason**. Si aparece en docs viejos o branches, corregir. La entidad no tiene semánticas de contrato (no hay fechas, salario, cláusulas).
 - **"result"** suelto — ambiguo entre **RaceResult** (por piloto) y **ConstructorResult** (por equipo). Siempre prefijar.
-- **"sesión"** — se usa al hablar (la sesión del sábado) pero **no es un término del glosario a propósito**: con tablas separadas por sesión no hay nada en el código que se llame `session`, y un término sin referente es una regla que nadie puede cumplir. Decir **Sprint** o **Gran Premio**, que sí existen.
-- **`RaceResultStatus`** — el enum de estados (CLASSIFIED/DNF/DSQ/DNS) lo comparten **RaceResult** y **SprintResult**, así que su nombre no corresponde a un solo modelo y no se renombra con él. Incoherencia aceptada a conciencia: renombrarlo obligaba a tocar el frontend, que lo espeja. Ver [ADR-0010](./adr/ADR-0010-resultados-de-sprint-en-tablas-propias.md).
 - **"pick"** suelto — usar **DraftPick** cuando refiere a la entidad; verbo "pick" libre en conversación.
-- **"reserva" / "swap"** — ya no existen en el dominio (ADR-0006). Si aparecen en docs viejos o branches, corregir.
-- **"beta"** vs **"v1.0.0"** — **dos ejes distintos, no un conflicto**. El número versiona el contrato HTTP y hoy es estable; la etiqueta describe la madurez del producto para quien lo usa (features faltantes, caídas, puntos que se recalculan). Una app puede estar en `v1.x` y seguir siendo beta: no bajar la versión a `0.x` para señalizarlo, eso lo descartó ADR-0011 con razón escrita.
+- **"reserva" / "swap"** — ya no existen en el dominio. Si aparecen en docs viejos o branches, corregir.
+- **"beta"** vs **"v1.0.0"** — **dos ejes distintos, no un conflicto**. El número versiona el contrato HTTP y hoy es estable; la etiqueta describe la madurez del producto para quien lo usa (features faltantes, caídas, puntos que se recalculan). Una app puede estar en `v1.x` y seguir siendo beta: no bajar la versión a `0.x` para señalizarlo, eso mezclaría los dos ejes.

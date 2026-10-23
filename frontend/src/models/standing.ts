@@ -3,7 +3,6 @@ export interface Standing {
   leagueMemberId: number;
   driverPoints: number;
   constructorPoints: number;
-  predictionPoints: number;
   totalPoints: number;
   position: number;
   positionChange: number; // >0 subio, <0 bajo, 0 igual o primera carrera

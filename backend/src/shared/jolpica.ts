@@ -22,7 +22,6 @@ const raceSchema = z.object({
   time: z.string().optional(),
   Circuit: circuitSchema,
   Qualifying: sessionSchema.optional(),
-  Sprint: sessionSchema.optional(),
 });
 
 const resultSchema = z.object({

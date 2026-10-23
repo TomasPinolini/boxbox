@@ -4,12 +4,10 @@ import { createServer } from 'http';
 import app from './app';
 import { env } from './config/env';
 import { registerDraftGateway } from './modules/draft/draft.gateway';
-import { setIo } from './shared/socket';
 
 // Socket.io se engancha a un http.Server, no a la app de Express.
 const httpServer = createServer(app);
-const io = registerDraftGateway(httpServer);
-setIo(io);
+registerDraftGateway(httpServer);
 
 httpServer.listen(env.PORT, () => {
   console.log(`🏎️ BoxBox API running on http://localhost:${env.PORT}`);

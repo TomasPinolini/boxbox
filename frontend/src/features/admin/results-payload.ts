@@ -1,9 +1,6 @@
 import type { RaceResultStatus } from '../../models/driver';
 import type { RaceResultInput } from '../../services/races.service';
 
-// Puntos de F1 por posicion final (top 10). Desde 2025 no hay punto por vuelta rapida.
-const POINTS = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1];
-
 // `imported` viaja tal cual al payload: datos de Jolpica que la grilla no muestra ni edita.
 export interface Entry {
   position: string; // crudo del <input>; '' = sin posicion
@@ -16,25 +13,12 @@ export interface ResultRow extends Entry {
   label: string; // para los mensajes de error
 }
 
-// Tambien devuelve los pilotos cuyos puntos de Jolpica no coinciden con la tabla (medios puntos,
-// sanciones): la grilla siempre calcula con pointsFor y el admin tiene que enterarse.
-export function entriesFromPreview(results: RaceResultInput[]): {
-  entries: Record<number, Entry>;
-  pointsMismatch: { driverId: number; jolpica: number; table: number }[];
-} {
+export function entriesFromPreview(results: RaceResultInput[]): Record<number, Entry> {
   const entries: Record<number, Entry> = {};
-  const pointsMismatch = [];
-  for (const { driverId, position, points, status, ...imported } of results) {
+  for (const { driverId, position, status, ...imported } of results) {
     entries[driverId] = { position: position?.toString() ?? '', status, imported };
-    const table = pointsFor(position, status);
-    if (table !== points) pointsMismatch.push({ driverId, jolpica: points, table });
   }
-  return { entries, pointsMismatch };
-}
-
-export function pointsFor(position: number | undefined, status: RaceResultStatus): number {
-  if (status !== 'CLASSIFIED' || position === undefined) return 0;
-  return POINTS[position - 1] ?? 0;
+  return entries;
 }
 
 export function buildResultsPayload(
@@ -56,7 +40,6 @@ export function buildResultsPayload(
     return {
       driverId: row.driverId,
       ...(position !== undefined ? { position } : {}),
-      points: pointsFor(position, row.status),
       ...row.imported,
       status: row.status,
     };

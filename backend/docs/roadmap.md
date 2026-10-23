@@ -1,8 +1,6 @@
 # Roadmap del backend
 
-Carril backend del TP. El panorama completo, la tabla de estado contra la rúbrica de
-la cátedra y el reparto de epics viven en el hub: [`../../docs/roadmap.md`](../../docs/roadmap.md).
-El carril frontend está en [`../../frontend/docs/roadmap.md`](../../frontend/docs/roadmap.md).
+Carril backend del TP. El carril frontend está en [`../../frontend/docs/roadmap.md`](../../frontend/docs/roadmap.md).
 
 Slices ordenados por dependencia. Cada slice ≈ 1 PR. Ningún slice salta sobre otro si
 está marcado en `Blocked by`.
@@ -33,28 +31,19 @@ Prisma 7 + Postgres. Tests = Vitest + Supertest contra DB real.
 ## Now — lo que bloquea la entrega del 12/10
 
 _(Nada de código. Todo el carril backend que la rúbrica gatea está abajo, en "Completados":
-Slices 1–9, 12, 14 y 16. El único entregable que falta de la entrega es el **video demo** —
-vive en el hub, [`../../docs/roadmap.md`](../../docs/roadmap.md) → "Trámites de cátedra".)_
+Slices 1–9, 12, 14 y 16. El único entregable que falta de la entrega es el **video demo**.)_
 
 ---
 
-## Later — Predictions, y nada más
+## Later
 
-_(Scoring y sync ya están construidos: los Slices 9 y 12 viven en "Completados". Lo único que
-queda pendiente en este carril es el Slice 10, que es **Alcance Adicional Voluntario** de
-`proposal.md` — no entra en la rúbrica y no mueve la nota. El Slice 11 quedó eliminado por
-ADR-0006 y se deja abajo como lápida, para que nadie lo reintroduzca.)_
+_(Scoring y sync ya están construidos: los Slices 9 y 12 viven en "Completados". En este
+carril no queda nada pendiente. El Slice 11 quedó eliminado (no hay piloto reserva) y se deja abajo
+como lápida, para que nadie lo reintroduzca.)_
 
-### Slice 10 — Predictions
+### Slice 11 — DriverSwap — ELIMINADO
 
-- **Goal**: cada LeagueMember puede predecir winner/pole/topConstructor para cada carrera antes del `lockDate`. Cuando la carrera se completa, se evalúan y suman bonus.
-- **Touches**: tabla `Prediction`; nuevo módulo `modules/predictions/`; endpoints `PUT /leagues/:id/predictions/:raceId`, `GET .../mine`, `GET .../all` (post-lock); evaluación se dispara en el recalculate de Slice 9.
-- **Done when**: una predicción antes del lock se acepta. Después del lock se rechaza (409). Cuando se cargan los RaceResults, las predicciones acertadas suman bonus en LeagueStanding.predictionPoints.
-- **Blocked by**: nada — su único bloqueo era el Slice 9, que está hecho. `scoreTeam` en `standings.service.ts` llena `predictionPoints` con 0 y es el único lugar a tocar.
-
-### Slice 11 — DriverSwap — ELIMINADO (ADR-0006)
-
-- **Decisión (2026-08-27)**: la reserva y `DriverSwap` salieron del juego — ver [`adr/ADR-0006-draft-3-rondas-sin-reserva.md`](../../docs/adr/ADR-0006-draft-3-rondas-sin-reserva.md). El draft tiene 3 rondas (2 pilotos + constructor) y el tope de miembros es `floor(driverCount / 2)`. No se renumeran los slices siguientes. El listado voluntario "historial de swaps" cae con este slice.
+- **Decisión (2026-08-27)**: la reserva y `DriverSwap` salieron del juego. El draft tiene 3 rondas (2 pilotos + constructor) y el tope de miembros es `floor(driverCount / 2)`. No se renumeran los slices siguientes. El listado voluntario "historial de swaps" cae con este slice.
 
 ---
 
@@ -106,7 +95,7 @@ Si alguno de estos se vuelve demasiado grande, partir así:
 - **Goal**: en vez de cargar RaceResults a mano, un endpoint admin sincroniza con la API externa de F1. Es la pata de "fetch desde APIs externas" del Epic 2 de Aprobación, junto con el Slice 9.
 - **Shipped**: módulo `modules/sync/` (+ `sync.fixtures.ts`) montado en `app.ts` bajo `/api/v1/admin/sync`, con `requireAuth → requireAdmin` una sola vez a nivel router porque todo el módulo es admin-only. `POST /admin/sync/races?year=` (12b: upsert de `Circuit` por `externalId` y de `Race` por `(seasonId, round)`) y `POST /admin/sync/races/:id/results` (12c: una carrera, con `?dryRun=true` para ver el mapeo sin escribir — es lo que usa la vista previa de `/admin/results`). `shared/jolpica.ts` es el único punto de contacto con la red: `fetch` nativo + `AbortSignal.timeout` a 10 s, sin dependencias nuevas, y **todo lo que entra se valida con Zod** (trust boundary igual que `req.body`). Cada corrida deja exactamente un `SyncLog` — también las que fallan y los `dryRun`. Sin migration: `sync_logs` existe desde `init`.
 - **Decisiones clave**:
-  - **El sync NUNCA crea `Driver` ni `DriverSeason`.** Jolpica lista **32 pilotos para 2026**, no 22 (incluye suplentes), y `maxMembersForSeason = floor(driverCount / 2)` depende de ese número: escribirlos todos daría 16 en vez de 11 y rompería ADR-0006 por la puerta de atrás (BOX-14 de nuevo, BOX-9). Lo que no matchea un `Driver` existente se reporta como `skipped` y el `SyncLog` queda `PARTIAL`.
+  - **El sync NUNCA crea `Driver` ni `DriverSeason`.** Jolpica lista **32 pilotos para 2026**, no 22 (incluye suplentes), y `maxMembersForSeason = floor(driverCount / 2)` depende de ese número: escribirlos todos daría 16 en vez de 11 y rompería el tope de miembros por la puerta de atrás (BOX-14 de nuevo, BOX-9). Lo que no matchea un `Driver` existente se reporta como `skipped` y el `SyncLog` queda `PARTIAL`.
   - **Jolpica es la fuente de verdad del calendario**: el seed trae las 23 fechas reales y ya no inventa resultados. `round` es la clave de emparejamiento y `Race` **no** necesita `externalId`.
   - **Las reglas de carga no se reimplementan**: `syncResults` traduce el formato de Jolpica al input de `loadResults` (Slice 7/8) y lo valida con el **mismo** `loadRaceResultsSchema` que el body del endpoint manual — acá no hay middleware que lo corra, y es lo que ataja p. ej. medios puntos contra un `Int`.
   - `PARTIAL` cuando hay salteados, `FAILED` cuando tira, `SUCCESS` sólo si no saltó nada. `SyncLog` no tiene columna de detalle, así que el motivo del fallo y la lista de salteados van los dos en `error`.
@@ -128,7 +117,7 @@ Si alguno de estos se vuelve demasiado grande, partir así:
   - **Funciones puras sobre filas planas** (`indexPoints`, `scoreTeam`, `rank`), sin `groupBy`/`aggregate` de Prisma — mismo patrón que `buildConstructorResults` (Slice 8), y se testean sin DB.
   - **El desempate es DETERMINÍSTICO, no "justo"**: `totalPoints` desc → `driverPoints` desc → `leagueMemberId` asc (el que se unió antes). Sin posiciones compartidas: en una liga de 3, las posiciones son 1, 2 y 3. Determinístico es lo que importa para que recalcular dos veces dé lo mismo.
   - **Sólo miembros `ACTIVE`** generan standings nuevos; el que se fue o fue echado conserva los viejos como historia. Mismo criterio que `GET /leagues/:id/members`.
-  - Un slot vacío del FantasyTeam (draft a medias o reseteado) vale cero en vez de quedar afuera de la tabla. `predictionPoints` se llena con 0: la columna existe y el Slice 10 es el único lugar a tocar.
+  - Un slot vacío del FantasyTeam (draft a medias o reseteado) vale cero en vez de quedar afuera de la tabla.
 - **Gotchas**:
   - **`positionChange` positivo = subió** (`posiciónAnterior - posiciónActual`), y 0 si no hay carrera anterior con standings o si el miembro no estaba. Se lee de la última `COMPLETED` con `round` menor, no de `round - 1`.
   - `409 RACE_NOT_COMPLETED` si la carrera no está `COMPLETED` — no se calcula sobre una fecha sin correr.
@@ -178,7 +167,7 @@ Si alguno de estos se vuelve demasiado grande, partir así:
 
 - **Status**: done (branch `slice-5-draft-rest`).
 - **Goal**: la lógica del snake draft funciona contra REST (no realtime todavía). El owner arranca el draft, los miembros piden el estado y mandan picks vía POST.
-- **Decision de diseño (confirmada con el equipo antes de codear — superseded por ADR-0006, que volvió a 3 rondas sin reserva)**: FantasyTeam tiene 4 slots (`driver1`, `driver2`, `reserveDriver`, `constructor`), así que el draft son **4 rondas fijas** — una por slot: rondas 1-3 categoría DRIVER (llenan `driver1Id`/`driver2Id`/`reserveDriverId` en ese orden), ronda 4 categoría CONSTRUCTOR (llena `constructorId`). Actualiza el "Done when" original del roadmap (que hablaba de 3 rondas genéricas) — con N miembros el draft completo son `N × 4` picks, no `N × 3`.
+- **Decision de diseño (confirmada con el equipo antes de codear — superseded después: el draft volvió a 3 rondas sin reserva)**: FantasyTeam tiene 4 slots (`driver1`, `driver2`, `reserveDriver`, `constructor`), así que el draft son **4 rondas fijas** — una por slot: rondas 1-3 categoría DRIVER (llenan `driver1Id`/`driver2Id`/`reserveDriverId` en ese orden), ronda 4 categoría CONSTRUCTOR (llena `constructorId`). Actualiza el "Done when" original del roadmap (que hablaba de 3 rondas genéricas) — con N miembros el draft completo son `N × 4` picks, no `N × 3`.
 - **Shipped**: nuevo módulo `modules/draft/` (schema/service/controller/routes/test) montado como sub-router de `leagues.routes.ts` bajo `/:id/draft` (no se registra en `app.ts` — es un sub-recurso de League, no un módulo top-level). Endpoints: `POST /leagues/:id/draft/start` (owner, genera las `N×4` filas `DraftPick` placeholder con snake order vía Fisher-Yates + transiciona a LIVE), `GET /leagues/:id/draft/state`, `GET /leagues/:id/draft/available`, `POST /leagues/:id/draft/pick` (valida turno + categoría + disponibilidad, llena el slot del FantasyTeam, transiciona a COMPLETED en el último pick — todo en una transacción interactiva), `POST /leagues/:id/draft/reset` (owner). Sin migration: `DraftPick` y `League.draftStatus` ya existían en el schema desde el `init` (idle).
 - **Decisiones clave**: el "pick actual" nunca se guarda como estado aparte — es siempre la fila `DraftPick` de menor `pickNumber` con `driverId` Y `constructorId` null. El orden del draft se materializa completo en `start` (no hay columna `draftOrder` en `LeagueMember`). `leagueId` en los controllers de draft sale de `req.leagueMember.leagueId` (poblado por `requireLeagueMember` en el mount), no de `req.params.id` — evita depender de `mergeParams` en el sub-router.
 - **Bug de tipos encontrado y arreglado (afecta también Slice 4)**: `fantasyTeamSelect` en `leagues.service.ts` fallaba en `tsc --noEmit` (nunca se había corrido — solo `eslint`/`vitest`, que no lo detectan). Causa: el modelo `Constructor` genera una relación/delegate llamado literalmente `constructor`, que colisiona con la propiedad `constructor` que todo objeto JS hereda de `Object.prototype`. Fix: declarar esos `select` con type assertion (`as Prisma.XSelect`) en vez de `as const` o anotación directa — es el único approach que evita el falso positivo (confirmado empíricamente). Aplicado en `fantasyTeamSelect`, `pickSelect` y `constructorAvailableSelect`.

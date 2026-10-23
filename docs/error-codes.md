@@ -74,7 +74,7 @@ Códigos de error tipados que la API puede devolver en el envelope `{ error: { c
 | `DRIVER_NOT_IN_SEASON`         | 409  | `races.service.ts` (loadResults)                       | Slice 8. Algún `driverId` del array no tiene `DriverSeason` en la temporada de la Race — sin eso no se sabe a qué escudería sumarle los puntos. Cargar el DriverSeason primero. Rollback total. |
 | `CONSTRUCTOR_TOO_MANY_DRIVERS` | 409  | `races.service.ts` (buildConstructorResults)           | Slice 8. Tres o más pilotos del payload pertenecen a la misma escudería en esa temporada — en F1 corren 2 por equipo; es un DriverSeason mal cargado. Rollback total. |
 | `RACE_RESULTS_ALREADY_EXIST`   | 409  | `races.service.ts` (loadResults — catch P2002)         | Slice 12. La Race no está `COMPLETED` pero ya tiene `RaceResult` de alguno de esos pilotos (status reabierto por PATCH, o dos cargas concurrentes). Antes escalaba a 500. |
-| `RACE_HAS_DEPENDENCIES`        | 409  | `races.service.ts` (remove)                            | `DELETE /races/:id` sobre una Race con `RaceResult`, `ConstructorResult`, `LeagueStanding` o `Prediction`. Las cuatro FK son `ON DELETE RESTRICT`: sin la guarda el delete moria en Prisma (P2003) y salia como 500. |
+| `RACE_HAS_DEPENDENCIES`        | 409  | `races.service.ts` (remove)                            | `DELETE /races/:id` sobre una Race con `RaceResult`, `ConstructorResult` o `LeagueStanding`. Las tres FK son `ON DELETE RESTRICT`: sin la guarda el delete moria en Prisma (P2003) y salia como 500. |
 
 > Nota: los endpoints de Races que validan la existencia de `Season` o `Circuit` referenciados también pueden lanzar `SEASON_NOT_FOUND` o `CIRCUIT_NOT_FOUND` (create/update).
 
@@ -115,7 +115,7 @@ Cada corrida deja un `SyncLog`; las que terminan en error quedan `FAILED` con `C
 | `ALREADY_MEMBER`        | 409  | `leagues.service.ts` (joinLeague)                                             | `POST /leagues/join` cuando ya soy ACTIVE member de esa liga. Rejoin de LEFT/KICKED NO tira esto — solo si estoy actualmente ACTIVE.                                                                                    |
 | `LEAGUE_FULL`           | 409  | `leagues.service.ts` (joinLeague)                                             | Intento de joinear cuando `count(ACTIVE members) === maxMembers`.                                                                                                                                                       |
 | `ROSTER_LOCKED`         | 409  | `leagues.service.ts` (joinLeague, leaveLeague, kickMember)                    | `League.draftStatus != PENDING`: una vez que el draft arranco (LIVE o COMPLETED) nadie entra, sale ni es echado — el orden de picks ya esta materializado (B2 / BOX-17). `POST /draft/reset` desbloquea. |
-| `MAX_MEMBERS_EXCEEDS_SEASON` | 409 | `leagues.service.ts` (createLeague, updateLeague)                        | `maxMembers` mayor a `floor(season.driverCount / 2)` — cada miembro draftea 2 pilotos exclusivos (ADR-0006). 11 para la grilla de 22.                                                                                     |
+| `MAX_MEMBERS_EXCEEDS_SEASON` | 409 | `leagues.service.ts` (createLeague, updateLeague)                        | `maxMembers` mayor a `floor(season.driverCount / 2)` — cada miembro draftea 2 pilotos exclusivos. 11 para la grilla de 22.                                                                                                |
 | `OWNER_CANNOT_LEAVE`    | 409  | `leagues.service.ts` (leaveLeague, kickMember)                                | Owner intenta `POST /leagues/:id/leave` O `DELETE /:id/members/:ownerId`. Debe transferir ownership antes (fuera de scope hoy).                                                                                         |
 | `NOT_LEAGUE_OWNER`      | 403  | `middleware/leagueMembership.ts` (requireLeagueOwner)                         | User ES ACTIVE member pero la ruta requiere owner (PATCH, DELETE kick). Único caso donde 403 NO leakea info (user ya sabe que la liga existe porque es member).                                                         |
 | `FANTASY_TEAM_NOT_FOUND` | 404  | `leagues.service.ts` (getMyFantasyTeam)                                       | Slice 4. Defense-in-depth — no debería ocurrir en la práctica: el FantasyTeam se crea atómicamente junto al LeagueMember en `createLeague`/`joinLeague`.                                                                |
@@ -124,24 +124,12 @@ Cada corrida deja un `SyncLog`; las que terminan en error quedan `FAILED` con `C
 
 ---
 
-## Códigos planeados (todavía no implementados)
-
-Estos van a aparecer cuando se construyan los slices del [`backend/docs/roadmap.md`](../backend/docs/roadmap.md). Documentados acá para que el equipo no invente variantes inconsistentes:
-
-### Slice 10 — Predictions
-
-| Código               | HTTP | Cuándo                                                     |
-| -------------------- | ---- | ---------------------------------------------------------- |
-| `PREDICTIONS_LOCKED` | 409  | Crear/editar Prediction después del `lockDate` de la Race. |
-
----
-
 ## Draft (Slice 5 REST + Slice 6 WebSocket)
 
 | Código                         | HTTP | Origen                          | Cuándo                                                                                                                                            |
 | ------------------------------ | ---- | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `DRAFT_ALREADY_STARTED`        | 409  | `draft.service.ts` (startDraft)  | `POST /leagues/:id/draft/start` cuando `League.draftStatus != PENDING` — el draft ya arrancó (o ya terminó).                                        |
-| `TOO_MANY_MEMBERS_FOR_DRAFT`   | 409  | `draft.service.ts` (startDraft)  | Miembros ACTIVE > `floor(season.driverCount / 2)`: no hay pilotos suficientes para 2 por miembro. Red de seguridad de `MAX_MEMBERS_EXCEEDS_SEASON` (ADR-0006). |
+| `TOO_MANY_MEMBERS_FOR_DRAFT`   | 409  | `draft.service.ts` (startDraft)  | Miembros ACTIVE > `floor(season.driverCount / 2)`: no hay pilotos suficientes para 2 por miembro. Red de seguridad de `MAX_MEMBERS_EXCEEDS_SEASON`.            |
 | `DRAFT_NOT_LIVE`                | 409  | `draft.service.ts` (submitPick)  | `POST /leagues/:id/draft/pick` cuando `League.draftStatus != LIVE` (todavía no arrancó, o ya terminó). También defense-in-depth si no hay ningún pick abierto. |
 | `NOT_YOUR_TURN`                 | 409  | `draft.service.ts` (submitPick)  | El pick actual (menor `pickNumber` sin llenar) pertenece a otro `LeagueMember`.                                                                     |
 | `WRONG_PICK_CATEGORY`           | 409  | `draft.service.ts` (submitPick)  | La ronda actual espera `driverId` (rondas 1-3) o `constructorId` (ronda 4) y el body mandó el otro campo.                                           |
@@ -161,5 +149,4 @@ Estos van a aparecer cuando se construyan los slices del [`backend/docs/roadmap.
 ## Notas para el frontend
 
 - Siempre matchear contra `error.code`, **no** contra `error.message`. El message es libre y puede cambiarse sin rotura semántica; el code es contrato.
-- Los códigos en la columna _planeados_ aparecerán a medida que se shippean los slices — no usar `error.code` hardcodeado de un slice que todavía no salió.
 - `details` solo aparece en `VALIDATION_ERROR`. Para el resto, asumir que `details` no existe.
