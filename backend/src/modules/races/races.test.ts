@@ -646,6 +646,57 @@ describe('POST /api/v1/races/:id/results', () => {
   });
 });
 
+// Sin pasar por el navegador: estas reglas tienen que valer para cualquier cliente.
+describe('POST /api/v1/races/:id/results — reglas entre filas', () => {
+  async function postResults(results: unknown[]) {
+    const raceRes = await request(app)
+      .post('/api/v1/races')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send(validRace());
+    return request(app)
+      .post(`/api/v1/races/${raceRes.body.data.id}/results`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ results });
+  }
+
+  it('dos pilotos con la misma posicion → 400, no se reparten puntos de mas', async () => {
+    const [a, b] = await createDrivers(2);
+    const res = await postResults([
+      { driverId: a.id, position: 1, status: 'CLASSIFIED' },
+      { driverId: b.id, position: 1, status: 'CLASSIFIED' },
+    ]);
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    expect(await prisma.raceResult.count()).toBe(0);
+  });
+
+  it('CLASSIFIED sin posicion → 400', async () => {
+    const [a] = await createDrivers(1);
+    const res = await postResults([{ driverId: a.id, status: 'CLASSIFIED' }]);
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  it('dos vueltas rapidas → 400', async () => {
+    const [a, b] = await createDrivers(2);
+    const res = await postResults([
+      { driverId: a.id, position: 1, fastestLap: true, status: 'CLASSIFIED' },
+      { driverId: b.id, position: 2, fastestLap: true, status: 'CLASSIFIED' },
+    ]);
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  it('un hueco en las posiciones se acepta: el suplente salteado de Jolpica', async () => {
+    const [a, b] = await createDrivers(2);
+    const res = await postResults([
+      { driverId: a.id, position: 1, status: 'CLASSIFIED' },
+      { driverId: b.id, position: 3, status: 'CLASSIFIED' },
+    ]);
+    expect(res.status).toBe(201);
+  });
+});
+
 describe('POST /api/v1/races/:id/results — ConstructorResult (Slice 8)', () => {
   async function createRace() {
     const raceRes = await request(app)

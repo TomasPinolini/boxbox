@@ -25,8 +25,8 @@ export const listRacesQuerySchema = seasonQuerySchema.extend({
   status: z.enum(RaceStatus).optional().catch(undefined),
 });
 
-// Sin validacion cruzada status/position: en F1 un DNF puede quedar clasificado con posicion
-// si completo el 90% de la carrera.
+// Un DNF puede tener posicion (en F1 queda clasificado si completo el 90% de la carrera), asi
+// que solo se exige la direccion contraria: CLASSIFIED necesita posicion.
 const raceResultItemSchema = z.object({
   driverId: z.number().int().positive(),
   position: z.number().int().positive().optional(),
@@ -38,7 +38,42 @@ const raceResultItemSchema = z.object({
 
 export const loadRaceResultsSchema = z.object({
   // max(30): margen sobre los ~20 pilotos actuales para parrillas historicas mas grandes.
-  results: z.array(raceResultItemSchema).min(1).max(30),
+  results: z
+    .array(raceResultItemSchema)
+    .min(1)
+    .max(30)
+    // Los puntos salen de la posicion: una repetida reparte puntos de mas, y un CLASSIFIED sin
+    // posicion entraria con 0 en silencio. No se exigen posiciones seguidas: Jolpica trae
+    // suplentes que no estan en la grilla y al saltearlos queda un hueco real.
+    .superRefine((results, ctx) => {
+      const seen = new Set<number>();
+      results.forEach((r, i) => {
+        if (r.status === 'CLASSIFIED' && r.position === undefined) {
+          ctx.addIssue({
+            code: 'custom',
+            path: [i, 'position'],
+            message: 'Classified driver needs a position',
+          });
+        }
+        if (r.position !== undefined) {
+          if (seen.has(r.position)) {
+            ctx.addIssue({
+              code: 'custom',
+              path: [i, 'position'],
+              message: `Position ${r.position} is repeated`,
+            });
+          }
+          seen.add(r.position);
+        }
+      });
+      if (results.filter((r) => r.fastestLap).length > 1) {
+        ctx.addIssue({
+          code: 'custom',
+          path: [],
+          message: 'Only one driver can have the fastest lap',
+        });
+      }
+    }),
 });
 
 export type CreateRaceInput = z.infer<typeof createRaceSchema>;
