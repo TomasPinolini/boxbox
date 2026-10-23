@@ -9,14 +9,15 @@ import {
   useProcessRace,
   useRecalculateStandings,
 } from './admin.queries';
-import { buildResultsPayload, entriesFromPreview, pointsFor, type Entry } from './results-payload';
+import { buildResultsPayload, entriesFromPreview, type Entry } from './results-payload';
 
 const STATUSES: RaceResultStatus[] = ['CLASSIFIED', 'DNF', 'DSQ', 'DNS'];
 
 const EMPTY: Entry = { position: '', status: 'CLASSIFIED' };
 
 // useState y no react-hook-form: es una grilla de filas iguales y la regla vive en
-// buildResultsPayload. "Importar de Jolpica" solo llena la grilla, no escribe nada.
+// buildResultsPayload. "Importar de Jolpica" es el camino normal y solo llena la grilla para
+// revisarla; la carga a mano queda como plan B, detras de su propio boton.
 export function RaceResultsPage() {
   const races = useActiveSeasonRaces();
   const drivers = useDrivers();
@@ -27,6 +28,7 @@ export function RaceResultsPage() {
   const [raceId, setRaceId] = useState<number | null>(null);
   const [entries, setEntries] = useState<Record<number, Entry>>({});
   const [errors, setErrors] = useState<string[]>([]);
+  const [manual, setManual] = useState(false);
 
   const loadable = (races.data ?? []).filter(
     (r) => r.status === 'UPCOMING' || r.status === 'QUALIFYING_LOCKED',
@@ -36,6 +38,7 @@ export function RaceResultsPage() {
   const grid = (drivers.data ?? []).filter((d) => d.constructor !== null);
   const selectedRace = races.data?.find((r) => r.id === raceId) ?? null;
   const loadError = races.error ?? drivers.error;
+  const showGrid = manual || preview.isSuccess;
 
   function update(driverId: number, patch: Partial<Entry>) {
     setEntries((prev) => ({ ...prev, [driverId]: { ...(prev[driverId] ?? EMPTY), ...patch } }));
@@ -46,6 +49,7 @@ export function RaceResultsPage() {
     setEntries({});
     setErrors([]);
     setNotes([]);
+    setManual(false);
     preview.reset();
     recalc.reset();
   }
@@ -54,7 +58,7 @@ export function RaceResultsPage() {
     if (raceId === null) return;
     preview.mutate(raceId, {
       onSuccess: ({ results, skipped }) => {
-        const { entries: imported, pointsMismatch } = entriesFromPreview(results);
+        const imported = entriesFromPreview(results);
         const nameOf = (id: number) => {
           const d = grid.find((g) => g.id === id);
           return d ? `${d.firstName} ${d.lastName}` : `piloto ${id}`;
@@ -68,9 +72,6 @@ export function RaceResultsPage() {
         setNotes([
           ...absent.map((d) => `${nameOf(d.id)} no figura en Jolpica: queda DNS, revisalo`),
           ...skipped.map((s) => `Jolpica trae a "${s.ref}", que no se importa: ${s.reason}`),
-          ...pointsMismatch.map(
-            (m) => `${nameOf(m.driverId)}: Jolpica le da ${m.jolpica} pts y la tabla ${m.table}`,
-          ),
         ]);
       },
     });
@@ -99,7 +100,10 @@ export function RaceResultsPage() {
     <PageShell
       title="Cargar resultados"
       actions={
-        <Link to="/leagues" className="text-sm font-semibold text-slate-600 hover:underline dark:text-ink-muted">
+        <Link
+          to="/leagues"
+          className="text-sm font-semibold text-slate-600 hover:underline dark:text-ink-muted"
+        >
           ← Mis ligas
         </Link>
       }
@@ -109,10 +113,7 @@ export function RaceResultsPage() {
         {process.error && <Alert code={process.error.code} message={process.error.message} />}
         {preview.error && <Alert code={preview.error.code} message={preview.error.message} />}
         {process.isSuccess && (
-          <Success>
-            Resultados cargados. Se recalcularon {process.data.standings} standings en{' '}
-            {process.data.leagues} ligas.
-          </Success>
+          <Success>Resultados cargados y standings de las ligas recalculados.</Success>
         )}
 
         <label className="mb-4 flex flex-col gap-1 text-sm font-medium">
@@ -161,9 +162,14 @@ export function RaceResultsPage() {
         ) : raceId !== null ? (
           <>
             <div className="mb-4 flex flex-wrap items-center gap-3">
-              <Button variant="secondary" disabled={preview.isPending} onClick={importFromJolpica}>
+              <Button disabled={preview.isPending} onClick={importFromJolpica}>
                 {preview.isPending ? 'Importando…' : 'Importar de Jolpica'}
               </Button>
+              {!showGrid && (
+                <Button variant="secondary" aria-expanded={false} onClick={() => setManual(true)}>
+                  ¿Jolpica no responde? Cargar a mano
+                </Button>
+              )}
               {preview.isSuccess && (
                 <p role="status" className="text-sm text-slate-600 dark:text-ink-muted">
                   Vista previa: {preview.data.results.length} resultados. Todavía no se guardó nada
@@ -179,70 +185,73 @@ export function RaceResultsPage() {
               </ul>
             )}
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
-                <thead className="hidden border-b border-slate-200 text-slate-500 sm:table-header-group dark:border-ink-border dark:text-ink-muted">
-                  <tr>
-                    <th className="py-2 pr-3 font-medium">Piloto</th>
-                    <th className="py-2 pr-3 font-medium">Posición</th>
-                    <th className="py-2 pr-3 font-medium">Estado</th>
-                    <th className="py-2 font-medium">Puntos</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {grid.map((d) => {
-                    const e = entries[d.id] ?? EMPTY;
-                    const name = `${d.firstName} ${d.lastName}`;
-                    return (
-                      <tr key={d.id} className="block border-b border-slate-100 py-3 sm:table-row dark:border-ink-border">
-                        <td className="py-1 pr-3 font-medium sm:py-2">{name}</td>
-                        <td className="py-1 pr-3 sm:py-2">
-                          <input
-                            type="number"
-                            min={1}
-                            aria-label={`Posición de ${name}`}
-                            className="w-20 rounded border border-slate-300 px-2 py-1 dark:border-ink-border dark:bg-ink-surface dark:text-ink-text"
-                            value={e.position}
-                            onChange={(ev) => update(d.id, { position: ev.target.value })}
-                          />
-                        </td>
-                        <td className="py-1 pr-3 sm:py-2">
-                          <select
-                            aria-label={`Estado de ${name}`}
-                            className="rounded border border-slate-300 px-2 py-1 dark:border-ink-border dark:bg-ink-surface dark:text-ink-text"
-                            value={e.status}
-                            onChange={(ev) =>
-                              update(d.id, { status: ev.target.value as RaceResultStatus })
-                            }
-                          >
-                            {STATUSES.map((s) => (
-                              <option key={s}>{s}</option>
-                            ))}
-                          </select>
-                        </td>
-                        <td className="py-1 font-display tabular-nums sm:py-2">
-                          {pointsFor(e.position === '' ? undefined : Number(e.position), e.status)}
-                        </td>
+            {showGrid && (
+              <>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm">
+                    <thead className="hidden border-b border-slate-200 text-slate-500 sm:table-header-group dark:border-ink-border dark:text-ink-muted">
+                      <tr>
+                        <th className="py-2 pr-3 font-medium">Piloto</th>
+                        <th className="py-2 pr-3 font-medium">Posición</th>
+                        <th className="py-2 font-medium">Estado</th>
                       </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                    </thead>
+                    <tbody>
+                      {grid.map((d) => {
+                        const e = entries[d.id] ?? EMPTY;
+                        const name = `${d.firstName} ${d.lastName}`;
+                        return (
+                          <tr
+                            key={d.id}
+                            className="block border-b border-slate-100 py-3 sm:table-row dark:border-ink-border"
+                          >
+                            <td className="py-1 pr-3 font-medium sm:py-2">{name}</td>
+                            <td className="py-1 pr-3 sm:py-2">
+                              <input
+                                type="number"
+                                min={1}
+                                aria-label={`Posición de ${name}`}
+                                className="w-20 rounded border border-slate-300 px-2 py-1 dark:border-ink-border dark:bg-ink-surface dark:text-ink-text"
+                                value={e.position}
+                                onChange={(ev) => update(d.id, { position: ev.target.value })}
+                              />
+                            </td>
+                            <td className="py-1 sm:py-2">
+                              <select
+                                aria-label={`Estado de ${name}`}
+                                className="rounded border border-slate-300 px-2 py-1 dark:border-ink-border dark:bg-ink-surface dark:text-ink-text"
+                                value={e.status}
+                                onChange={(ev) =>
+                                  update(d.id, { status: ev.target.value as RaceResultStatus })
+                                }
+                              >
+                                {STATUSES.map((s) => (
+                                  <option key={s}>{s}</option>
+                                ))}
+                              </select>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
 
-            {errors.length > 0 && (
-              <ul role="alert" className="mt-3 list-disc pl-5 text-sm text-red-700">
-                {errors.map((msg) => (
-                  <li key={msg}>{msg}</li>
-                ))}
-              </ul>
+                {errors.length > 0 && (
+                  <ul role="alert" className="mt-3 list-disc pl-5 text-sm text-red-700">
+                    {errors.map((msg) => (
+                      <li key={msg}>{msg}</li>
+                    ))}
+                  </ul>
+                )}
+
+                <div className="mt-4">
+                  <Button disabled={process.isPending} onClick={submit}>
+                    {process.isPending ? 'Procesando…' : 'Cargar y recalcular standings'}
+                  </Button>
+                </div>
+              </>
             )}
-
-            <div className="mt-4">
-              <Button disabled={process.isPending} onClick={submit}>
-                {process.isPending ? 'Procesando…' : 'Cargar y recalcular standings'}
-              </Button>
-            </div>
           </>
         ) : null}
       </Card>

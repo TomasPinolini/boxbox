@@ -105,22 +105,55 @@ describe('RaceResultsPage', () => {
     });
   });
 
-  it('shows the results grid when an UPCOMING race is selected', async () => {
+  // Importar de Jolpica es el camino normal: la grilla manual queda detras de su boton.
+  it('con una fecha UPCOMING ofrece importar, y la grilla manual aparece recien al pedirla', async () => {
     renderWithQuery(<RaceResultsPage />, { route: '/admin/results' });
 
     await waitFor(() => {
       expect(screen.getByRole('combobox')).toHaveTextContent('Australian Grand Prix');
     });
+    await userEvent.selectOptions(screen.getByRole('combobox'), '1');
 
-    const select = screen.getByRole('combobox');
-    await userEvent.selectOptions(select, '1');
+    expect(await screen.findByRole('button', { name: 'Importar de Jolpica' })).toBeInTheDocument();
+    expect(screen.queryByText('Max Verstappen')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Recalcular/ })).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: /Cargar a mano/ }));
+
+    expect(screen.getByText('Max Verstappen')).toBeInTheDocument();
+    expect(screen.getByText('Cargar y recalcular standings')).toBeInTheDocument();
+    expect(screen.queryByText('Puntos')).not.toBeInTheDocument();
+  });
+
+  it('importar de Jolpica llena la grilla y cargar hace un solo pedido, sin puntos', async () => {
+    vi.mocked(racesService.previewFromJolpica).mockResolvedValue({
+      results: [
+        { driverId: 7, position: 1, status: 'CLASSIFIED' },
+        { driverId: 6, position: 2, status: 'CLASSIFIED' },
+      ],
+      skipped: [],
+    });
+    vi.mocked(racesService.loadResults).mockResolvedValue([]);
+    renderWithQuery(<RaceResultsPage />, { route: '/admin/results' });
 
     await waitFor(() => {
-      expect(screen.getByText('Max Verstappen')).toBeInTheDocument();
-      expect(screen.getByText('Cargar y recalcular standings')).toBeInTheDocument();
+      expect(screen.getByRole('combobox')).toHaveTextContent('Australian Grand Prix');
     });
+    await userEvent.selectOptions(screen.getByRole('combobox'), '1');
+    await userEvent.click(await screen.findByRole('button', { name: 'Importar de Jolpica' }));
 
-    expect(screen.queryByRole('button', { name: /Recalcular/ })).not.toBeInTheDocument();
+    expect(await screen.findByText('Max Verstappen')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Cargar a mano/ })).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Cargar y recalcular standings' }));
+
+    await waitFor(() => {
+      expect(vi.mocked(racesService.loadResults)).toHaveBeenCalledWith(1, [
+        { driverId: 7, position: 1, status: 'CLASSIFIED' },
+        { driverId: 6, position: 2, status: 'CLASSIFIED' },
+      ]);
+    });
+    expect(vi.mocked(racesService.recalculate)).not.toHaveBeenCalled();
   });
 
   it('shows the recalculate button when a COMPLETED race is selected', async () => {
