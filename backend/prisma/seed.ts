@@ -8,6 +8,8 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { prisma } from '../src/shared/prisma';
 import { hashPassword } from '../src/shared/password';
+import { loadResults } from '../src/modules/races/races.service';
+import { loadRaceResultsSchema } from '../src/modules/races/races.schema';
 
 const oneHourBefore = (date: Date) => new Date(date.getTime() - 60 * 60 * 1000);
 
@@ -603,7 +605,6 @@ async function main() {
   };
 
   const driverIdByExternalId = new Map<string, number>();
-  const constructorIdByDriverId = new Map<number, number>();
 
   for (const team of teams2026) {
     const logoUrl = teamLogos[team.externalId] ?? null;
@@ -631,7 +632,6 @@ async function main() {
       });
       await connectDriverSeason(driver.id, teamConstructor.id);
       driverIdByExternalId.set(d.externalId, driver.id);
-      constructorIdByDriverId.set(driver.id, teamConstructor.id);
     }
   }
 
@@ -682,13 +682,22 @@ async function main() {
     );
   } else {
     const sinPiloto = new Set<string>();
+    let yaCargadas = 0;
 
     for (const race of stored.races) {
       const raceId = raceIdByRound.get(race.round);
       if (!raceId) continue;
 
-      const pointsByConstructor = new Map<number, number[]>();
+      // Por la misma puerta que la API: loadResults calcula los puntos, deriva los
+      // ConstructorResult, cierra la carrera y recalcula las ligas. Una fecha ya cerrada se
+      // saltea, asi el seed se puede correr las veces que haga falta.
+      const current = await prisma.race.findUniqueOrThrow({ where: { id: raceId } });
+      if (current.status === 'COMPLETED') {
+        yaCargadas += 1;
+        continue;
+      }
 
+      const results = [];
       for (const r of race.results) {
         const driverId = driverIdByExternalId.get(r.driverExternalId);
         if (!driverId) {
@@ -696,48 +705,21 @@ async function main() {
           sinPiloto.add(r.driverExternalId);
           continue;
         }
-
-        const datos = {
-          position: r.position,
-          points: r.points,
-          status: r.status as 'CLASSIFIED' | 'DNF' | 'DSQ' | 'DNS',
-          gridPosition: r.gridPosition,
-          laps: r.laps,
+        results.push({
+          driverId,
+          ...(r.position !== null ? { position: r.position } : {}),
+          ...(r.gridPosition !== null ? { gridPosition: r.gridPosition } : {}),
+          ...(r.laps !== null ? { laps: r.laps } : {}),
           fastestLap: r.fastestLap,
-        };
-        await prisma.raceResult.upsert({
-          where: { raceId_driverId: { raceId, driverId } },
-          update: datos,
-          create: { raceId, driverId, ...datos },
-        });
-
-        const constructorId = constructorIdByDriverId.get(driverId);
-        if (constructorId === undefined) continue;
-        const bucket = pointsByConstructor.get(constructorId) ?? [];
-        bucket.push(r.points);
-        pointsByConstructor.set(constructorId, bucket);
-      }
-
-      // Como buildConstructorResults: driver1Points es el mayor, no un piloto fijo. Con un
-      // suplente puede haber tres pilotos; se toman los dos mejores en vez de fallar.
-      for (const [constructorId, points] of pointsByConstructor) {
-        const [driver1Points = 0, driver2Points = 0] = [...points].sort((a, b) => b - a);
-        await prisma.constructorResult.upsert({
-          where: { raceId_constructorId: { raceId, constructorId } },
-          update: { driver1Points, driver2Points, totalPoints: driver1Points + driver2Points },
-          create: {
-            raceId,
-            constructorId,
-            driver1Points,
-            driver2Points,
-            totalPoints: driver1Points + driver2Points,
-          },
+          status: r.status,
         });
       }
 
-      await prisma.race.update({ where: { id: raceId }, data: { status: 'COMPLETED' } });
+      // parse y no safeParse: un JSON que no cumple las reglas tiene que frenar el seed.
+      await loadResults(raceId, loadRaceResultsSchema.parse({ results }));
     }
 
+    if (yaCargadas > 0) console.log(`Fechas que ya tenian resultados, salteadas: ${yaCargadas}`);
     if (sinPiloto.size > 0) {
       console.log(
         `Pilotos de Jolpica que no estan en la grilla del seed, salteados: ${[...sinPiloto].join(', ')}`,
