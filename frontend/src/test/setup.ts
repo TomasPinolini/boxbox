@@ -31,3 +31,14 @@ for (const name of ['localStorage', 'sessionStorage'] as const) {
     });
   }
 }
+
+// jsdom 29 no implementa showModal() ni close(). Lo minimo: el atributo open, que es lo que
+// mira Testing Library para dar por visible el contenido, y el evento 'close' del navegador.
+HTMLDialogElement.prototype.showModal = function () {
+  this.setAttribute('open', '');
+};
+HTMLDialogElement.prototype.close = function () {
+  if (!this.open) return;
+  this.removeAttribute('open');
+  this.dispatchEvent(new Event('close'));
+};

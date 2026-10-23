@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import { Field, HelpPopover, UserAvatar, inputClass } from '../../components/ui';
+import { useRef, useState } from 'react';
+import { Field, HelpPopover, Modal, UserAvatar, inputClass } from '../../components/ui';
 import type { User } from '../../models/user';
 import { useRemoveAvatar, useUpdateAvatar, useUpdateProfile } from './profile.queries';
 
@@ -20,31 +20,12 @@ export function EditProfileModal({ user, onClose }: { user: User; onClose: () =>
   const [avatarError, setAvatarError] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  // Dos refs: las formas mobile y desktop conviven en el DOM y CSS oculta una, y un input
-  // con display:none no se puede enfocar. Se elige midiendo el ancho al montar.
-  const mobileFirstFieldRef = useRef<HTMLInputElement>(null);
-  const desktopFirstFieldRef = useRef<HTMLInputElement>(null);
 
   const updateProfile = useUpdateProfile();
   const updateAvatar = useUpdateAvatar();
   const removeAvatar = useRemoveAvatar();
   const saving = updateProfile.isPending || updateAvatar.isPending || removeAvatar.isPending;
   const saveError = updateProfile.error ?? updateAvatar.error ?? removeAvatar.error;
-
-  useEffect(() => {
-    const esMobile = window.innerWidth < 768;
-    (esMobile ? mobileFirstFieldRef : desktopFirstFieldRef).current?.focus();
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose();
-    }
-    document.addEventListener('keydown', onKeyDown);
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      document.removeEventListener('keydown', onKeyDown);
-    };
-  }, [onClose]);
 
   function onPickFile(file: File | undefined) {
     setAvatarError(null);
@@ -88,178 +69,120 @@ export function EditProfileModal({ user, onClose }: { user: User; onClose: () =>
 
   const hasPhotoToRemove = Boolean(avatarPreview) || (Boolean(user.avatarUrl) && !removePhoto);
 
-  const avatarButton = (
-    // Dos botones hermanos y no anidados: un <button> no puede ir dentro de otro.
-    <div className="relative shrink-0" style={{ width: 88, height: 88 }}>
-      <button
-        type="button"
-        onClick={() => fileInputRef.current?.click()}
-        aria-label="Cambiar foto de perfil"
-        className="group relative h-full w-full cursor-pointer overflow-hidden rounded-full"
-      >
-        {avatarPreview ? (
-          <img src={avatarPreview} alt="" className="h-full w-full object-cover" />
-        ) : (
-          <UserAvatar user={removePhoto ? { ...user, avatarUrl: null } : user} size={88} />
-        )}
-        <span className="absolute inset-0 flex items-center justify-center bg-black/60 text-white opacity-0 transition-opacity group-hover:opacity-100">
-          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
-            <circle cx="12" cy="13" r="4" />
-          </svg>
-        </span>
-      </button>
-      {/* Siempre visible, no en hover: en mobile no hay hover. */}
-      {hasPhotoToRemove && (
-        <button
-          type="button"
-          onClick={onRemovePhoto}
-          aria-label="Quitar foto de perfil"
-          className="absolute -bottom-1 -right-1 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-white text-red-600 shadow-md ring-2 ring-white hover:bg-red-50 dark:bg-ink dark:ring-ink"
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="M18 6 6 18M6 6l12 12" />
-          </svg>
-        </button>
-      )}
-    </div>
-  );
-
-  const hiddenFileInput = (
-    <input
-      ref={fileInputRef}
-      type="file"
-      accept={ACCEPTED_TYPES.join(',')}
-      className="hidden"
-      onChange={(e) => onPickFile(e.target.files?.[0])}
-    />
-  );
-
-  const mottoLabel = (
-    <span className="flex items-center">
-      <span className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-ink-muted">
-        Lema
-      </span>
-      <HelpPopover title="¿Qué es el lema?">
-        Una frase corta que otros van a ver cuando miren tu equipo desde &ldquo;Ver equipo del
-        rival&rdquo; en una liga.
-      </HelpPopover>
-    </span>
-  );
-
-  const errorText = saveError && (
-    <p className="mt-3 text-sm text-red-600 dark:text-red-400" role="alert">
-      {saveError.message}
-    </p>
-  );
-
-  const actions = (
-    <>
-      <button
-        type="button"
-        onClick={onSave}
-        disabled={saving}
-        className="inline-flex min-h-11 items-center justify-center rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
-      >
-        {saving ? 'Guardando…' : 'Guardar'}
-      </button>
-      <button
-        type="button"
-        onClick={onClose}
-        disabled={saving}
-        className="inline-flex min-h-11 items-center justify-center rounded-md bg-white px-4 py-2 text-sm font-semibold text-slate-900 ring-1 ring-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-ink-surface dark:text-ink-text dark:ring-ink-border dark:hover:bg-ink-border"
-      >
-        Cancelar
-      </button>
-    </>
-  );
-
   return (
-    <>
-      {hiddenFileInput}
-
-      <button
-        type="button"
-        aria-hidden="true"
-        tabIndex={-1}
-        onClick={onClose}
-        className="enter-fade fixed inset-0 z-40 bg-slate-900/55"
+    <Modal
+      label="Editar perfil"
+      onClose={onClose}
+      className="enter-sheet mx-0 mb-0 mt-auto w-full max-w-none rounded-t-2xl bg-white backdrop:bg-slate-900/55 md:m-auto md:w-[calc(100%-2rem)] md:max-w-md md:rounded-xl md:shadow-2xl dark:bg-ink"
+    >
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept={ACCEPTED_TYPES.join(',')}
+        className="hidden"
+        onChange={(e) => onPickFile(e.target.files?.[0])}
       />
-
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label="Editar perfil"
-        className="enter-sheet fixed inset-x-0 bottom-0 z-40 rounded-t-2xl bg-white p-5 md:hidden dark:bg-ink"
-      >
+      <div className="p-5 md:p-6">
         <h2 className="mb-4 text-lg font-bold text-slate-900 dark:text-ink-text">Editar perfil</h2>
-        <div className="mb-5 flex justify-center">{avatarButton}</div>
-        {avatarError && <p className="mb-3 text-center text-sm text-red-600 dark:text-red-400">{avatarError}</p>}
-        <div className="flex flex-col gap-4">
-          <Field label="Nombre">
-            <input
-              ref={mobileFirstFieldRef}
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className={inputClass}
-              maxLength={100}
-            />
-          </Field>
-          <div>
-            <div className="mb-1 flex items-center justify-between">
-              {mottoLabel}
-              <span className="text-xs text-slate-400 dark:text-ink-muted">
-                {motto.length}/{MOTTO_MAX}
+        {/* En mobile la foto va arriba y centrada; desde md, a la izquierda de los campos. */}
+        <div className="flex flex-col items-center gap-5 md:flex-row md:items-start">
+          {/* Dos botones hermanos y no anidados: un <button> no puede ir dentro de otro. */}
+          <div className="relative shrink-0" style={{ width: 88, height: 88 }}>
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              aria-label="Cambiar foto de perfil"
+              className="group relative h-full w-full cursor-pointer overflow-hidden rounded-full"
+            >
+              {avatarPreview ? (
+                <img src={avatarPreview} alt="" className="h-full w-full object-cover" />
+              ) : (
+                <UserAvatar user={removePhoto ? { ...user, avatarUrl: null } : user} size={88} />
+              )}
+              <span className="absolute inset-0 flex items-center justify-center bg-black/60 text-white opacity-0 transition-opacity group-hover:opacity-100">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                  <circle cx="12" cy="13" r="4" />
+                </svg>
               </span>
-            </div>
-            <input
-              value={motto}
-              onChange={(e) => setMotto(e.target.value.slice(0, MOTTO_MAX))}
-              maxLength={MOTTO_MAX}
-              className={inputClass}
-            />
+            </button>
+            {/* Siempre visible, no en hover: en mobile no hay hover. */}
+            {hasPhotoToRemove && (
+              <button
+                type="button"
+                onClick={onRemovePhoto}
+                aria-label="Quitar foto de perfil"
+                className="absolute -bottom-1 -right-1 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-white text-red-600 shadow-md ring-2 ring-white hover:bg-red-50 dark:bg-ink dark:ring-ink"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M18 6 6 18M6 6l12 12" />
+                </svg>
+              </button>
+            )}
           </div>
-        </div>
-        {errorText}
-        <div className="mt-6 flex flex-col gap-2">{actions}</div>
-      </div>
-
-      <div className="fixed inset-0 z-40 hidden items-center justify-center p-4 md:flex">
-        <div className="enter-scale w-full max-w-md rounded-xl bg-white p-6 shadow-2xl dark:bg-ink">
-          <h2 className="mb-4 text-lg font-bold text-slate-900 dark:text-ink-text">Editar perfil</h2>
-          <div className="flex items-start gap-5">
-            {avatarButton}
-            <div className="flex flex-1 flex-col gap-4">
-              <Field label="Nombre">
-                <input
-                  ref={desktopFirstFieldRef}
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className={inputClass}
-                  maxLength={100}
-                />
-              </Field>
-              <div>
-                <div className="mb-1 flex items-center justify-between">
-                  {mottoLabel}
-                  <span className="text-xs text-slate-400 dark:text-ink-muted">
-                    {motto.length}/{MOTTO_MAX}
+          <div className="flex w-full flex-1 flex-col gap-4">
+            <Field label="Nombre">
+              <input
+                data-autofocus
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className={inputClass}
+                maxLength={100}
+              />
+            </Field>
+            <div>
+              <div className="mb-1 flex items-center justify-between">
+                <span className="flex items-center">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-ink-muted">
+                    Lema
                   </span>
-                </div>
-                <input
-                  value={motto}
-                  onChange={(e) => setMotto(e.target.value.slice(0, MOTTO_MAX))}
-                  maxLength={MOTTO_MAX}
-                  className={inputClass}
-                />
+                  <HelpPopover title="¿Qué es el lema?">
+                    Una frase corta que otros van a ver cuando miren tu equipo desde &ldquo;Ver
+                    equipo del rival&rdquo; en una liga.
+                  </HelpPopover>
+                </span>
+                <span className="text-xs text-slate-400 dark:text-ink-muted">
+                  {motto.length}/{MOTTO_MAX}
+                </span>
               </div>
+              <input
+                value={motto}
+                onChange={(e) => setMotto(e.target.value.slice(0, MOTTO_MAX))}
+                maxLength={MOTTO_MAX}
+                className={inputClass}
+              />
             </div>
           </div>
-          {avatarError && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{avatarError}</p>}
-          {errorText}
-          <div className="mt-6 flex justify-end gap-2">{actions}</div>
+        </div>
+        {avatarError && (
+          <p className="mt-3 text-center text-sm text-red-600 md:text-left dark:text-red-400">
+            {avatarError}
+          </p>
+        )}
+        {saveError && (
+          <p className="mt-3 text-sm text-red-600 dark:text-red-400" role="alert">
+            {saveError.message}
+          </p>
+        )}
+        <div className="mt-6 flex flex-col gap-2 md:flex-row md:justify-end">
+          <button
+            type="button"
+            onClick={onSave}
+            disabled={saving}
+            className="inline-flex min-h-11 items-center justify-center rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {saving ? 'Guardando…' : 'Guardar'}
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={saving}
+            className="inline-flex min-h-11 items-center justify-center rounded-md bg-white px-4 py-2 text-sm font-semibold text-slate-900 ring-1 ring-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-ink-surface dark:text-ink-text dark:ring-ink-border dark:hover:bg-ink-border"
+          >
+            Cancelar
+          </button>
         </div>
       </div>
-    </>
+    </Modal>
   );
 }

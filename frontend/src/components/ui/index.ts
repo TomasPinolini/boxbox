@@ -5,6 +5,7 @@ export { ConfirmButton } from './ConfirmButton';
 export { Badge, type BadgeTone } from './Badge';
 export { Alert } from './Alert';
 export { HelpPopover } from './HelpPopover';
+export { Modal } from './Modal';
 export { PageShell } from './PageShell';
 export { PencilIcon } from './PencilIcon';
 export { Position } from './Position';

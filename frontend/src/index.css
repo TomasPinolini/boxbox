@@ -119,6 +119,33 @@ a:active,
   }
 }
 
+/* Desde md, la hoja de EditProfileModal es una ventana centrada: crece en vez de subir. */
+@media (width >= 48rem) {
+  @starting-style {
+    .enter-sheet {
+      transform: scale(0.95);
+    }
+  }
+}
+
+/* <dialog> nativo (components/ui/Modal.tsx). El navegador le pone color y lo recorta. */
+dialog {
+  color: inherit;
+  overflow: visible;
+}
+dialog::backdrop {
+  transition: opacity 180ms var(--ease-out);
+}
+@starting-style {
+  dialog[open]::backdrop {
+    opacity: 0;
+  }
+}
+/* Lo de atras ya es inerte, pero sin esto la pagina sigue scrolleando debajo del modal. */
+body:has(dialog[open]) {
+  overflow: hidden;
+}
+
 /* Movimiento reducido: se conserva el fade, que sigue avisando que algo cambio. */
 @media (prefers-reduced-motion: reduce) {
   button:active:not(:disabled),
