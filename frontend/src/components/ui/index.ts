@@ -6,6 +6,7 @@ export { Badge, type BadgeTone } from './Badge';
 export { Alert } from './Alert';
 export { HelpPopover } from './HelpPopover';
 export { PageShell } from './PageShell';
+export { PencilIcon } from './PencilIcon';
 export { Position } from './Position';
 export { SelectedBadge } from './SelectedBadge';
 export { Success } from './Success';
