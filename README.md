@@ -11,7 +11,6 @@ BoxBox es una aplicación web de Fantasy League de Fórmula 1. Los usuarios crea
 - **Ligas privadas**: creá una liga e invitá amigos con un código de invitación (máximo 11 jugadores)
 - **Snake Draft en vivo**: draft en tiempo real con timer por pick. Cada jugador arma su equipo: 2 pilotos y 1 escudería
 - **Scoring automático**: los resultados de cada carrera se procesan automáticamente usando datos reales de F1
-- **Predicciones**: antes de cada carrera, predecí el ganador, la pole y el equipo con más puntos para sumar bonus
 - **Recaps de carrera**: después de cada GP, revisá cómo rindió tu equipo con un desglose detallado
 
 ## Stack Técnico

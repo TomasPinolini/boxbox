@@ -296,7 +296,7 @@ Una vez que veas la data en TablePlus, entrá por la puerta principal de la docu
 
 **[`docs/README.md`](./README.md)** — el índice que te orienta según qué querés hacer (onboarding / construir feature). Te va a ir mandando a los siguientes archivos:
 
-- [`docs/glossary.md`](./glossary.md) — términos del dominio (LeagueMember vs User, snake draft, lockDate, etc.). Léelo antes de tocar código.
+- [`docs/glossary.md`](./glossary.md) — términos del dominio (LeagueMember vs User, snake draft, soft-delete, etc.). Léelo antes de tocar código.
 - [`docs/data-model.mmd`](./data-model.mmd) — diagrama ER completo. Abrilo con la extensión Mermaid de VS Code o en [mermaid.live](https://mermaid.live).
 - [`docs/domain-entities.md`](./domain-entities.md) — narrativa: qué representa cada entidad, ciclo de vida, por qué existe.
 - [`docs/api-endpoints.md`](./api-endpoints.md) — endpoints (con tags `[✅ shipped]` / `[🚧 planned]` / `[🔒 outlier]`).

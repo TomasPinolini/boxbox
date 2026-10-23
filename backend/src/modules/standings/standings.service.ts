@@ -19,7 +19,6 @@ type ComputedStanding = {
   leagueMemberId: number;
   driverPoints: number;
   constructorPoints: number;
-  predictionPoints: number;
   totalPoints: number;
 };
 
@@ -59,14 +58,11 @@ function scoreTeam(
     ? (points.byConstructor.get(team.constructorId) ?? 0)
     : 0;
 
-  // Predictions no esta construido: la columna existe y va en 0. Es el unico lugar a tocar.
-  const predictionPoints = 0;
 
   return {
     driverPoints,
     constructorPoints,
-    predictionPoints,
-    totalPoints: driverPoints + constructorPoints + predictionPoints,
+    totalPoints: driverPoints + constructorPoints,
   };
 }
 
@@ -204,7 +200,6 @@ export async function findByLeague(leagueId: number, raceId?: number) {
       leagueMemberId: true,
       driverPoints: true,
       constructorPoints: true,
-      predictionPoints: true,
       totalPoints: true,
       position: true,
       positionChange: true,

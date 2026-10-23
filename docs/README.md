@@ -34,7 +34,7 @@ contra la rúbrica, en [`roadmap.md`](./roadmap.md).
 ## Onboarding (en orden)
 
 1. [`tutorial.md`](./tutorial.md) — clonar repo, levantar Postgres, correr seed, ver data en TablePlus. **15-20 min.**
-2. [`glossary.md`](./glossary.md) — definiciones de una línea para todas las entidades + términos del dominio (snake draft, lockDate, externalId, etc.).
+2. [`glossary.md`](./glossary.md) — definiciones de una línea para todas las entidades + términos del dominio (snake draft, soft-delete, externalId, etc.).
 3. [`data-model.mmd`](./data-model.mmd) — diagrama ER completo del dominio (renderealo en VS Code con la extensión Mermaid, o en [mermaid.live](https://mermaid.live)).
 4. [`domain-entities.md`](./domain-entities.md) — narrativa: qué representa cada entidad, qué atributos importan, cómo se relaciona, ciclo de vida, por qué existe.
 5. [`api-endpoints.md`](./api-endpoints.md) — surface de la API, con tags `[✅ shipped]` / `[🚧 planned]` / `[🔒 outlier]` por sección.

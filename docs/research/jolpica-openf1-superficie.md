@@ -184,7 +184,7 @@ HTTP externo del repo — confirmado con grep: no hay ningún `fetch`/axios a Op
 |---|---|---|---|
 | `round` | ✅ clave `(seasonId, round)` | — | — |
 | `raceName` | ✅ `Race.name` | — | — |
-| `date` + `time` | ✅ `Race.date`; `Race.lockDate` = una hora antes | — | — |
+| `date` + `time` | ✅ `Race.date` | — | — |
 | `Qualifying{date,time}` | — | ⚠️ `Race.qualifyingDate` — se escribe en el sync y **ninguna pantalla lo lee** (0 referencias en `frontend/src`) | — |
 | `Sprint{date,time}` | — | ⚠️ `Race.sprintDate` — ídem | — |
 | `Circuit.circuitId` | ✅ `Circuit.externalId` (clave de upsert y chequeo anti-desfasaje) | — | — |
@@ -240,8 +240,7 @@ consumimos **1 campo de 1 endpoint**, copiado a mano al seed, sin llamadas en ru
 Sin estimaciones de esfuerzo: sólo qué dato existe, que hoy no traemos, y qué habilitaría.
 
 1. **Qualifying de Jolpica (`/{year}/qualifying`: `Q1`, `Q2`, `Q3`, `position`) y/o `starting_grid`
-   de OpenF1.** Habilita la pole real, que es uno de los tres aciertos del Slice 10 (Predicciones,
-   `predictedPoleId` ya está en `schema.prisma`). Hoy no hay ninguna fuente de pole en la DB:
+   de OpenF1.** Habilita la pole real. Hoy no hay ninguna fuente de pole en la DB:
    `RaceResult.gridPosition` es la grilla de largada, que puede diferir de la pole por sanciones.
 2. **`session_result.points` de OpenF1 + `/{year}/driverstandings` de Jolpica.** Habilita una
    verificación independiente del campeonato que calculamos en el Slice 16: dos fuentes que

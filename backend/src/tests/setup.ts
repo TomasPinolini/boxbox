@@ -11,7 +11,7 @@ beforeEach(async () => {
   // Una tabla nueva tiene que sumarse acá.
   await prisma.$executeRawUnsafe(`
     TRUNCATE TABLE
-      sync_logs, league_standings, predictions, race_results, constructor_results,
+      sync_logs, league_standings, race_results, constructor_results,
       draft_picks, fantasy_teams, league_members, leagues, driver_seasons,
       races, circuits, seasons, drivers, constructors, users
     CASCADE

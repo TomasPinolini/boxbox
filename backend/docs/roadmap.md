@@ -38,19 +38,11 @@ vive en el hub, [`../../docs/roadmap.md`](../../docs/roadmap.md) → "Trámites 
 
 ---
 
-## Later — Predictions, y nada más
+## Later
 
-_(Scoring y sync ya están construidos: los Slices 9 y 12 viven en "Completados". Lo único que
-queda pendiente en este carril es el Slice 10, que es **Alcance Adicional Voluntario** de
-`proposal.md` — no entra en la rúbrica y no mueve la nota. El Slice 11 quedó eliminado por
-ADR-0006 y se deja abajo como lápida, para que nadie lo reintroduzca.)_
-
-### Slice 10 — Predictions
-
-- **Goal**: cada LeagueMember puede predecir winner/pole/topConstructor para cada carrera antes del `lockDate`. Cuando la carrera se completa, se evalúan y suman bonus.
-- **Touches**: tabla `Prediction`; nuevo módulo `modules/predictions/`; endpoints `PUT /leagues/:id/predictions/:raceId`, `GET .../mine`, `GET .../all` (post-lock); evaluación se dispara en el recalculate de Slice 9.
-- **Done when**: una predicción antes del lock se acepta. Después del lock se rechaza (409). Cuando se cargan los RaceResults, las predicciones acertadas suman bonus en LeagueStanding.predictionPoints.
-- **Blocked by**: nada — su único bloqueo era el Slice 9, que está hecho. `scoreTeam` en `standings.service.ts` llena `predictionPoints` con 0 y es el único lugar a tocar.
+_(Scoring y sync ya están construidos: los Slices 9 y 12 viven en "Completados". En este
+carril no queda nada pendiente. El Slice 11 quedó eliminado por ADR-0006 y se deja abajo
+como lápida, para que nadie lo reintroduzca.)_
 
 ### Slice 11 — DriverSwap — ELIMINADO (ADR-0006)
 
@@ -128,7 +120,7 @@ Si alguno de estos se vuelve demasiado grande, partir así:
   - **Funciones puras sobre filas planas** (`indexPoints`, `scoreTeam`, `rank`), sin `groupBy`/`aggregate` de Prisma — mismo patrón que `buildConstructorResults` (Slice 8), y se testean sin DB.
   - **El desempate es DETERMINÍSTICO, no "justo"**: `totalPoints` desc → `driverPoints` desc → `leagueMemberId` asc (el que se unió antes). Sin posiciones compartidas: en una liga de 3, las posiciones son 1, 2 y 3. Determinístico es lo que importa para que recalcular dos veces dé lo mismo.
   - **Sólo miembros `ACTIVE`** generan standings nuevos; el que se fue o fue echado conserva los viejos como historia. Mismo criterio que `GET /leagues/:id/members`.
-  - Un slot vacío del FantasyTeam (draft a medias o reseteado) vale cero en vez de quedar afuera de la tabla. `predictionPoints` se llena con 0: la columna existe y el Slice 10 es el único lugar a tocar.
+  - Un slot vacío del FantasyTeam (draft a medias o reseteado) vale cero en vez de quedar afuera de la tabla.
 - **Gotchas**:
   - **`positionChange` positivo = subió** (`posiciónAnterior - posiciónActual`), y 0 si no hay carrera anterior con standings o si el miembro no estaba. Se lee de la última `COMPLETED` con `round` menor, no de `round - 1`.
   - `409 RACE_NOT_COMPLETED` si la carrera no está `COMPLETED` — no se calcula sobre una fecha sin correr.

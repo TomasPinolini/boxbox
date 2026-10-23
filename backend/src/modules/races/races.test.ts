@@ -38,7 +38,6 @@ function validRace() {
     name: 'British Grand Prix',
     round: 1,
     date: '2026-07-05T14:00:00Z',
-    lockDate: '2026-07-04T12:00:00Z',
     seasonId,
     circuitId,
   };
@@ -168,7 +167,7 @@ describe('POST /api/v1/races', () => {
 
   // z.coerce.date() convertiria null/true/0 en 1970-01-01 sin fallar.
   it('rejects non-ISO dates instead of coercing them to 1970 (null, true, 0)', async () => {
-    for (const bad of [{ lockDate: null }, { qualifyingDate: true }, { date: 0 }]) {
+    for (const bad of [{ date: null }, { qualifyingDate: true }, { date: 0 }]) {
       const res = await request(app)
         .post('/api/v1/races')
         .set('Authorization', `Bearer ${adminToken}`)
@@ -187,7 +186,7 @@ describe('POST /api/v1/races', () => {
     const res = await request(app)
       .patch(`/api/v1/races/${created.body.data.id}`)
       .set('Authorization', `Bearer ${adminToken}`)
-      .send({ lockDate: null });
+      .send({ date: null });
     expect(res.status).toBe(400);
   });
 });

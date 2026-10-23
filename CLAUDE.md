@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 BoxBox is a Formula 1 Fantasy League web app — a university project (TP) for Desarrollo de Software at UTN FRRO. Users create/join private leagues, participate in a live snake draft to build a team (2 drivers, 1 constructor — no reserve driver, see ADR-0006), and compete across the F1 season with real race results.
 
-Backend Slices 1–9 and 12 are shipped (auth, leagues, membership, fantasy teams, snake draft over REST + Socket.io, race-result ingestion with per-constructor totals, league standings, Jolpica sync). Frontend Slices 13a, 13b, 14, 15 and 16 are shipped (auth + leagues screens, draft realtime UI, drivers list/detail, driver + constructor championship table, admin results screen, role-gated routes, e2e tests). Predictions (Slice 10) is the only slice left and it is **voluntary scope**. When in doubt about what is actually implemented, trust the source, not the docs — `ls backend/src/modules/` and `ls frontend/src/features/` answer it in one command.
+Backend Slices 1–9 and 12 are shipped (auth, leagues, membership, fantasy teams, snake draft over REST + Socket.io, race-result ingestion with per-constructor totals, league standings, Jolpica sync). Frontend Slices 13a, 13b, 14, 15 and 16 are shipped (auth + leagues screens, draft realtime UI, drivers list/detail, driver + constructor championship table, admin results screen, role-gated routes, e2e tests). When in doubt about what is actually implemented, trust the source, not the docs — `ls backend/src/modules/` and `ls frontend/src/features/` answer it in one command.
 
 ## Repository Layout
 
@@ -41,7 +41,7 @@ Every slice the cátedra's rubric gates for the 12/10 delivery is shipped (Slice
 
 Not yet built — **intentionally deferred**. Do not suggest implementing any of these without an explicit ask from the user:
 
-- Slice 10 Predictions — Alcance Adicional Voluntario in `docs/proposal.md`, no impact on the grade. Slice 11 DriverSwap was **dropped** (ADR-0006) — do not reintroduce a reserve driver or swaps.
+- Slice 11 DriverSwap was **dropped** (ADR-0006) — do not reintroduce a reserve driver or swaps.
 - Transfer ownership of leagues — owner trying to leave gets 409 `OWNER_CANNOT_LEAVE` (Linear BOX-31)
 - Refresh-token rotation / server-side revocation — `docs/roadmap.md` (the hub) lists this under "Out of scope para este TP (post-cursada)". That section outranks Linear (Linear BOX-32).
 - CI workflow (BOX-33), structured logging (BOX-34)
@@ -245,7 +245,7 @@ agent-browser snapshot -i           # 4. RE-SNAPSHOT tras cualquier navegación 
 ## Key Docs
 
 - `docs/proposal.md` — TP scope
-- `docs/data-model.mmd` — ER diagram. Verified field-by-field against `schema.prisma` on 2026-10-05: all 16 entities and every column match. Its header comment carries the one design decision worth knowing — `RaceResult` has no `constructorId`, the driver→constructor relation is owned by `DriverSeason` — and the limitation that follows from it.
+- `docs/data-model.mmd` — ER diagram. Verified field-by-field against `schema.prisma` on 2026-10-05: all 15 entities and every column match. Its header comment carries the one design decision worth knowing — `RaceResult` has no `constructorId`, the driver→constructor relation is owned by `DriverSeason` — and the limitation that follows from it.
 - `docs/api-endpoints.md` — full planned API surface (most endpoints not yet implemented)
 - `docs/tutorial.md` — local setup walkthrough for new contributors (clone → DB → seed)
 - `docs/roadmap.md` — roadmap hub: rubric status, epic ownership, out of scope. Holds nothing lane-specific.

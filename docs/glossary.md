@@ -21,7 +21,7 @@ Definiciones de una línea de todos los términos del dominio. Si necesitás nar
 | Término | Definición | Evitar |
 |---|---|---|
 | **Driver** | Piloto profesional de F1; entidad de catálogo con `number`, `code` (3 letras) y `externalId`. | pilot, racer |
-| **Constructor** | Equipo de F1 (Mercedes, Ferrari, ...) como entidad de catálogo; sirve como pick de draft y objetivo de predicción. | team |
+| **Constructor** | Equipo de F1 (Mercedes, Ferrari, ...) como entidad de catálogo; sirve como pick de draft. | team |
 | **Circuit** | Pista física donde se corre un Grand Prix; tiene `country`, `city`, `circuitLength`. | track, racetrack |
 | **Season** | Año del campeonato mundial (`year` único); solo una puede tener `isActive: true`. | year (suelto), championship |
 | **DriverSeason** | Fila que une **Driver** × **Constructor** × **Season** — modela "este piloto corrió para este equipo en esta temporada". | DriverContract, contract |
@@ -32,7 +32,7 @@ Definiciones de una línea de todos los términos del dominio. Si necesitás nar
 
 | Término | Definición | Evitar |
 |---|---|---|
-| **Race** | Grand Prix del calendario de una **Season**; tiene `round`, `date`, `lockDate` y `status` operativo. | GP (en código), event |
+| **Race** | Grand Prix del calendario de una **Season**; tiene `round`, `date` y `status` operativo. | GP (en código), event |
 | **RaceResult** | Resultado oficial de un **Driver** en el **Gran Premio** de una **Race** — no en su **Sprint**: position, points, gridPosition, fastestLap, status (CLASSIFIED/DNF/DSQ/DNS). Se renombra a **GrandPrixResult** (modelo y tabla, no el contrato HTTP) — ver [ADR-0010](./adr/ADR-0010-resultados-de-sprint-en-tablas-propias.md). | result (suelto), "resultado del fin de semana" |
 | **ConstructorResult** | Resultado agregado de un **Constructor** en una **Race**: `driver1Points` + `driver2Points`; pre-computado al cargar RaceResults. | teamResult |
 | **Sprint** | Carrera corta del sábado en ~6 fechas por temporada; reparte 8-7-6-5-4-3-2-1 al top 8 y no tiene punto de vuelta rápida. Sus puntos **sí** cuentan para los campeonatos y para las ligas; sus victorias y podios **no** entran en las estadísticas de un piloto, igual que en la F1 real. Su fecha vive en `Race.sprintDate`. | "carrera del sábado", sprint race |
@@ -47,7 +47,6 @@ Definiciones de una línea de todos los términos del dominio. Si necesitás nar
 | **League** | Competencia privada de hasta 11 **LeagueMember**s sobre una **Season**, con `inviteCode` único y `draftStatus`. | room, group, lobby |
 | **FantasyTeam** | Equipo armado por un **LeagueMember** en su **League**: 2 pilotos y 1 constructor (sin reserva — ADR-0006); 1:1 estricto con LeagueMember. | team (suelto — ambiguo con Constructor), lineup |
 | **DraftPick** | Una elección hecha por un **LeagueMember** durante el draft; referencia O un Driver O un Constructor (nunca ambos). | selection, choice |
-| **Prediction** | Pronóstico pre-carrera de un **LeagueMember**: ganador, pole y top constructor; suma bonus si acierta. | guess, bet, forecast |
 | **LeagueStanding** | Snapshot inmutable de la posición de un **LeagueMember** en su **League** después de una **Race** específica; guarda totalPoints, position, positionChange. | leaderboard entry, ranking row |
 
 ---
@@ -65,7 +64,6 @@ Definiciones de una línea de todos los términos del dominio. Si necesitás nar
 
 | Término | Definición | Evitar |
 |---|---|---|
-| **lockDate** | Timestamp por **Race** después del cual no se aceptan más **Prediction**s: **un minuto antes de `qualifyingDate`** ([ADR-0012](./adr/ADR-0012-predicciones-pre-carrera.md)). Hasta la v1.0.0 era una hora antes del race start, o sea después de la clasificación — por eso la pole no era un pronóstico. | deadline, cutoff |
 | **snake draft** | Modalidad de draft donde el orden de picks se revierte cada ronda (1→N, N→1, 1→N); 3 rondas en BoxBox: titular 1, titular 2, constructor. | serpentine draft, mirror draft |
 | **soft-delete** | Política de borrado lógico: la fila queda en DB con `deletedAt` seteado y se filtra de reads; solo aplica a entidades de catálogo (Driver, Constructor, Circuit). | logical delete (en docs); usar "borrar" cuando se borra físicamente |
 | **archivado** | Cierre definitivo de una **League** por su **owner**: pasa a `status = 'ARCHIVED'`, desaparece de los listados, deja de aceptar su `inviteCode` y sale del recálculo de **LeagueStanding**s. La fila y todos sus datos quedan en DB: una League **nunca** se borra (ADR-0009). | borrar/eliminar una liga, cancelar, cerrar |
@@ -106,7 +104,7 @@ Definiciones de una línea de todos los términos del dominio. Si necesitás nar
 >
 > **Dev A:** "OK, y el **LeagueStanding** se regenera cuando se carga el RaceResult, ¿no?"
 >
-> **Dev B:** "Lo dispara el endpoint `/recalculate`: recalcula `driverPoints` (de los 2 pilotos), `constructorPoints` (de su Constructor) y `predictionPoints` (de las Predictions evaluadas). El `positionChange` se computa contra el LeagueStanding de la Race anterior."
+> **Dev B:** "Lo dispara el endpoint `/recalculate`: recalcula `driverPoints` (de los 2 pilotos) y `constructorPoints` (de su Constructor). El `positionChange` se computa contra el LeagueStanding de la Race anterior."
 
 ---
 

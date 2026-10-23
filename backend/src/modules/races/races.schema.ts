@@ -2,8 +2,8 @@ import { z } from 'zod';
 import { RaceStatus } from '../../generated/prisma/enums';
 import { seasonQuerySchema } from '../../shared/params';
 
-// No usar z.coerce.date(): new Date(null), new Date(true) y new Date(0) no fallan, devuelven
-// 1970-01-01, y un lockDate en 1970 deja la carrera cerrada desde siempre.
+// No usar z.coerce.date(): new Date(null), new Date(true) y new Date(0) no fallan y devuelven
+// 1970-01-01, una fecha que nadie cargo.
 const isoDate = z.iso.datetime({ offset: true }).transform((s) => new Date(s));
 
 export const createRaceSchema = z.object({
@@ -12,7 +12,6 @@ export const createRaceSchema = z.object({
   date: isoDate,
   qualifyingDate: isoDate.optional(),
   sprintDate: isoDate.optional(),
-  lockDate: isoDate,
   seasonId: z.number().int(),
   circuitId: z.number().int(),
 });

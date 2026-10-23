@@ -42,7 +42,6 @@ const britanico: Race = {
   name: 'Gran Premio de Gran Bretaña',
   round: 12,
   date: '2026-07-05T14:00:00.000Z',
-  lockDate: '2026-07-04T12:00:00.000Z',
   qualifyingDate: null,
   sprintDate: null,
   status: 'UPCOMING',
@@ -56,7 +55,6 @@ const italiano: Race = {
   name: 'Gran Premio de Italia',
   round: 16,
   date: '2026-09-06T13:00:00.000Z',
-  lockDate: '2026-09-05T11:00:00.000Z',
   qualifyingDate: '2026-09-05T13:00:00.000Z',
   sprintDate: null,
   status: 'COMPLETED',
@@ -106,11 +104,7 @@ describe('RacesPage', () => {
       .slice(1)
       .map((fila) => fila.querySelectorAll('td')[1]?.textContent);
     // 2026 primero (ronda 12 antes que 16), 2025 al final aunque su ronda sea la 1.
-    expect(nombres).toEqual([
-      'Gran Premio de Gran Bretaña',
-      'Gran Premio de Italia',
-      'GP de 2025',
-    ]);
+    expect(nombres).toEqual(['Gran Premio de Gran Bretaña', 'Gran Premio de Italia', 'GP de 2025']);
   });
 
   it('crea una carrera mandando las fechas en ISO con zona', async () => {
@@ -125,7 +119,6 @@ describe('RacesPage', () => {
     await user.selectOptions(screen.getByLabelText('Temporada'), '1');
     await user.selectOptions(screen.getByLabelText('Circuito'), '10');
     await user.type(screen.getByLabelText('Fecha de carrera'), '2026-07-26T15:00');
-    await user.type(screen.getByLabelText('Cierre'), '2026-07-25T13:00');
     await user.click(screen.getByRole('button', { name: 'Crear carrera' }));
 
     await waitFor(() => expect(racesService.create).toHaveBeenCalled());
@@ -137,7 +130,6 @@ describe('RacesPage', () => {
     expect(enviado.circuitId).toBe(10);
     // El backend exige ISO 8601 con zona; el input no la trae.
     expect(enviado.date).toMatch(/Z$/);
-    expect(enviado.lockDate).toMatch(/Z$/);
     // Las opcionales vacías no viajan: el schema del backend las tiene optional, no nullable.
     expect(enviado.qualifyingDate).toBeUndefined();
     expect(enviado.sprintDate).toBeUndefined();
@@ -152,7 +144,6 @@ describe('RacesPage', () => {
     await user.type(screen.getByLabelText('Nombre'), 'GP sin datos');
     await user.type(screen.getByLabelText('Ronda'), '1');
     await user.type(screen.getByLabelText('Fecha de carrera'), '2026-07-26T15:00');
-    await user.type(screen.getByLabelText('Cierre'), '2026-07-25T13:00');
     await user.click(screen.getByRole('button', { name: 'Crear carrera' }));
 
     // Un "Obligatorio" por cada <select> sin elegir: temporada y circuito.
@@ -206,7 +197,9 @@ describe('RacesPage', () => {
       'tr',
     ) as HTMLElement;
 
-    await user.click(within(fila).getByRole('button', { name: 'Borrar Gran Premio de Gran Bretaña' }));
+    await user.click(
+      within(fila).getByRole('button', { name: 'Borrar Gran Premio de Gran Bretaña' }),
+    );
     // La consecuencia dice que el borrado es físico, no una baja lógica como en circuitos.
     expect(within(fila).getByRole('alert')).toHaveTextContent('se borra de la base');
     expect(racesService.remove).not.toHaveBeenCalled();
@@ -222,11 +215,7 @@ describe('RacesPage', () => {
   it('muestra en castellano el rechazo de una carrera con resultados', async () => {
     const user = userEvent.setup();
     vi.mocked(racesService.remove).mockRejectedValue(
-      new ApiError(
-        'RACE_HAS_DEPENDENCIES',
-        409,
-        'Cannot delete race with results, standings or predictions',
-      ),
+      new ApiError('RACE_HAS_DEPENDENCIES', 409, 'Cannot delete race with results or standings'),
     );
 
     renderWithQuery(<RacesPage />);
@@ -237,15 +226,5 @@ describe('RacesPage', () => {
     expect(
       await screen.findByText('No se puede borrar: la carrera ya tiene resultados cargados'),
     ).toBeInTheDocument();
-  });
-
-  it('explica qué es el cierre, asociado al campo', async () => {
-    renderWithQuery(<RacesPage />);
-
-    const ayuda = await screen.findByText(/la carrera queda cerrada/i);
-    expect(screen.getByLabelText('Cierre')).toHaveAttribute(
-      'aria-describedby',
-      ayuda.getAttribute('id'),
-    );
   });
 });

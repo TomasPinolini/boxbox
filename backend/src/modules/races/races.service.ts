@@ -75,7 +75,7 @@ export async function remove(id: number) {
     where: { id },
     select: {
       _count: {
-        select: { raceResults: true, constructorResults: true, predictions: true, standings: true },
+        select: { raceResults: true, constructorResults: true, standings: true },
       },
     },
   });
@@ -83,7 +83,7 @@ export async function remove(id: number) {
   const dependencies = Object.values(counts?._count ?? {}).reduce((a, b) => a + b, 0);
   if (dependencies > 0) {
     throw new ConflictError(
-      'Cannot delete race with results, standings or predictions',
+      'Cannot delete race with results or standings',
       'RACE_HAS_DEPENDENCIES',
     );
   }

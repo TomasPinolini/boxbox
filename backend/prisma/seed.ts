@@ -11,7 +11,6 @@ import { hashPassword } from '../src/shared/password';
 import { loadResults } from '../src/modules/races/races.service';
 import { loadRaceResultsSchema } from '../src/modules/races/races.schema';
 
-const oneHourBefore = (date: Date) => new Date(date.getTime() - 60 * 60 * 1000);
 
 type DriverData = {
   externalId: string;
@@ -662,7 +661,6 @@ async function main() {
         name: r.name,
         round: r.round,
         date: raceDate,
-        lockDate: oneHourBefore(raceDate),
         seasonId: season.id,
         circuitId,
       },

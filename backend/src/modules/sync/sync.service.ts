@@ -47,7 +47,6 @@ async function withSyncLog<T extends Outcome>(
   }
 }
 
-const oneHourBefore = (date: Date) => new Date(date.getTime() - 60 * 60 * 1000);
 const toDate = (s: { date: string; time?: string }) =>
   new Date(`${s.date}T${s.time ?? '00:00:00Z'}`);
 
@@ -86,7 +85,6 @@ export function syncRaces(year: number, triggeredById: number) {
       const data = {
         name: r.raceName,
         date,
-        lockDate: oneHourBefore(date),
         qualifyingDate: r.Qualifying ? toDate(r.Qualifying) : null,
         sprintDate: r.Sprint ? toDate(r.Sprint) : null,
         circuitId: circuit.id,

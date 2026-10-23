@@ -157,7 +157,7 @@ piloto, porque eso mezclaría temporadas y `round` dejaría de ser un orden tota
 | Método | Endpoint                 | Acceso | Notas                                                                                                                                                                                                                                             |
 | ------ | ------------------------ | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | GET    | `/races`                 | User   | Soporta `?seasonId=X&status=Y`                                                                                                                                                                                                                    |
-| GET    | `/races/:id`             | User   | Incluye estado de lock                                                                                                                                                                                                                            |
+| GET    | `/races/:id`             | User   |                                                                                                                                                                                                                                                   |
 | POST   | `/races`                 | Admin  |                                                                                                                                                                                                                                                   |
 | PATCH  | `/races/:id`             | Admin  |                                                                                                                                                                                                                                                   |
 | DELETE | `/races/:id`             | Admin  |                                                                                                                                                                                                                                                   |
@@ -231,16 +231,6 @@ Si el timer llega a 0 sin que nadie pickee, el servidor auto-asigna **al azar** 
 
 ---
 
-## Predictions [🚧 planned]
-
-| Método | Endpoint                               | Acceso        | Notas                                        |
-| ------ | -------------------------------------- | ------------- | -------------------------------------------- |
-| PUT    | `/leagues/:id/predictions/:raceId`     | League member | Upsert. Solo antes de `lockDate`             |
-| GET    | `/leagues/:id/predictions/:raceId`     | League member | Mi predicción                                |
-| GET    | `/leagues/:id/predictions/:raceId/all` | League member | Predicciones de todos. Solo después del lock |
-
----
-
 ## Standings & Recaps [🚧 planned]
 
 | Método | Endpoint                          | Acceso        | Notas                                         |
@@ -259,11 +249,6 @@ Si el timer llega a 0 sin que nadie pickee, el servidor auto-asigna **al azar** 
     "driver1Points": 18,
     "driver2Points": 12,
     "totalPoints": 30
-  },
-  "predictions": {
-    "winner": { "predicted": "Verstappen", "actual": "Verstappen", "correct": true, "points": 10 },
-    "pole": { "predicted": "Norris", "actual": "Norris", "correct": true, "points": 8 },
-    "topConstructor": { "predicted": "McLaren", "actual": "Ferrari", "correct": false, "points": 0 }
   },
   "standings": {
     "position": 2,
@@ -321,14 +306,6 @@ Todo el router va detrás de `requireAuth → requireAdmin`. Cada corrida deja u
 ### Puntos por Constructor
 
 Suma de los puntos reales de ambos pilotos del constructor en la carrera.
-
-### Puntos por Predicción
-
-| Predicción          | Puntos si es correcta |
-| ------------------- | --------------------- |
-| Race winner         | +10                   |
-| Pole position       | +8                    |
-| Team con más puntos | +12                   |
 
 ### Piloto que no termina (DNF / DSQ / DNS)
 
