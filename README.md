@@ -90,5 +90,5 @@ Para coordinar la defensa oral, cualquiera de los dos mails sirve.
 ## Gestión del Proyecto
 
 - **Metodología**: Kanban
-- **Herramienta de tracking**: [Linear](https://linear.app/pinolini/team/BOX/all) — detalle de la metodología y la bitácora en [`docs/gestion-del-proyecto.md`](./docs/gestion-del-proyecto.md)
+- **Herramienta de tracking**: [Linear](https://linear.app/pinolini/team/BOX/all)
 - **Repositorio**: [github.com/TomasPinolini/boxbox](https://github.com/TomasPinolini/boxbox)

@@ -18,16 +18,11 @@ Mapa directo de lo que pide la consigna ([utnfrrodsw/tp](https://github.com/utnf
 | Propuesta actualizada | [`proposal.md`](./proposal.md) — incluye la sección *Desvíos respecto de esta propuesta* |
 | Links a PR | [`proposal.md` § Pull Requests](./proposal.md#pull-requests) — listado completo y desglose por entregable |
 | Instrucciones de instalación | [`tutorial.md`](./tutorial.md) |
-| Minutas de reunión y avance | [`gestion-del-proyecto.md`](./gestion-del-proyecto.md) — metodología, coordinación y bitácora |
-| Tracking de features, bugs e issues | [`gestion-del-proyecto.md`](./gestion-del-proyecto.md#tracking-de-features-bugs-e-issues) + [Linear](https://linear.app/pinolini/team/BOX/all) |
+| Tracking de features, bugs e issues | [Linear](https://linear.app/pinolini/team/BOX/all) |
 | Documentación de la API | [`api-endpoints.md`](./api-endpoints.md) y [`error-codes.md`](./error-codes.md) |
-| Evidencia de ejecución de tests | [`test-evidence/`](./test-evidence/) |
 | Deployment (links y credenciales) | [`entrega/deployment.md`](./entrega/deployment.md) |
 | Video demo | **pendiente** — es el único entregable de Aprobación que falta |
 | Contacto del grupo | [`../README.md` § Integrantes](../README.md#integrantes) — tomaspinolini2003@gmail.com, tomasrivero16@gmail.com |
-
-Las decisiones de diseño con alternativas reales están en [`adr/`](./adr/) (12 ADR). El estado
-contra la rúbrica, en [`roadmap.md`](./roadmap.md).
 
 ---
 
@@ -38,7 +33,7 @@ contra la rúbrica, en [`roadmap.md`](./roadmap.md).
 3. [`data-model.mmd`](./data-model.mmd) — diagrama ER completo del dominio (renderealo en VS Code con la extensión Mermaid, o en [mermaid.live](https://mermaid.live)).
 4. [`domain-entities.md`](./domain-entities.md) — narrativa: qué representa cada entidad, qué atributos importan, cómo se relaciona, ciclo de vida, por qué existe.
 5. [`api-endpoints.md`](./api-endpoints.md) — surface de la API, con tags `[✅ shipped]` / `[🚧 planned]` / `[🔒 outlier]` por sección.
-6. [`roadmap.md`](./roadmap.md) — hub: estado contra la rúbrica, reparto de epics, fuera de alcance. El detalle por slice está en [`backend/docs/roadmap.md`](../backend/docs/roadmap.md) y [`frontend/docs/roadmap.md`](../frontend/docs/roadmap.md).
+6. [`backend/docs/roadmap.md`](../backend/docs/roadmap.md) y [`frontend/docs/roadmap.md`](../frontend/docs/roadmap.md) — los slices de cada carril, hechos y pendientes.
 
 Al terminar este pasaje deberías poder responder: *qué hace BoxBox, qué entidades viven en el modelo, qué endpoints están vivos hoy y qué slice viene después*.
 
@@ -46,11 +41,10 @@ Al terminar este pasaje deberías poder responder: *qué hace BoxBox, qué entid
 
 ## Construir una feature (en orden)
 
-1. El roadmap de tu carril — [`backend/docs/roadmap.md`](../backend/docs/roadmap.md) o [`frontend/docs/roadmap.md`](../frontend/docs/roadmap.md) — encontrá tu slice, leé `Goal` / `Touches` / `Done when` / `Blocked by`. El [`roadmap.md`](./roadmap.md) de acá es el hub y no lista slices.
-2. [`recipes/add-a-module.md`](./recipes/add-a-module.md) — si tu slice agrega un módulo nuevo, esta es la receta paso a paso (clonando `drivers/`).
-3. [`adr/`](./adr/) — leé las ADRs relevantes a tu área (ej: si tocás tests, leé la ADR de "real-DB integration tests, no mocks"). Te ahorrás reabrir decisiones cerradas.
-4. [`error-codes.md`](./error-codes.md) — si tu slice agrega errores nuevos, agregalos acá también.
-5. Al terminar: abrí PR con el template del repo y referenciá el número de slice.
+1. El roadmap de tu carril — [`backend/docs/roadmap.md`](../backend/docs/roadmap.md) o [`frontend/docs/roadmap.md`](../frontend/docs/roadmap.md) — encontrá tu slice, leé `Goal` / `Touches` / `Done when` / `Blocked by`.
+2. Si tu slice agrega un módulo nuevo, cloná `drivers/`: mismos nombres de archivo, misma forma de exports, mismas capas.
+3. [`error-codes.md`](./error-codes.md) — si tu slice agrega errores nuevos, agregalos acá también.
+4. Al terminar: abrí PR con el template del repo y referenciá el número de slice.
 
 ---
 
@@ -104,14 +98,9 @@ Detalles + envelope shape: ver [`../CLAUDE.md`](../CLAUDE.md) sección *Backend 
 | [`domain-entities.md`](./domain-entities.md) | Referencia | Dominio |
 | [`api-endpoints.md`](./api-endpoints.md) | Referencia | API |
 | [`error-codes.md`](./error-codes.md) | Referencia | API |
-| [`roadmap.md`](./roadmap.md) | Planificación (hub) | Build |
 | [`backend/docs/roadmap.md`](../backend/docs/roadmap.md) | Planificación (backend) | Build |
 | [`frontend/docs/roadmap.md`](../frontend/docs/roadmap.md) | Planificación (frontend) | Build |
-| [`recipes/add-a-module.md`](./recipes/add-a-module.md) | How-to | Build |
-| [`adr/`](./adr/) | Decisiones | Historia |
 | [`proposal.md`](./proposal.md) | Académico (congelado + desvíos) | Entrega |
-| [`gestion-del-proyecto.md`](./gestion-del-proyecto.md) | Académico | Entrega |
-| [`test-evidence/`](./test-evidence/) | Evidencia | Entrega |
 
 ---
 
@@ -119,7 +108,7 @@ Detalles + envelope shape: ver [`../CLAUDE.md`](../CLAUDE.md) sección *Backend 
 
 - **Si agregás una entidad nueva**: actualizá `data-model.mmd` + `glossary.md` + agregá una entrada en `domain-entities.md`. Sin eso, drift garantizado.
 - **Si agregás un endpoint**: actualizá `api-endpoints.md` con su tag. Si tira un código de error nuevo, agregalo a `error-codes.md`.
-- **Si tomás una decisión técnica que será difícil de revertir y sorprendente sin contexto**: escribí una ADR en `adr/` con `/draft-adr`.
+- **Si tomás una decisión técnica que será difícil de revertir y sorprendente sin contexto**: documentala en la descripción del PR, con las alternativas que descartaste.
 - **El roadmap se mueve, no se reescribe**: cuando completás un slice, marcalo `done` y movelo a "Completados" al final del roadmap de su carril; no lo borres.
 - **La numeración de slices es global a los dos carriles**: no se renumera al partir, ni al eliminar un slice. Un número más alto no implica dependencia — eso lo dice `Blocked by`.
 - **`CLAUDE.md` es la fuente de convenciones**, no estos docs. Si hay drift, gana CLAUDE.md y se actualiza el doc que sobra.

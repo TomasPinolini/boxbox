@@ -23,8 +23,6 @@ drafteando a la vez dejan de verse.
 Render corre un proceso único y mantiene válidas las dos suposiciones sin tocar el gateway.
 El frontend es una SPA estática, así que va a Vercel por el CDN y los preview deploys por PR.
 
-Detalle de la decisión y alternativas descartadas: `../adr/ADR-0008-render-backend-vercel-frontend.md`.
-
 ---
 
 ## Los dos servicios buildean desde `main`
@@ -534,7 +532,7 @@ dev tiene y prod no son las ligas: entre ellas la "Liga Demo BoxBox" (`liga-demo
 - **El plan free de Render suspende el servicio tras 15 minutos sin tráfico**, y el
   arranque en frío tarda ~50s. Antes de la defensa, abrir la URL una vez para despertarlo.
 - **El draft no reconecta.** Si el socket se corta, hay que recargar la página. Está
-  declarado fuera de alcance en [`roadmap.md`](../roadmap.md).
+  declarado fuera de alcance.
 - **Las dos bases tienen los mismos resultados; lo que las separa son las ligas.** Desde el
   2026-10-16 la app pública apunta a `boxbox-prod`, que el 2026-10-17 quedó con las **17
   fechas corridas de 2026** cargadas con el seed (371 `race_results`, 1716 puntos) — ver
@@ -556,8 +554,8 @@ así que llegó a producción.
 ### Hecho — señalizar que la app está en beta
 
 1. **`beta` y `v1.0.0` son ejes distintos.** El número versiona el contrato HTTP, que es
-   estable; la etiqueta habla de madurez del producto. No se bajó a `0.x`: ADR-0011 ya lo había
-   descartado con razones escritas. Quedó en `docs/glossary.md` como término + ambigüedad flageada.
+   estable; la etiqueta habla de madurez del producto. No se bajó a `0.x`: eso habría
+   mezclado los dos ejes. Quedó en `docs/glossary.md` como término + ambigüedad flageada.
 2. **Rótulo `Beta`** en sentence case al lado del logo (`AppLayout.tsx`). Es un `<span>` propio y
    no el `Badge` de `components/ui`: ése es `uppercase` a propósito y habría impreso `BETA`.
    Vive en un solo lugar, así que retirarlo es borrar un componente y sus dos usos.

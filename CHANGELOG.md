@@ -2,7 +2,7 @@
 
 Todas las versiones publicadas de BoxBox, escritas en lenguaje de usuario y no de commit.
 
-Las reglas están en [ADR-0011](./docs/adr/ADR-0011-semantic-versioning.md): un solo número para
+Se versiona con semver: un solo número para
 todo el repositorio, que vive en un tag anotado de git, y cuya superficie versionada es el contrato
 HTTP (`docs/api-endpoints.md` + `docs/error-codes.md`).
 

@@ -43,7 +43,7 @@ Definiciones de una línea de todos los términos del dominio. Si necesitás nar
 | Término | Definición | Evitar |
 |---|---|---|
 | **League** | Competencia privada de hasta 11 **LeagueMember**s sobre una **Season**, con `inviteCode` único y `draftStatus`. | room, group, lobby |
-| **FantasyTeam** | Equipo armado por un **LeagueMember** en su **League**: 2 pilotos y 1 constructor (sin reserva — ADR-0006); 1:1 estricto con LeagueMember. | team (suelto — ambiguo con Constructor), lineup |
+| **FantasyTeam** | Equipo armado por un **LeagueMember** en su **League**: 2 pilotos y 1 constructor (sin reserva); 1:1 estricto con LeagueMember. | team (suelto — ambiguo con Constructor), lineup |
 | **DraftPick** | Una elección hecha por un **LeagueMember** durante el draft; referencia O un Driver O un Constructor (nunca ambos). | selection, choice |
 | **LeagueStanding** | Snapshot inmutable de la posición de un **LeagueMember** en su **League** después de una **Race** específica; guarda totalPoints, position, positionChange. | leaderboard entry, ranking row |
 
@@ -54,7 +54,7 @@ Definiciones de una línea de todos los términos del dominio. Si necesitás nar
 | Término | Definición | Evitar |
 |---|---|---|
 | **SyncLog** | Registro auditable de una sincronización con Jolpica/OpenF1: `type`, `status`, contadores y `triggeredById` (nullable para syncs cron). | sync record, log entry |
-| **beta** | Etapa declarada del **producto**: faltan features del alcance declarado, puede haber caídas y **los puntos pueden recalcularse** cuando se corrige un defecto de scoring. Es **ortogonal a la versión semver** — [ADR-0011](./adr/ADR-0011-semantic-versioning.md) versiona el contrato HTTP, que sí es estable. | preview, early access, alpha; "versión beta" (confunde los dos ejes) |
+| **beta** | Etapa declarada del **producto**: faltan features del alcance declarado, puede haber caídas y **los puntos pueden recalcularse** cuando se corrige un defecto de scoring. Es **ortogonal a la versión semver** — semver versiona el contrato HTTP, que sí es estable. | preview, early access, alpha; "versión beta" (confunde los dos ejes) |
 
 ---
 
@@ -64,7 +64,7 @@ Definiciones de una línea de todos los términos del dominio. Si necesitás nar
 |---|---|---|
 | **snake draft** | Modalidad de draft donde el orden de picks se revierte cada ronda (1→N, N→1, 1→N); 3 rondas en BoxBox: titular 1, titular 2, constructor. | serpentine draft, mirror draft |
 | **soft-delete** | Política de borrado lógico: la fila queda en DB con `deletedAt` seteado y se filtra de reads; solo aplica a entidades de catálogo (Driver, Constructor, Circuit). | logical delete (en docs); usar "borrar" cuando se borra físicamente |
-| **archivado** | Cierre definitivo de una **League** por su **owner**: pasa a `status = 'ARCHIVED'`, desaparece de los listados, deja de aceptar su `inviteCode` y sale del recálculo de **LeagueStanding**s. La fila y todos sus datos quedan en DB: una League **nunca** se borra (ADR-0009). | borrar/eliminar una liga, cancelar, cerrar |
+| **archivado** | Cierre definitivo de una **League** por su **owner**: pasa a `status = 'ARCHIVED'`, desaparece de los listados, deja de aceptar su `inviteCode` y sale del recálculo de **LeagueStanding**s. La fila y todos sus datos quedan en DB: una League **nunca** se borra. | borrar/eliminar una liga, cancelar, cerrar |
 | **externalId** | ID estable que viene de Jolpica-F1 / OpenF1 para reconciliar entidades en re-syncs; `@unique` en Driver, Constructor, Circuit; `@unique` compuesto en Race. | external_key, jolpica_id |
 
 ---
@@ -94,7 +94,7 @@ Definiciones de una línea de todos los términos del dominio. Si necesitás nar
 
 > **Dev A:** "Si un **Driver** hace **DNF** en una **Race**, ¿el sistema lo reemplaza?"
 >
-> **Dev B:** "No — no hay piloto reserva (ADR-0006). El **RaceResult** con status `DNF` suma 0 puntos para ese slot del **FantasyTeam** en esa carrera, y listo."
+> **Dev B:** "No — no hay piloto reserva. El **RaceResult** con status `DNF` suma 0 puntos para ese slot del **FantasyTeam** en esa carrera, y listo."
 >
 > **Dev A:** "¿Y cuántos pueden entrar en una **League**?"
 >
@@ -113,5 +113,5 @@ Definiciones de una línea de todos los términos del dominio. Si necesitás nar
 - **"DriverContract"** (histórico) — fue rechazado a favor de **DriverSeason**. Si aparece en docs viejos o branches, corregir. La entidad no tiene semánticas de contrato (no hay fechas, salario, cláusulas).
 - **"result"** suelto — ambiguo entre **RaceResult** (por piloto) y **ConstructorResult** (por equipo). Siempre prefijar.
 - **"pick"** suelto — usar **DraftPick** cuando refiere a la entidad; verbo "pick" libre en conversación.
-- **"reserva" / "swap"** — ya no existen en el dominio (ADR-0006). Si aparecen en docs viejos o branches, corregir.
-- **"beta"** vs **"v1.0.0"** — **dos ejes distintos, no un conflicto**. El número versiona el contrato HTTP y hoy es estable; la etiqueta describe la madurez del producto para quien lo usa (features faltantes, caídas, puntos que se recalculan). Una app puede estar en `v1.x` y seguir siendo beta: no bajar la versión a `0.x` para señalizarlo, eso lo descartó ADR-0011 con razón escrita.
+- **"reserva" / "swap"** — ya no existen en el dominio. Si aparecen en docs viejos o branches, corregir.
+- **"beta"** vs **"v1.0.0"** — **dos ejes distintos, no un conflicto**. El número versiona el contrato HTTP y hoy es estable; la etiqueta describe la madurez del producto para quien lo usa (features faltantes, caídas, puntos que se recalculan). Una app puede estar en `v1.x` y seguir siendo beta: no bajar la versión a `0.x` para señalizarlo, eso mezclaría los dos ejes.

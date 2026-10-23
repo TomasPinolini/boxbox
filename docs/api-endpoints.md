@@ -190,7 +190,7 @@ piloto, porque eso mezclaría temporadas y `round` dejaría de ser un orden tota
 
 ### REST Endpoints
 
-3 rondas fijas por draft (una por slot de FantasyTeam): rondas 1-2 categoría DRIVER (llenan `driver1`/`driver2` en ese orden), ronda 3 categoría CONSTRUCTOR (llena `constructor`). Con N miembros ACTIVE, el draft completo son `N × 3` picks. No hay piloto reserva (ADR-0006). `start` rechaza con 409 `TOO_MANY_MEMBERS_FOR_DRAFT` si los miembros superan `floor(season.driverCount / 2)`.
+3 rondas fijas por draft (una por slot de FantasyTeam): rondas 1-2 categoría DRIVER (llenan `driver1`/`driver2` en ese orden), ronda 3 categoría CONSTRUCTOR (llena `constructor`). Con N miembros ACTIVE, el draft completo son `N × 3` picks. No hay piloto reserva. `start` rechaza con 409 `TOO_MANY_MEMBERS_FOR_DRAFT` si los miembros superan `floor(season.driverCount / 2)`.
 
 | Método | Endpoint                       | Acceso        | Notas                             |
 | ------ | ------------------------------ | ------------- | ---------------------------------- |
@@ -309,4 +309,4 @@ Suma de los puntos reales de ambos pilotos del constructor en la carrera.
 
 ### Piloto que no termina (DNF / DSQ / DNS)
 
-- No hay piloto reserva ni swaps (ADR-0006). Un piloto con status `DNF`, `DSQ` o `DNS` suma 0 puntos para ese slot del FantasyTeam en esa carrera.
+- No hay piloto reserva ni swaps. Un piloto con status `DNF`, `DSQ` o `DNS` suma 0 puntos para ese slot del FantasyTeam en esa carrera.

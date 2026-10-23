@@ -166,7 +166,7 @@ async function main() {
 
     let body: Record<string, number>;
     if (round === 3) {
-      // Ronda 3 es constructor (ADR-0006).
+      // Ronda 3 es constructor: no hay ronda de reserva.
       const pick = (available.body.data.constructors as { id: number }[]).find((c) =>
         fixtureConstructorIds.has(c.id),
       );

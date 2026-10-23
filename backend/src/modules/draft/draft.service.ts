@@ -1,5 +1,5 @@
 // Sin piloto reserva: con picks exclusivos por liga, 2 pilotos por miembro permiten ligas de
-// hasta 11 sobre 22. Ver docs/adr/ADR-0006 antes de reintroducirla.
+// hasta 11 sobre 22; reintroducirla rompe ese tope.
 //
 // El orden snake completo se materializa en startDraft como filas DraftPick vacias; el pick
 // actual es la de menor pickNumber sin llenar, sin otro estado derivado.

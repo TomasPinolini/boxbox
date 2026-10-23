@@ -83,7 +83,7 @@ function Logo({ className }: { className: string }) {
 
 // No usa Badge: ese es uppercase y un rotulo de etapa va en sentence case ("Beta", no "BETA").
 // Va como hermano del <Link> del logo, nunca adentro: el popover es un <button>, y un boton
-// dentro de un <a> es HTML invalido. "Beta" es del producto, no del contrato HTTP (ADR-0011).
+// dentro de un <a> es HTML invalido. "Beta" es del producto, no del contrato HTTP, que versiona semver.
 function BetaMark() {
   return (
     <>

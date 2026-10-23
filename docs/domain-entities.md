@@ -26,7 +26,7 @@ Cada LeagueMember **posee exactamente un FantasyTeam** (relación 1:1) y partici
 
 ## DraftPick
 
-Un **DraftPick** representa **una elección hecha por un LeagueMember durante el draft de su league**. El draft de BoxBox es un *snake draft* de 3 rondas: en cada ronda, cada miembro elige por turno un Driver (rondas 1 y 2) o un Constructor (ronda 3) para incorporar a su FantasyTeam. No hay piloto reserva (ver [ADR-0006](./adr/ADR-0006-draft-3-rondas-sin-reserva.md)).
+Un **DraftPick** representa **una elección hecha por un LeagueMember durante el draft de su league**. El draft de BoxBox es un *snake draft* de 3 rondas: en cada ronda, cada miembro elige por turno un Driver (rondas 1 y 2) o un Constructor (ronda 3) para incorporar a su FantasyTeam. No hay piloto reserva.
 
 Cada DraftPick tiene un `pickNumber` (orden global de la elección dentro del draft, ej: el 5° pick de toda la liga), un `round` (1 a 3), y referencia **o un Driver o un Constructor** — nunca ambos en el mismo pick (por eso `driverId` y `constructorId` son nullable y mutuamente exclusivos a nivel lógica de negocio).
 
@@ -110,7 +110,7 @@ Las Races no se borran — si una carrera se cancela, su status pasa a `CANCELLE
 
 Una **League** es la competencia privada en la que participan los usuarios de BoxBox. Un grupo de amigos (o compañeros de facultad) crea una liga para una temporada, invita a los demás con un código único, hace el draft juntos, y compite durante toda la temporada por el puntaje acumulado.
 
-Los atributos clave son **name**, **inviteCode** (único en el sistema — es el código que se comparte para unirse a la liga), **maxMembers** (default y tope = `floor(Season.driverCount / 2)`: 11 para la grilla de 22 — cada miembro draftea 2 pilotos exclusivos; ver ADR-0006), **seasonId** (una liga siempre pertenece a una temporada específica) y **createdById** (el User que la creó, que también es su primer LeagueMember con `isOwner = true`).
+Los atributos clave son **name**, **inviteCode** (único en el sistema — es el código que se comparte para unirse a la liga), **maxMembers** (default y tope = `floor(Season.driverCount / 2)`: 11 para la grilla de 22 — cada miembro draftea 2 pilotos exclusivos), **seasonId** (una liga siempre pertenece a una temporada específica) y **createdById** (el User que la creó, que también es su primer LeagueMember con `isOwner = true`).
 
 El **draftStatus** modela el estado del snake draft: `PENDING` (todavía no arrancó), `LIVE` (en progreso, turnos activos) y `COMPLETED` (draft cerrado, los equipos están armados). El **status** general es `ACTIVE` durante la temporada, y puede pasar a `ARCHIVED` al terminar o `CANCELLED` si se abandona.
 
@@ -122,7 +122,7 @@ Una League contiene muchos `LeagueMember`s y genera muchos `DraftPick`s. Existe 
 
 Un **FantasyTeam** es el equipo armado por un LeagueMember para competir en su liga. Tiene dos pilotos (`driver1Id`, `driver2Id`) y un Constructor (`constructorId`). Es la entidad que acumula puntos reales de F1 a través de los resultados de sus pilotos y constructor.
 
-Los tres slots (`driver1Id`, `driver2Id`, `constructorId`) son **nullable hasta que el draft se completa** — el FantasyTeam existe desde que el LeagueMember se une a la liga, pero empieza vacío. No hay piloto reserva: se eliminó del juego junto con `DriverSwap` (ver [ADR-0006](./adr/ADR-0006-draft-3-rondas-sin-reserva.md)); si un piloto no termina una carrera, ese slot suma 0 puntos en esa carrera.
+Los tres slots (`driver1Id`, `driver2Id`, `constructorId`) son **nullable hasta que el draft se completa** — el FantasyTeam existe desde que el LeagueMember se une a la liga, pero empieza vacío. No hay piloto reserva: se eliminó del juego junto con `DriverSwap`; si un piloto no termina una carrera, ese slot suma 0 puntos en esa carrera.
 
 La relación con LeagueMember es **1:1 estricta** — un miembro tiene exactamente un equipo en esa liga, y cada equipo pertenece a exactamente un miembro. El FantasyTeam existe como entidad propia (y no como columnas en LeagueMember) porque es el objeto que acumula puntos carrera a carrera, separado de la membresía (que tiene su propio ciclo: ACTIVE / LEFT / KICKED).
 
