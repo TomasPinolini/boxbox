@@ -7,6 +7,7 @@ import type { RaceResultStatus, SyncType } from '../../generated/prisma/enums';
 import { AppError, ConflictError, NotFoundError } from '../../shared/errors';
 import { fetchRaces, fetchRaceResults, type JolpicaResult } from '../../shared/jolpica';
 import { loadResults } from '../races/races.service';
+import { seasonTeams } from '../drivers/drivers.service';
 import { loadRaceResultsSchema, type LoadRaceResultsInput } from '../races/races.schema';
 
 type Skipped = { ref: string; reason: string };
@@ -175,10 +176,7 @@ export function syncResults(raceId: number, triggeredById: number, dryRun: boole
       select: { id: true, externalId: true },
     });
     const idByExternalId = new Map(drivers.map((d) => [d.externalId, d.id]));
-    const links = await prisma.driverSeason.findMany({
-      where: { seasonId: race.seasonId, driverId: { in: drivers.map((d) => d.id) } },
-    });
-    const inSeason = new Set(links.map((l) => l.driverId));
+    const inSeason = new Set((await seasonTeams(race.seasonId)).keys());
 
     const skipped: Skipped[] = [];
     const mapped: LoadRaceResultsInput['results'] = [];

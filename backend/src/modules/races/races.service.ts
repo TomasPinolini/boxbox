@@ -3,6 +3,7 @@ import { Prisma } from '../../generated/prisma/client';
 import type { RaceStatus } from '../../generated/prisma/enums';
 import { NotFoundError, ConflictError } from '../../shared/errors';
 import { CreateRaceInput, UpdateRaceInput, LoadRaceResultsInput } from './races.schema';
+import { seasonTeams } from '../drivers/drivers.service';
 
 export async function findAll(seasonId?: number, status?: RaceStatus) {
   return prisma.race.findMany({
@@ -138,12 +139,9 @@ export async function loadResults(raceId: number, input: LoadRaceResultsInput) {
       throw new NotFoundError('Driver');
     }
 
-    // El equipo de cada piloto vive en DriverSeason (cambia entre temporadas), no en Driver.
-    // Sin `select`: la relacion `constructor` choca con `Object.prototype.constructor` en los tipos.
-    const links = await tx.driverSeason.findMany({
-      where: { seasonId: race.seasonId, driverId: { in: [...uniqueDriverIds] } },
-    });
-    const constructorOf = new Map(links.map((l) => [l.driverId, l.constructorId]));
+    // El equipo de cada piloto cambia entre temporadas: vive en DriverSeason, no en Driver.
+    const teams = await seasonTeams(race.seasonId, tx);
+    const constructorOf = new Map([...teams].map(([driverId, t]) => [driverId, t.constructorId]));
     const unlinked = [...uniqueDriverIds].filter((id) => !constructorOf.has(id));
     if (unlinked.length > 0) {
       // Ignorarlo en silencio daria standings incompletos sin ninguna pista.

@@ -2,14 +2,12 @@ import { prisma } from '../../shared/prisma';
 import { Prisma } from '../../generated/prisma/client';
 import { NotFoundError, ConflictError } from '../../shared/errors';
 import { CreateConstructorInput, UpdateConstructorInput } from './constructors.schema';
-import { resolveSeasonId, type ConstructorRef } from '../drivers/drivers.service';
+import { resolveSeasonId, seasonTeams, type ConstructorRef } from '../drivers/drivers.service';
 
 const notDeleted = { deletedAt: null };
 
 // `as Prisma.XSelect` y no anotacion con `:`: la relacion `constructor` colisiona con
 // Object.prototype y tsc rechaza el select. Los tests no lo detectan, solo el build.
-const driverSeasonDriverIdSelect = { driverId: true } as Prisma.DriverSeasonSelect;
-
 const constructorResultDetailSelect = {
   raceId: true,
   driver1Points: true,
@@ -29,10 +27,9 @@ export async function findStandings(seasonId?: number) {
   const resolvedSeasonId = await resolveSeasonId(seasonId);
   if (!resolvedSeasonId) return [];
 
-  // Fila entera, sin select/include, por la colision de `constructor`.
-  const links = await prisma.driverSeason.findMany({ where: { seasonId: resolvedSeasonId } });
+  const teams = await seasonTeams(resolvedSeasonId);
   const constructors = await prisma.constructor.findMany({
-    where: { id: { in: links.map((l) => l.constructorId) }, ...notDeleted },
+    where: { id: { in: [...teams.values()].map((t) => t.constructorId) }, ...notDeleted },
   });
 
   const pointRows = await prisma.constructorResult.groupBy({
@@ -88,12 +85,12 @@ export async function findDetail(id: number) {
 
   // Queries planas y merge en TS, nunca `include`: con la relacion `constructor` tsc rechaza
   // hasta `include: { race: true }`.
-  const driverSeasons = (await prisma.driverSeason.findMany({
-    where: { constructorId: id, seasonId: resolvedSeasonId },
-    select: driverSeasonDriverIdSelect,
-  })) as { driverId: number }[];
+  const teams = await seasonTeams(resolvedSeasonId);
+  const driverIds = [...teams]
+    .filter(([, t]) => t.constructorId === id)
+    .map(([driverId]) => driverId);
   const drivers = await prisma.driver.findMany({
-    where: { id: { in: driverSeasons.map((ds) => ds.driverId) } },
+    where: { id: { in: driverIds }, ...notDeleted },
     select: {
       id: true,
       firstName: true,

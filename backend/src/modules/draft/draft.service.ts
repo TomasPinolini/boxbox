@@ -8,6 +8,7 @@ import { prisma } from '../../shared/prisma';
 import { Prisma } from '../../generated/prisma/client';
 import { NotFoundError, ConflictError } from '../../shared/errors';
 import { maxMembersForSeason } from '../leagues/leagues.service';
+import { seasonTeams, sortByConstructorThenName } from '../drivers/drivers.service';
 import type { DraftPickInput } from './draft.schema';
 
 const TOTAL_ROUNDS = 3;
@@ -147,7 +148,7 @@ export async function getAvailablePicks(leagueId: number) {
     throw new NotFoundError('League');
   }
 
-  const [drivers, constructors, links] = await Promise.all([
+  const [drivers, constructors, teams] = await Promise.all([
     prisma.driver.findMany({
       where: {
         deletedAt: null,
@@ -166,32 +167,13 @@ export async function getAvailablePicks(leagueId: number) {
       select: constructorAvailableSelect,
       orderBy: { name: 'asc' },
     }),
-    prisma.driverSeason.findMany({
-      where: { seasonId: league.seasonId },
-      // Mismo choque de `constructor` con Object.prototype que en pickSelect.
-      select: { driverId: true, constructorId: true } as Prisma.DriverSeasonSelect,
-    }),
+    seasonTeams(league.seasonId),
   ]);
 
-  // Merge en TS en vez de include: la relacion `constructor` choca con Object.prototype.
-  const constructorById = new Map(constructors.map((c) => [c.id, c]));
-  const constructorByDriver = new Map(
-    links.flatMap((l) => {
-      const constructor = constructorById.get(l.constructorId);
-      return constructor ? [[l.driverId, constructor] as const] : [];
-    }),
+  // Mismo orden que /drivers: con 2 columnas, cada fila es un equipo.
+  const availableDrivers = sortByConstructorThenName(
+    drivers.map((d) => ({ ...d, constructor: teams.get(d.id)?.constructor ?? null })),
   );
-
-  // Mismo orden que /drivers, por escuderia y apellido: con 2 columnas, cada fila es un equipo.
-  const availableDrivers = drivers.map((d) => ({
-    ...d,
-    constructor: constructorByDriver.get(d.id) ?? null,
-  }));
-  availableDrivers.sort((a, b) => {
-    const an = a.constructor?.name ?? '￿';
-    const bn = b.constructor?.name ?? '￿';
-    return an.localeCompare(bn) || a.lastName.localeCompare(b.lastName);
-  });
 
   return { drivers: availableDrivers, constructors };
 }
