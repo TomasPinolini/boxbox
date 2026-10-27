@@ -27,7 +27,7 @@ describe('WelcomeTour', () => {
     expect(screen.getByRole('button', { name: 'Empezar' })).toBeInTheDocument();
   });
 
-  it('cierra con Saltear, con Empezar y con Escape', async () => {
+  it('cierra con Saltear, con Empezar y cuando el navegador cierra el diálogo', async () => {
     const user = userEvent.setup();
 
     const saltear = vi.fn();
@@ -36,9 +36,10 @@ describe('WelcomeTour', () => {
     expect(saltear).toHaveBeenCalledOnce();
     unmount();
 
+    // jsdom no cierra un <dialog> con Escape: se cierra a mano, como lo haria el navegador.
     const escape = vi.fn();
     const segundo = render(<WelcomeTour onClose={escape} />);
-    await user.keyboard('{Escape}');
+    (screen.getByRole('dialog') as HTMLDialogElement).close();
     expect(escape).toHaveBeenCalledOnce();
     segundo.unmount();
 
@@ -49,13 +50,5 @@ describe('WelcomeTour', () => {
     }
     await user.click(screen.getByRole('button', { name: 'Empezar' }));
     expect(empezar).toHaveBeenCalledOnce();
-  });
-
-  it('devuelve el scroll del body al desmontarse', () => {
-    const { unmount } = render(<WelcomeTour onClose={vi.fn()} />);
-    expect(document.body.style.overflow).toBe('hidden');
-
-    unmount();
-    expect(document.body.style.overflow).not.toBe('hidden');
   });
 });

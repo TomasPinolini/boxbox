@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { Button, HelpPopover, UserAvatar } from '../components/ui';
+import { Button, HelpPopover, Modal, PencilIcon, UserAvatar } from '../components/ui';
 import { limitacionesConocidas } from '../features/changelog/changelog';
 import type { User } from '../models/user';
 import { EditProfileModal } from '../features/profile/EditProfileModal';
@@ -183,20 +183,7 @@ function UserMenu({
               }}
               className="flex h-11 w-11 shrink-0 items-center justify-center rounded text-red-600 hover:bg-red-50 dark:hover:bg-red-950"
             >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
-              >
-                <path d="M12 20h9" />
-                <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z" />
-              </svg>
+              <PencilIcon />
             </button>
           </div>
           {user.role === 'ADMIN' && (
@@ -231,35 +218,16 @@ export function AppLayout() {
   const navigate = useNavigate();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingProfile, setEditingProfile] = useState(false);
-  const hamburgerRef = useRef<HTMLButtonElement>(null);
-  const closeButtonRef = useRef<HTMLButtonElement>(null);
 
   async function logout() {
     await authService.logout();
     navigate('/login');
   }
 
+  // El foco vuelve solo a la hamburguesa: Modal cierra el <dialog> con close().
   function closeDrawer() {
     setDrawerOpen(false);
-    // Si el foco no vuelve a la hamburguesa, queda en un elemento que ya no esta en pantalla.
-    hamburgerRef.current?.focus();
   }
-
-  // Bloquea el scroll del body: si no, la pagina scrollea atras del overlay con el drawer encima.
-  useEffect(() => {
-    if (!drawerOpen) return;
-    closeButtonRef.current?.focus();
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') closeDrawer();
-    }
-    document.addEventListener('keydown', onKeyDown);
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      document.removeEventListener('keydown', onKeyDown);
-    };
-  }, [drawerOpen]);
 
   function renderNavLinks(className: (props: { isActive: boolean }) => string) {
     return (
@@ -293,7 +261,6 @@ export function AppLayout() {
         {/* La hamburguesa va a la izquierda porque el drawer entra por ese lado. */}
         <div className="mx-auto flex w-full max-w-5xl items-center justify-between px-4 py-3 md:hidden">
           <button
-            ref={hamburgerRef}
             type="button"
             aria-label="Abrir menú"
             aria-expanded={drawerOpen}
@@ -337,100 +304,76 @@ export function AppLayout() {
       <div aria-hidden="true" className="checkered h-2" />
 
       {drawerOpen && (
-        <>
-          {/* aria-hidden: es solo el gesto de cerrar, no un boton que anunciar. */}
-          <button
-            type="button"
-            aria-hidden="true"
-            tabIndex={-1}
-            onClick={closeDrawer}
-            className="fixed inset-0 z-20 bg-slate-900/50 md:hidden"
-          />
-          <div
-            id="menu-mobile"
-            role="dialog"
-            aria-modal="true"
-            aria-label="Menú de navegación"
-            className="enter-left fixed inset-y-0 left-0 z-30 flex w-72 max-w-[85vw] flex-col bg-white shadow-xl dark:bg-ink md:hidden"
-          >
-            <div className="flex items-center justify-between gap-2 border-b border-slate-200 p-4 dark:border-ink-border">
-              {user ? (
-                <div className="flex min-w-0 items-center gap-1">
-                  <div className="flex min-w-0 items-center gap-2.5">
-                    <UserAvatar user={user} />
-                    <span className="truncate font-semibold text-slate-900 dark:text-ink-text">
-                      {user.name}
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    aria-label="Editar perfil"
-                    onClick={() => {
-                      closeDrawer();
-                      setEditingProfile(true);
-                    }}
-                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded text-red-600 hover:bg-red-50 dark:hover:bg-red-950"
-                  >
-                    <svg
-                      width="14"
-                      height="14"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      aria-hidden="true"
-                    >
-                      <path d="M12 20h9" />
-                      <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z" />
-                    </svg>
-                  </button>
+        <Modal
+          id="menu-mobile"
+          label="Menú de navegación"
+          onClose={closeDrawer}
+          className="enter-left m-0 flex h-full max-h-none w-72 max-w-[85vw] flex-col bg-white shadow-xl backdrop:bg-slate-900/50 dark:bg-ink md:hidden"
+        >
+          <div className="flex items-center justify-between gap-2 border-b border-slate-200 p-4 dark:border-ink-border">
+            {user ? (
+              <div className="flex min-w-0 items-center gap-1">
+                <div className="flex min-w-0 items-center gap-2.5">
+                  <UserAvatar user={user} />
+                  <span className="truncate font-semibold text-slate-900 dark:text-ink-text">
+                    {user.name}
+                  </span>
                 </div>
-              ) : (
-                <span className="font-semibold text-slate-900 dark:text-ink-text">Menú</span>
-              )}
-              <button
-                ref={closeButtonRef}
-                type="button"
-                aria-label="Cerrar menú"
-                onClick={closeDrawer}
-                className="flex h-11 w-11 shrink-0 items-center justify-center text-2xl leading-none text-slate-400 hover:text-slate-600 dark:text-ink-muted dark:hover:text-ink-text"
-              >
-                ×
-              </button>
-            </div>
-
-            {/* Ni "Principal" (ya lo usa el nav de arriba) ni "Menú" (el dialog): dos landmarks
-                con el mismo nombre confunden la navegacion por regiones de un lector de pantalla. */}
-            <nav aria-label="Secciones" className="flex flex-1 flex-col gap-0.5 overflow-y-auto py-2">
-              {renderNavLinks(drawerLinkClass)}
-              {user?.role === 'ADMIN' && (
-                <AdminLinksGroup
-                  className={drawerLinkClass}
-                  labelClassName="pb-1 pl-4 pr-3 pt-3 text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-ink-muted"
-                  onNavigate={closeDrawer}
-                />
-              )}
-            </nav>
-
-            <div className="border-t border-slate-200 p-4 dark:border-ink-border">
-              {user ? (
-                <Button className="w-full" onClick={logout}>
-                  Cerrar sesión
-                </Button>
-              ) : (
-                <Link
-                  to="/login"
-                  onClick={closeDrawer}
-                  className="block w-full rounded-md bg-red-600 px-4 py-2 text-center text-sm font-semibold text-white hover:bg-red-700"
+                <button
+                  type="button"
+                  aria-label="Editar perfil"
+                  onClick={() => {
+                    closeDrawer();
+                    setEditingProfile(true);
+                  }}
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded text-red-600 hover:bg-red-50 dark:hover:bg-red-950"
                 >
-                  Ingresar
-                </Link>
-              )}
-            </div>
+                  <PencilIcon />
+                </button>
+              </div>
+            ) : (
+              <span className="font-semibold text-slate-900 dark:text-ink-text">Menú</span>
+            )}
+            <button
+              data-autofocus
+              type="button"
+              aria-label="Cerrar menú"
+              onClick={closeDrawer}
+              className="flex h-11 w-11 shrink-0 items-center justify-center text-2xl leading-none text-slate-400 hover:text-slate-600 dark:text-ink-muted dark:hover:text-ink-text"
+            >
+              ×
+            </button>
           </div>
-        </>
+
+          {/* Ni "Principal" (ya lo usa el nav de arriba) ni "Menú" (el dialog): dos landmarks
+              con el mismo nombre confunden la navegacion por regiones de un lector de pantalla. */}
+          <nav aria-label="Secciones" className="flex flex-1 flex-col gap-0.5 overflow-y-auto py-2">
+            {renderNavLinks(drawerLinkClass)}
+            {user?.role === 'ADMIN' && (
+              <AdminLinksGroup
+                className={drawerLinkClass}
+                labelClassName="pb-1 pl-4 pr-3 pt-3 text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-ink-muted"
+                onNavigate={closeDrawer}
+              />
+            )}
+          </nav>
+
+          <div className="border-t border-slate-200 p-4 dark:border-ink-border">
+            {user ? (
+              <Button className="w-full" onClick={logout}>
+                Cerrar sesión
+              </Button>
+            ) : (
+              <Link
+                to="/login"
+                onClick={closeDrawer}
+                className="block w-full rounded-md bg-red-600 px-4 py-2 text-center text-sm font-semibold text-white hover:bg-red-700"
+              >
+                Ingresar
+              </Link>
+            )}
+          </div>
+        </Modal>
       )}
 
       {editingProfile && user && (

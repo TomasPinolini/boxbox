@@ -1,56 +1,22 @@
-import axios, { type AxiosError, type AxiosInstance, type InternalAxiosRequestConfig } from 'axios';
 import { env } from '../config/env';
 import type { ApiEnvelope } from '../models/api';
 import type { User } from '../models/user';
 import { useAuthStore } from '../store/auth.store';
-import { toApiError } from './api-error';
-
-type RetriableConfig = InternalAxiosRequestConfig & { _retried?: boolean };
+import { errorFromResponse, toApiError } from './api-error';
 
 interface AuthPayload {
   user: User;
   accessToken: string;
 }
 
-// Un 401 fuera de /auth/* dispara un refresh y reintenta; si el refresh falla, cierra la sesion.
-// Todo error sale como ApiError: los componentes nunca ven un AxiosError.
+// Un 401 fuera de /auth/* dispara un refresh y reintenta una vez; si el refresh falla, cierra la
+// sesion. Todo error sale como ApiError: los componentes nunca ven un Response ni un TypeError.
 class ApiClient {
-  private readonly http: AxiosInstance;
+  private readonly baseURL: string;
   private refreshing: Promise<string> | null = null;
 
   constructor(baseURL: string) {
-    this.http = axios.create({ baseURL, withCredentials: true });
-
-    this.http.interceptors.request.use((config) => {
-      const token = useAuthStore.getState().accessToken;
-      if (token) config.headers.Authorization = `Bearer ${token}`;
-      return config;
-    });
-
-    this.http.interceptors.response.use(
-      (response) => response,
-      async (error: AxiosError) => {
-        const config = error.config as RetriableConfig | undefined;
-        const isAuthRoute = config?.url?.includes('/auth/') ?? false;
-        const canRetry =
-          error.response?.status === 401 &&
-          config !== undefined &&
-          !config._retried &&
-          !isAuthRoute &&
-          useAuthStore.getState().isLoggedIn();
-
-        if (!canRetry) throw toApiError(error);
-
-        try {
-          await this.refreshOnce();
-        } catch (refreshErr) {
-          useAuthStore.getState().clear();
-          throw toApiError(refreshErr);
-        }
-        config._retried = true;
-        return this.http.request(config);
-      },
-    );
+    this.baseURL = baseURL;
   }
 
   // Si ya hay un refresh en vuelo, todos esperan el mismo: N requests con 401 no disparan N refresh.
@@ -68,24 +34,65 @@ class ApiClient {
     return this.refreshing;
   }
 
-  async get<T>(url: string): Promise<T> {
-    const res = await this.http.get<ApiEnvelope<T>>(url);
-    return res.data.data;
+  get<T>(url: string): Promise<T> {
+    return this.request<T>('GET', url);
   }
 
-  async post<T>(url: string, body?: unknown): Promise<T> {
-    const res = await this.http.post<ApiEnvelope<T>>(url, body ?? {});
-    return res.data.data;
+  post<T>(url: string, body?: unknown): Promise<T> {
+    return this.request<T>('POST', url, body ?? {});
   }
 
-  async patch<T>(url: string, body?: unknown): Promise<T> {
-    const res = await this.http.patch<ApiEnvelope<T>>(url, body ?? {});
-    return res.data.data;
+  patch<T>(url: string, body?: unknown): Promise<T> {
+    return this.request<T>('PATCH', url, body ?? {});
   }
 
-  async delete<T = void>(url: string): Promise<T> {
-    const res = await this.http.delete<ApiEnvelope<T>>(url);
-    return res.data?.data;
+  delete<T = void>(url: string): Promise<T> {
+    return this.request<T>('DELETE', url);
+  }
+
+  private async request<T>(
+    method: string,
+    url: string,
+    body?: unknown,
+    retried = false,
+  ): Promise<T> {
+    const token = useAuthStore.getState().accessToken;
+    let res: Response;
+    try {
+      res = await fetch(this.baseURL + url, {
+        method,
+        // La cookie httpOnly del refresh vive en el dominio del backend, no en el del frontend.
+        credentials: 'include',
+        headers: {
+          ...(token && { Authorization: `Bearer ${token}` }),
+          ...(body !== undefined && { 'Content-Type': 'application/json' }),
+        },
+        body: body === undefined ? undefined : JSON.stringify(body),
+      });
+    } catch (err) {
+      throw toApiError(err);
+    }
+
+    if (res.ok) {
+      // Texto y no res.json(): un 204 de un DELETE viene sin cuerpo.
+      const text = await res.text();
+      return text ? (JSON.parse(text) as ApiEnvelope<T>).data : (undefined as T);
+    }
+
+    const canRetry =
+      res.status === 401 &&
+      !retried &&
+      !url.includes('/auth/') &&
+      useAuthStore.getState().isLoggedIn();
+    if (!canRetry) throw await errorFromResponse(res);
+
+    try {
+      await this.refreshOnce();
+    } catch (refreshErr) {
+      useAuthStore.getState().clear();
+      throw toApiError(refreshErr);
+    }
+    return this.request<T>(method, url, body, true);
   }
 }
 

@@ -8,9 +8,6 @@ import { EditProfileModal } from './EditProfileModal';
 
 vi.mock('../../services/auth.service');
 
-// getAllBy* y [0]: el popup tiene dos copias en el DOM (hoja de mobile y diálogo de escritorio;
-// CSS elige y jsdom no aplica CSS). Comparten el estado, así que tocar la [0] alcanza.
-
 const user: User = {
   id: 1,
   email: 'tomas@boxbox.test',
@@ -31,17 +28,17 @@ describe('EditProfileModal', () => {
   it('arranca con el nombre y el lema actuales, contador incluido', () => {
     renderWithQuery(<EditProfileModal user={user} onClose={() => {}} />);
 
-    expect(screen.getAllByDisplayValue('Tomás Rivero')).toHaveLength(2);
-    expect(screen.getAllByDisplayValue('Viejo lema')).toHaveLength(2);
+    expect(screen.getByDisplayValue('Tomás Rivero')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('Viejo lema')).toBeInTheDocument();
     // "Viejo lema" pesa 10.
-    expect(screen.getAllByText('10/40')).toHaveLength(2);
+    expect(screen.getByText('10/40')).toBeInTheDocument();
   });
 
   it('el "?" de Lema explica para qué sirve', async () => {
     const u = userEvent.setup();
     renderWithQuery(<EditProfileModal user={user} onClose={() => {}} />);
 
-    await u.click(screen.getAllByRole('button', { name: '¿Qué es el lema?' })[0]);
+    await u.click(screen.getByRole('button', { name: '¿Qué es el lema?' }));
 
     expect(screen.getAllByText(/Ver equipo del rival/).length).toBeGreaterThan(0);
   });
@@ -50,12 +47,12 @@ describe('EditProfileModal', () => {
     const u = userEvent.setup();
     renderWithQuery(<EditProfileModal user={user} onClose={() => {}} />);
 
-    const [mottoInput] = screen.getAllByDisplayValue('Viejo lema');
+    const mottoInput = screen.getByDisplayValue('Viejo lema');
     await u.clear(mottoInput);
     await u.type(mottoInput, 'x'.repeat(50));
 
-    expect(screen.getAllByDisplayValue('x'.repeat(40))).toHaveLength(2);
-    expect(screen.getAllByText('40/40')).toHaveLength(2);
+    expect(screen.getByDisplayValue('x'.repeat(40))).toBeInTheDocument();
+    expect(screen.getByText('40/40')).toBeInTheDocument();
   });
 
   it('Cancelar cierra sin guardar nada', async () => {
@@ -63,18 +60,18 @@ describe('EditProfileModal', () => {
     const u = userEvent.setup();
     renderWithQuery(<EditProfileModal user={user} onClose={onClose} />);
 
-    await u.click(screen.getAllByRole('button', { name: 'Cancelar' })[0]);
+    await u.click(screen.getByRole('button', { name: 'Cancelar' }));
 
     expect(onClose).toHaveBeenCalledTimes(1);
     expect(authService.updateProfile).not.toHaveBeenCalled();
   });
 
-  it('cierra con Escape', async () => {
+  // jsdom no cierra un <dialog> con Escape: se cierra a mano, como lo haria el navegador.
+  it('avisa cuando el navegador cierra el diálogo, como con Escape', () => {
     const onClose = vi.fn();
-    const u = userEvent.setup();
     renderWithQuery(<EditProfileModal user={user} onClose={onClose} />);
 
-    await u.keyboard('{Escape}');
+    (screen.getByRole('dialog', { name: 'Editar perfil' }) as HTMLDialogElement).close();
 
     expect(onClose).toHaveBeenCalledTimes(1);
   });
@@ -85,10 +82,10 @@ describe('EditProfileModal', () => {
     const u = userEvent.setup();
     renderWithQuery(<EditProfileModal user={user} onClose={onClose} />);
 
-    const [nameInput] = screen.getAllByDisplayValue('Tomás Rivero');
+    const nameInput = screen.getByDisplayValue('Tomás Rivero');
     await u.clear(nameInput);
     await u.type(nameInput, 'Otro nombre');
-    await u.click(screen.getAllByRole('button', { name: 'Guardar' })[0]);
+    await u.click(screen.getByRole('button', { name: 'Guardar' }));
 
     await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
     // [0][0]: react-query agrega un segundo argumento de contexto a mutationFn.
@@ -105,7 +102,7 @@ describe('EditProfileModal', () => {
     const u = userEvent.setup();
     renderWithQuery(<EditProfileModal user={user} onClose={onClose} />);
 
-    await u.click(screen.getAllByRole('button', { name: 'Guardar' })[0]);
+    await u.click(screen.getByRole('button', { name: 'Guardar' }));
 
     await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
     expect(authService.updateProfile).not.toHaveBeenCalled();
@@ -117,12 +114,12 @@ describe('EditProfileModal', () => {
     const u = userEvent.setup();
     renderWithQuery(<EditProfileModal user={user} onClose={onClose} />);
 
-    const [nameInput] = screen.getAllByDisplayValue('Tomás Rivero');
+    const nameInput = screen.getByDisplayValue('Tomás Rivero');
     await u.clear(nameInput);
     await u.type(nameInput, 'Otro nombre');
-    await u.click(screen.getAllByRole('button', { name: 'Guardar' })[0]);
+    await u.click(screen.getByRole('button', { name: 'Guardar' }));
 
-    expect(await screen.findAllByText('explotó')).not.toHaveLength(0);
+    expect(await screen.findByText('explotó')).toBeInTheDocument();
     expect(onClose).not.toHaveBeenCalled();
   });
 
@@ -136,14 +133,14 @@ describe('EditProfileModal', () => {
     it('con foto, aparece el botón de quitar', () => {
       renderWithQuery(<EditProfileModal user={userConFoto} onClose={() => {}} />);
 
-      expect(screen.getAllByRole('button', { name: 'Quitar foto de perfil' })).toHaveLength(2);
+      expect(screen.getByRole('button', { name: 'Quitar foto de perfil' })).toBeInTheDocument();
     });
 
     it('tocarlo la saca de la vista y el botón desaparece (nada para quitar dos veces)', async () => {
       const u = userEvent.setup();
       renderWithQuery(<EditProfileModal user={userConFoto} onClose={() => {}} />);
 
-      await u.click(screen.getAllByRole('button', { name: 'Quitar foto de perfil' })[0]);
+      await u.click(screen.getByRole('button', { name: 'Quitar foto de perfil' }));
 
       expect(screen.queryByRole('button', { name: 'Quitar foto de perfil' })).not.toBeInTheDocument();
     });
@@ -153,8 +150,8 @@ describe('EditProfileModal', () => {
       const u = userEvent.setup();
       renderWithQuery(<EditProfileModal user={userConFoto} onClose={onClose} />);
 
-      await u.click(screen.getAllByRole('button', { name: 'Quitar foto de perfil' })[0]);
-      await u.click(screen.getAllByRole('button', { name: 'Guardar' })[0]);
+      await u.click(screen.getByRole('button', { name: 'Quitar foto de perfil' }));
+      await u.click(screen.getByRole('button', { name: 'Guardar' }));
 
       await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
       expect(authService.removeAvatar).toHaveBeenCalledTimes(1);
@@ -166,8 +163,8 @@ describe('EditProfileModal', () => {
       const u = userEvent.setup();
       renderWithQuery(<EditProfileModal user={userConFoto} onClose={onClose} />);
 
-      await u.click(screen.getAllByRole('button', { name: 'Quitar foto de perfil' })[0]);
-      await u.click(screen.getAllByRole('button', { name: 'Cancelar' })[0]);
+      await u.click(screen.getByRole('button', { name: 'Quitar foto de perfil' }));
+      await u.click(screen.getByRole('button', { name: 'Cancelar' }));
 
       expect(onClose).toHaveBeenCalledTimes(1);
       expect(authService.removeAvatar).not.toHaveBeenCalled();
