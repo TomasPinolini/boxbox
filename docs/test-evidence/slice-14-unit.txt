@@ -1,0 +1,39 @@
+NOTA: el unico test rojo (auth.store > "nunca toca localStorage") NO es de Slice 14.
+Es la incompatibilidad de Node 26 con jsdom: Node define localStorage como un global lazy
+que deja inaccesible el de jsdom. Ya esta arreglado en la rama fix/node26-localstorage-tests
+(PR #27), que a la fecha de esta corrida seguia sin mergear — por eso esta rama, que sale de
+dev, todavia lo tiene. Los 9 tests nuevos de Slice 14 (DriverCard, ConstructorFilter,
+DriversPage) pasan los 9.
+
+
+> frontend@0.0.0 test
+> vitest run
+
+
+ RUN  v4.1.11 /home/pinola/Projects/boxbox/frontend
+
+(node:148708) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ❯ src/store/auth.store.test.ts (3 tests | 1 failed) 19ms
+     × nunca toca localStorage 8ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/store/auth.store.test.ts > useAuthStore > nunca toca localStorage
+TypeError: Cannot read properties of undefined (reading 'length')
+ ❯ src/store/auth.store.test.ts:27:25
+     25|   it('nunca toca localStorage', () => {
+     26|     useAuthStore.getState().setSession(user, 'tok');
+     27|     expect(localStorage.length).toBe(0);
+       |                         ^
+     28|   });
+     29| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 7 passed (8)
+      Tests  1 failed | 21 passed (22)
+   Start at  17:22:01
+   Duration  3.08s (transform 435ms, setup 2.07s, import 1.61s, tests 1.78s, environment 13.52s)
+

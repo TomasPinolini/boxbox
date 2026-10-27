@@ -1,0 +1,10 @@
+> backend@1.0.0 test
+> vitest run
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+ RUN  v4.1.12 /home/pinola/UTN/DSW/boxbox/backend
+ Test Files  13 passed (13)
+      Tests  303 passed (303)
+   Start at  15:48:08
+   Duration  52.49s (transform 367ms, setup 1.76s, import 5.15s, tests 44.13s, environment 1ms)

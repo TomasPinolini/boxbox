@@ -1,0 +1,13 @@
+
+> backend@1.0.0 test
+> vitest --run
+
+
+ RUN  v4.1.4 /home/pinola/Projects/boxbox/backend
+
+
+ Test Files  10 passed (10)
+      Tests  219 passed (219)
+   Start at  17:21:08
+   Duration  52.89s (transform 421ms, setup 1.70s, import 2.10s, tests 47.67s, environment 1ms)
+

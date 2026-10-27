@@ -1,0 +1,13 @@
+
+> frontend@0.0.0 test
+> vitest run
+
+
+ RUN  v4.1.11 /home/user/boxbox/frontend
+
+
+ Test Files  14 passed (14)
+      Tests  57 passed (57)
+   Start at  12:38:27
+   Duration  7.17s (transform 979ms, setup 1.89s, import 2.29s, tests 2.00s, environment 11.56s)
+
