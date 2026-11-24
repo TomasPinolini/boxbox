@@ -1,0 +1,19 @@
+# CI: en cada PR, GitHub levanta una maquina limpia y corre los tests unitarios del frontend.
+# El resultado aparece como check en el PR. El deploy (CD) no vive aca: lo hacen Render y
+# Vercel solos en cada push a main (docs/entrega/deployment.md).
+name: CI
+on: pull_request
+
+jobs:
+  frontend-tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - run: npm test
